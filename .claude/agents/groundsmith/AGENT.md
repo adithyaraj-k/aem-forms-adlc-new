@@ -59,8 +59,17 @@ changes.
 | Step | Skill (invoke via Skill tool) | Phase | Builds |
 |---|---|---|---|
 | Prefill | `create-prefill-service` | 7 | DataProvider SPI service (REST / CRX-DAM JSON / JCR draft) + OSGi config + repoinit + user mapping |
-| Submit | `create-submit-action` | 6 | FormSubmitActionService OSGi service + JCR submit-action node + OSGi config + unit test (REST / email / workflow trigger / DoR PDF) |
-| Workflow | `create-workflow` | 12 | workflow model (+ /conf design copy), variables, Assign Task / OR-AND split / Generate DoR / Invoke FDM / Send Email / Adobe Sign steps, launcher, mail config, AND the "Invoke an AEM Workflow" submit wiring on the guideContainer |
+| Submit | `create-submit-action` | 6 | `FormSubmitActionService` OSGi service + JCR submit-action node + OSGi config + unit test. Submit type → what to generate: |
+| | | | **Default (workflow)** — `assign-task-to-admin` wiring already on `guideContainer`; confirm, don't re-scaffold |
+| | | | **FDM** — wire `actionType="fd/afaddon/components/actions/fdm"` + `fdmEntityPath` (see rule 5a) |
+| | | | **REST (OOTB)** — simple POST, no auth/CORS issue → `actionType="fd/af/components/guidesubmittype/restendpoint"` + `restEndPointUrl`; **no code** (see rule 5b) |
+| | | | **REST (custom)** — Bearer token / headers / response handling → `FormSubmitActionService` + `HttpClient` (see rule 5b) |
+| | | | **REST (Agent-orchestrated)** — POST JSON to Agent endpoint → Agent runs Skills → returns `{ status, referenceId }` → `FORM_SUBMISSION_COMPLETE`; `timeoutMs` 10 000–30 000 ms (see rule 5c) |
+| | | | **Email** — plain notification → custom `FormSubmitActionService` + `MessageGatewayService` |
+| | | | **Email + PDF** — attach generated PDF, fixed body `"I have attached pdf file"` → `Custom-Submit-EmailWithPDF` + `ByteArrayDataSource` |
+| | | | **DoR PDF** — keep workflow action; add `forms.generate-pdf` clientlib dependency (client-side) |
+| FDM submit | `create-fdm` | data | Confirm FDM deployed + model service present → wire `guideContainer` (`actionType` + `fdmEntityPath` + `schemaRef`) → add Workflow Launcher. Canonical: `simple-interset-fdm` → `SimpleInterestServlet` |
+| Workflow | `create-workflow` | 12 | Workflow model (+ /conf design copy), variables, Assign Task / OR-AND split / Generate DoR / Invoke FDM / Send Email / Adobe Sign steps, launcher, mail config, AND submit wiring on `guideContainer` |
 | **Unit Tests** | **`create-form-tests`** | **13** | **JUnit 5 unit tests (AEM Mocks + Mockito) for every Java class authored in this integration phase — OSGi prefill services, submit action services, workflow process steps. Run LAST, after all Java is authored. MANDATORY — never hand off to Forgemaster without tests for every Java class produced here.** |
 
 ## How to execute
@@ -252,7 +261,27 @@ changes.
    ResourceResolver via try-with-resources.
 5. **Stay in your lane.** Schema/FDM/form/template/theme → Formwright; build/deploy + code-quality →
    Forgemaster; testing → Sentinel.
-5a. **Author only — defer deployment to Forgemaster.** Do **not** run `mvn` build/deploy yourself, and
+5a. **FDM submit — your wiring, not Formwright's.** Override `actionType="fd/afaddon/components/actions/fdm"` + `fdmEntityPath="$.{Entity}"` on the `guideContainer`. Verify the model-level service exists in the FDM "Services" tab — without it the FDM submit silently fails. Add a Workflow Launcher so `assign-task-to-admin` still fires. Canonical reference: `simple-interset-fdm` → `SimpleInterestServlet` (see `create-fdm` skill).
+5b. **REST endpoint — pick OOTB or custom before writing any code.**
+
+   | | OOTB | Custom |
+   |---|---|---|
+   | Auth | None / Basic | Bearer / OAuth / API key |
+   | Transport | Browser-direct POST → **CORS required on external server** | AEM server-side `HttpClient` → no CORS |
+   | Data format | `multipart/form-data` | JSON (`submitInfo.getData()`) |
+   | Response | Cannot inspect — always shows thank-you | Parse body; map `4xx/5xx` → `FORM_SUBMISSION_COMPLETE = FALSE` |
+   | Code needed | **None** — set `actionType="fd/af/components/guidesubmittype/restendpoint"` + `restEndPointUrl` + `enableRestEndpointPost="{Boolean}true"` on `guideContainer` | `FormSubmitActionService` + OSGi config `$[secret:…]` |
+
+   Both cases: add a Workflow Launcher so `assign-task-to-admin` still fires. See `create-submit-action` → "Submit to REST endpoint".
+
+5c. **Agent-orchestrated submit — form → REST → Agent → Skills → response.**
+   - `FormSubmitActionService.submit()` is the AEM entry point only — POST JSON (`submitInfo.getData()`) to the Agent's endpoint.
+   - The Agent fans out to Skills (validate / enrich / FDM / email / PDF / workflow) then returns `{ "status": "success"|"error", "message": "…", "referenceId": "…" }`.
+   - Map `status == "success"` → `FORM_SUBMISSION_COMPLETE = TRUE`; forward `referenceId` via `fd:redirectParameters`. Error → `FALSE`.
+   - **Agree the response contract before writing code.** Set `timeoutMs` to **10 000–30 000 ms** (multi-skill pipelines exceed the 5 000 ms default).
+   - Add a Workflow Launcher so `assign-task-to-admin` still fires. See `create-submit-action` → "Agent-orchestrated submit".
+
+5d. **Author only — defer deployment to Forgemaster.** Do **not** run `mvn` build/deploy yourself, and
    instruct every skill you delegate to (`create-prefill-service`, `create-submit-action`,
    `create-workflow`) to **skip its own deploy step (even ones marked "MANDATORY") and author
    artifacts only** — Forgemaster runs the single authoritative build+deploy after you
@@ -262,7 +291,7 @@ changes.
    step 3c), and Sentinel generates it again on cloud DEV before testing (its AGENT.md entry-gate step)
    — both read the model name from your `groundsmith.md` `artifacts.workflow` entry, so name every
    workflow model there even when you only reused the shared `assign-task-to-admin` model.
-5b. **`mvn test -pl core` MUST pass before handoff (`create-form-tests`, phase 13).** Running the Maven
+5e. **`mvn test -pl core` MUST pass before handoff (`create-form-tests`, phase 13).** Running the Maven
    test phase is the only way to confirm no test is broken and that coverage has not dropped below
    the Cloud Manager 50% gate. If it fails, fix the tests (or the Java class) before writing
    `groundsmith.md`. Do NOT defer to Forgemaster — it will fail the code-quality step in the pipeline.

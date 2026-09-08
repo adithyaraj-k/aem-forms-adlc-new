@@ -3,14 +3,17 @@ name: discover-form-requirements
 description: >
   Requirements Discovery for AEM Adaptive Forms on AEM as a Cloud Service. Turns a business
   objective, brief, PRD, stakeholder request, requirement document (PDF/Word/text), screenshot/Figma,
-  an existing form, or a PUBLIC WEBPAGE URL into a single STRUCTURED REQUIREMENTS artifact: the form
-  inventory, every field with its type/validation/options/accessibility, the data-binding intent
-  (schema vs FDM vs standalone), business rules, workflow needs, and the NFRs to hand to the Solution
-  Architect. When given a URL it WebFetches the page, isolates the embedded form, and captures BOTH a
-  field inventory AND a style spec (layout, fonts, colours, spacing, card/button styling) from the page
-  CSS so the pipeline can produce an EXACT-replica Adaptive Form. Use as
-  the first half of the Planwright (PLAN) phase, before any architecture or build skill runs. This
-  skill gathers and structures requirements — it does NOT design the solution (that is
+   an existing form, a PUBLIC WEBPAGE URL, or a FIGMA URL (https://www.figma.com/design/...) into a
+  single STRUCTURED REQUIREMENTS artifact: the form inventory, every field with its
+  type/validation/options/accessibility, the data-binding intent (schema vs FDM vs standalone),
+  business rules, workflow needs, and the NFRs to hand to the Solution Architect. When given a webpage
+  URL it WebFetches the page, isolates the embedded form, and captures BOTH a field inventory AND a
+  style spec (layout, fonts, colours, spacing, card/button styling) from the page CSS. When given a
+  Figma URL it uses the Figma MCP tools (mcp__figma__get_design_context / mcp__figma__get_screenshot /
+  mcp__figma__get_metadata / mcp__figma__get_variable_defs) to extract the form design, field inventory,
+  and design tokens directly — no WebFetch needed. Both flows produce an EXACT-replica Adaptive Form.
+  Use as the first half of the Planwright (PLAN) phase, before any architecture or build skill runs.
+  This skill gathers and structures requirements — it does NOT design the solution (that is
   architect-form-solution) and does NOT author artifacts (those are the create-* skills).
 version: 1.0.0
 ide:
@@ -50,9 +53,10 @@ Accept any of these (often several at once):
 |---|---|
 | Business objective / brief / PRD (text) | Read for goals, audience, scope |
 | Requirement doc (PDF / Word / image) | Read it; extract every field, validation, and rule |
-| Screenshot / Figma / wireframe | Read visually; inventory fields, layout, labels, sections |
+| Screenshot / Figma export / wireframe | Read visually; inventory fields, layout, labels, sections |
 | Existing form (JCR path / package) | Inspect it as the as-is baseline (likely a migration) |
 | **Public webpage URL** (a page with a form embedded on it) | **WebFetch it**; isolate the `<form>`; capture the two-part field inventory + style spec (see "Step 1a"). Produces an EXACT-replica Adaptive Form of ONLY that form — not the page chrome |
+| **Figma URL** (`https://www.figma.com/design/<fileId>/...`) | **Use Figma MCP tools** — do NOT WebFetch. Parse `fileId` and `node-id` from the URL; call `mcp__figma__get_design_context`, `mcp__figma__get_screenshot`, and `mcp__figma__get_variable_defs` to extract the form design, field inventory, and design tokens (see "Step 1b"). Produces an EXACT-replica Adaptive Form of ONLY the form frame — not the surrounding artboard chrome |
 | Stakeholder answers | Fold into the structured output |
 
 Classify the delivery so the architect knows the shape:
@@ -97,14 +101,91 @@ discovery, so the whole downstream pipeline has both what to build and how it mu
 
 ---
 
-## Step 2 — Elicit the gaps (ask, don't assume)
+## Step 1b — Figma URL input (Figma MCP tools → two-part capture)
+
+When the input is a **Figma URL** (`https://www.figma.com/design/<fileId>/...`), the goal is an
+**EXACT VISUAL + FUNCTIONAL REPLICA** of the form depicted in that Figma frame — taking **ONLY the
+form component/frame**, never the surrounding artboard or page chrome. Do **not** WebFetch a Figma
+URL — use the Figma MCP tools directly. Do this here, in discovery, so the whole downstream pipeline
+has both what to build and how it must look.
+
+**Parse the Figma URL first.** Extract:
+- `fileId` — the segment after `/design/` and before the next `/` (e.g. `XYlmNHKsZ94P4DULTq4haK`
+  from `https://www.figma.com/design/XYlmNHKsZ94P4DULTq4haK/Form--Community-?node-id=0-1&...`)
+- `nodeId` — the `node-id` query parameter value, if present (e.g. `0-1`); omit if absent.
+- `title` — the human-readable title segment in the URL path (e.g. `Form--Community-`), used as a
+  working name for the form.
+
+**Figma MCP tool call sequence:**
+
+1. **`mcp__figma__get_design_context`** (`fileId`, optional `nodeId`) — retrieves the full
+   component/layer tree of the file (or the specific frame/node when `nodeId` is supplied). From the
+   tree, **identify the frame or component that represents the form** (look for the top-level frame
+   whose name suggests a form or that contains input, label, button, and group layers). If the file has
+   multiple candidate frames, pick the one most closely matching the form and note the others under
+   `open_questions`.
+
+2. **`mcp__figma__get_screenshot`** (`fileId`, `nodeId` of the identified form frame) — captures a
+   pixel-accurate screenshot of **only the form frame**. Store the returned image path as
+   `{figmaScreenshotPath}`. This screenshot is the canonical visual reference:
+   - It becomes `reference_for_ui_check` in the structured requirements (used by `test-form-ui` /
+     `sentinel` for the UI parity check later).
+   - It drives the field inventory: read every visible label, input field, dropdown, checkbox, radio
+     button, date picker, file upload, button, section heading, helper text, and static copy from
+     the screenshot.
+
+3. **`mcp__figma__get_variable_defs`** (`fileId`) — retrieves all design tokens (colour variables,
+   typography styles, spacing/sizing variables, border-radius tokens). Map these to the `style_spec`
+   output:
+   - **Colours** → record every distinct hex/rgba value with its role (background, label text, border,
+     button fill, button text, error colour, section heading).
+   - **Typography** → font family, size, weight, line-height for each text role (form title, section
+     heading, field label, placeholder, helper text, button label, error message).
+   - **Spacing** → padding and gap values used between fields, sections, and inside the container.
+   - **Border-radius** → for field inputs, buttons, and the form card/container.
+   - **Column/layout structure** → read from the layer tree (e.g. 2-column grid, full-width fields,
+     side-by-side field pairs).
+
+4. **`mcp__figma__get_metadata`** (`fileId`) — optional; use if the file name or description carries
+   useful context (version, last-updated date, owner). Record any relevant metadata under `assumptions`.
+
+**From the screenshot + component tree, produce (a) the FIELD INVENTORY:**
+- For every input control in the form frame: its **label**, **inferred input type** (text / email /
+  tel / number / select / textarea / checkbox / radio / date / file — infer from layer names, icons,
+  and visual shape), **required** flag (look for asterisk `*` marker or "required" annotation),
+  **options** (for dropdowns/radio/checkbox groups — read the listed option labels from child layers),
+  **placeholder text** (read from the Figma layer), and any **visible validation hint** (character
+  limits, format notes shown as helper text). Map each to its AEM **Core Components AF field type**.
+  Preserve field **ORDER** (top-to-bottom, left-to-right within a row).
+- Record every non-field visible element as **display/static content**: form title, subtitle/description,
+  section headings, helper/hint text under fields, mandatory-fields legend, button labels, any
+  decorative icons or section-header icons (note them as image/icon requirements so design and build
+  do not drop them).
+
+**From the design tokens + layer tree, produce (b) the STYLE SPEC:**
+- All values from step 3 above, structured identically to the `style_spec` produced by the webpage
+  URL flow so DESI can consume them without distinguishing the source.
+
+**Set the defaults for a Figma replica:**
+- `figma_source_url`: the original Figma URL provided by the user.
+- `reference_for_ui_check`: `{figmaScreenshotPath}` (the screenshot captured in step 2 above).
+- `binding_intent: schema` — a Figma design carries no integration contract.
+- `submit: [dor_pdf]` — the shared **Custom-Submit-GeneratePDF** download-PDF-on-submit action is the
+  default submit for a Figma-driven replica.
+
+**Figma-access fallback (mandatory to state).** If the Figma MCP tools return an error (file not
+found, access denied, token missing), **state the limitation explicitly** and fall back to any
+exported screenshot or image the user can supply — treat it as a `{referenceImage}` and proceed
+with visual inventory from the image. Record the fallback under `open_questions`.
+
+---
 
 For each dimension below, if the input doesn't answer it, ask the user a targeted question. Group
 related questions; don't interrogate one at a time. Record answers; where the user can't answer,
 record an **assumption** with a sensible default and flag it.
 
-**Capture EVERY visible element when the input is a screenshot or a link (mandatory — nothing is skipped)**
-- When the input is a **screenshot/image, Figma, wireframe, or a link to a rendered page/form**, treat
+**Capture EVERY visible element when the input is a screenshot, Figma, or a link (mandatory — nothing is skipped)**
+- When the input is a **screenshot/image, Figma URL, Figma export, wireframe, or a link to a rendered page/form**, treat
   **every visible text and element as a requirement** and carry it into the Structured Requirements so it
   appears in the generated form. This includes — but is not limited to — the **form header/title** (e.g.
   "Health Insurance Application"), the **subtitle/description**, every **section/panel heading**, all
@@ -214,8 +295,10 @@ structured_requirements:
       workflow:
         needed: true | false
         summary: "2-step manager → finance approval; email on each; DoR on approval"
-      style_spec:                            # ONLY for a URL/webpage replica (Step 1a) — else omit
-        source_url: "<the fetched page URL>"
+      style_spec:                            # ONLY for a URL/webpage replica (Step 1a) OR Figma replica (Step 1b) — else omit
+        source_url: "<the fetched page URL>"           # Step 1a: the webpage URL; Step 1b: omit (use figma_source_url instead)
+        figma_source_url: "<https://www.figma.com/design/...>"  # Step 1b only — the original Figma URL provided by the user
+        reference_for_ui_check: "<source URL or figmaScreenshotPath>"  # Step 1a: source URL; Step 1b: path to mcp__figma__get_screenshot result
         layout: "2-column form; fields in multi-column rows as noted per section"
         field_order: [fullName, email, phone]  # exact source order
         fonts: "body 'Inter' 16px/400; labels 14px/600"
@@ -287,6 +370,16 @@ structured_requirements:
       `create-form-rules`; `binding_intent: schema`, `submit: [dor_pdf]`, `reference_for_ui_check` = the
       SOURCE URL; ONLY the form captured (not page chrome). A JS-rendered form WebFetch can't read is
       flagged as a limitation and falls back to user-supplied fields (nothing invented)
+- [ ] **When the input is a FIGMA URL** (`https://www.figma.com/design/...`), the Figma MCP tools were
+      used (NOT WebFetch): `mcp__figma__get_design_context` for the component/layer tree,
+      `mcp__figma__get_screenshot` for the form-frame screenshot, `mcp__figma__get_variable_defs` for
+      design tokens. BOTH captured: the **field inventory** (label/inferred-type/required/options/
+      placeholder/validation → Core Components AF field types, in source order) AND the **`style_spec`**
+      from the Figma tokens (layout/multi-column rows, fonts, colours, borders, card, spacing, button);
+      `binding_intent: schema`, `submit: [dor_pdf]`, `figma_source_url` = the original Figma URL,
+      `reference_for_ui_check` = the `mcp__figma__get_screenshot` result path; ONLY the form frame
+      captured (not the surrounding artboard/page chrome). A Figma-access failure is flagged and falls
+      back to any user-supplied exported screenshot (nothing invented)
 - [ ] Data binding **intent** captured (schema/fdm/none) with source-of-truth + any API spec & auth
       (intent only — the architect decides)
 - [ ] All business rules listed in plain language; layout (single/wizard/tabs/accordion) noted

@@ -170,26 +170,6 @@ properties dialog (tabs vary slightly by version):
 - **Assignee:** Assign to a specific user/group, or **dynamically** via a Participant Chooser
   script; user/group selection.
 - **Notifications:** Send Notification Email, Recipient Email Address, HTML Email Template.
-  ⚠️ **HTML Email Template is broken on this platform — never set it.** Live-proven via a real
-  form-submission A/B test on this SDK (`com.adobe.fd.workspace.step.service.EmailService`, from
-  `forms-dashboard-step-bundle`, exercised by `afParticipantStep`/`AssignFormStep` — a DIFFERENT,
-  simpler mailer than `com.adobe.fd.workflow.email.SendEmailStep` used by a dedicated "Send Email"
-  step, which is unaffected): any value in `HTML_EMAIL_TEMPLATE_LOCATION` — a plain `nt:file` path
-  or the same path with `/jcr:content` appended — makes `EmailService.setHtmlMessage` fail before
-  composing the mail (`NullPointerException` from `StrSubstitutor.replace(Object)` returning null,
-  or `FormsWorkflowException: "Email template is not defined"`), and the notification is never
-  sent. A sibling Assign Task step in the SAME model with `SEND_EMAIL_NOTIFICATION=true` and
-  `HTML_EMAIL_TEMPLATE_LOCATION` **absent** sent its notification successfully in the same run.
-  **Rule: leave HTML Email Template unset on every Assign Task.** Set `RECIPIENT_EMAIL_RESOLUTION`
-  (`LITERAL` + `EMAIL_LITERAL`, or `VARIABLE` + `EMAIL_VARIABLE`) for the recipient — that part
-  works fine. Put whatever information the template would have carried (audience, purpose, call to
-  action) into the step's own **Description** field (`jcr:description`, the node-level property
-  the real `cq:dialog` documents — confirmed live via `cq:dialog.infinity.json`) instead; it shows
-  in the AEM Inbox task list/detail and is read directly off the step node, not through
-  `EmailService`'s broken template loader. If a templated, branded notification is truly required,
-  use a dedicated **Send Email** step (`com.adobe.fd.workflow.email.SendEmailStep`,
-  `sling:resourceType=fd/workflow/components/email/sendemail`) placed after the Assign Task instead
-  of that step's own notification toggle.
 - **Data (input/output):** Pre-populated data file; input attachments; **Save output data file**;
   Save attachments; **Save Document of Record** (path relative to payload, or a variable).
 - **Routes & Route Variable:** **Route Variable** name (use `actionTaken`); Routes with titles and
@@ -259,73 +239,12 @@ properties dialog (tabs vary slightly by version):
 
 | Step | PROCESS class | Auto-advance |
 |---|---|---|
-| Set Variable (literal values only — NOT payload reads, see "Set Variable Step PROCESS_ARGS" below) | `com.adobe.granite.workflow.core.process.SetVariableProcess` | true |
-| Capture Submission Variables (payload reads, JSON-schema forms) | `com.aem.forms.agents.forms.workflow.CaptureSubmissionVariablesProcess` (this project's own step — see below) | true |
+| Set Variable | `com.adobe.granite.workflow.core.process.SetVariableProcess` | true |
 | Invoke FDM Service | `com.adobe.fd.workflow.aem.process.InvokeFormDataModelServiceStep` | true |
 | Generate Document of Record | `com.adobe.fd.workflow.aem.process.GenerateDocumentOfRecordStep` | true |
-| Send Email | `com.day.cq.workflow.process.SendEmail` (generic Granite — unverified on this project) OR `com.adobe.fd.workflow.email.SendEmailStep` (Forms-specific dedicated "Send Email" step, `sling:resourceType=fd/workflow/components/email/sendemail` — the one actually used and live-verified in this project, see below) | true |
+| Send Email | `com.day.cq.workflow.process.SendEmail` | true |
 | Convert to PDF/A | `com.adobe.fd.workflow.aem.process.ConvertPDFStep` | true |
 | Adobe Sign — Send for Signature | `com.adobe.fd.workflow.aem.process.AdobeSignStep` | **false** (waits) |
-
-### ⚠️ Send Email step (`com.adobe.fd.workflow.email.SendEmailStep`) — template placeholder syntax (live-verified, decompiled)
-
-A rejection/approval email that renders the literal placeholder text instead of the real value
-(e.g. an email showing `${workflowData.metaDataMap.requestId}` verbatim) means the template used
-the WRONG placeholder syntax for this step. Decompiling
-`com.adobe.fd.workflow.email.internal.util.BuildAndSendMailUtil` (bundle
-`com.adobe.aemfd.adobe-aemfd-workflow-process-common`) shows the template body is run through
-Apache Commons Lang `StrSubstitutor` (default `${key}` delimiters) against a `Properties` map
-built **only** from this step's own `Key`/`Value`/`templatemetadatatype` metaData arrays — it never
-walks a generic `workflowData.metaDataMap.*` EL path, so that syntax (and any other EL-looking
-path) always passes through unresolved, with no error logged.
-
-- **Template placeholders must be plain `${key}`**, where `key` matches an entry in this step's
-  own `Key` array (e.g. `${requestId}`, `${rejectionReason}`) — not `${workflowData.metaDataMap.
-  key}`, not any dotted/EL-style path.
-- **The step needs its own metadata mapping**, three parallel `String[]` arrays on the step's
-  `metaData` node:
-  - `Key` — the placeholder name as it appears in the template (`${Key[i]}`).
-  - `Value` — the workflow variable name to read (when `templatemetadatatype[i]="Variable"`).
-  - `templatemetadatatype` — `"Variable"` (read `Value[i]` from the workflow's `metaDataMap`),
-    `"Metadata"` (same lookup path, kept for parity with the decompiled code — behaves the same as
-    `"Variable"`), or `"Literal"` (use `Value[i]` as a literal string). `"Asset"`/`"AssetURL"` exist
-    for asset-path substitution and additionally consult `urlPath`/`hiddenCheckbox` arrays — not
-    needed for a simple variable substitution.
-  - In the editor this is the Send Email step's own "Add Parameter"/metadata table (Key / Value /
-    Type columns) — configure it there, or author the three arrays directly, e.g.:
-    ```xml
-    <process_email_rejected jcr:primaryType="nt:unstructured"
-        sling:resourceType="fd/workflow/components/email/sendemail" jcr:title="Send Rejection Notification">
-      <metaData jcr:primaryType="nt:unstructured"
-          PROCESS="com.adobe.fd.workflow.email.SendEmailStep"
-          PROCESS_AUTO_ADVANCE="true"
-          subjectType="Literal" emailSubject="Request Rejected"
-          toAddressType="Variable" toAddressValue="applicantEmail"
-          templatePath="/apps/{project}/workflow/notification/email/{workflowName}/rejection.html"
-          Key="{String}[requestId,rejectionReason]"
-          Value="{String}[requestId,rejectionReason]"
-          templatemetadatatype="{String}[Variable,Variable]"/>
-    </process_email_rejected>
-    ```
-  - Without a `Key`/`Value` entry for a given placeholder, that Properties map is missing the key
-    entirely, so `StrSubstitutor` leaves `${thatKey}` untouched in the sent email — exactly the
-    live-reported symptom on this project's `employee-training-request-approval` model, fixed by
-    adding these arrays (this project's approval/rejection email templates use `${requestId}` and
-    `${rejectionReason}`, so `Key`/`Value` list exactly those two names).
-- This is a **different mailer** from the Assign Task's own notification (`com.adobe.fd.workspace.
-  step.service.EmailService`, documented above under "Assign Task" — that one is broken for
-  `HTML_EMAIL_TEMPLATE_LOCATION` entirely and should never be templated). `SendEmailStep`'s template
-  loading itself works; only the placeholder syntax and the Key/Value metadata wiring are the parts
-  that must be gotten right.
-- **Verify what the generator actually resolves against `.../<parsys-node>.1.json`.** If the editor
-  is used to author/re-author a Send Email step, check for a leftover STALE SIBLING node with the
-  old auto-generated name before assuming the config took — this project hit exactly this: the
-  editor created a NEW node named `process_email_approv` (missing the trailing "ed") alongside the
-  ORIGINAL `process_email_approved` node from the initial deploy, both siblings in the same parsys
-  chain, only one of them carrying the current live config. A duplicate `fd/workflow/components/
-  email/sendemail` sibling in the same chain gets walked into the generated flow as a SECOND step —
-  delete the stale one (confirm which is real via `jcr:lastModified`/its metaData completeness)
-  before regenerating, and rename the source `.content.xml` node to match the one actually in use.
 
 ### OR Split / AND Split / AND Join / Goto
 ```xml
@@ -334,132 +253,6 @@ path) always passes through unresolved, with no error logged.
 <nodeC jcr:primaryType="cq:WorkflowNode" title="AND Join"        type="AND_JOIN"  x="600" y="280"><metaData jcr:primaryType="nt:unstructured"/></nodeC>
 <nodeD jcr:primaryType="cq:WorkflowNode" title="Return"          type="GOTO"      x="600" y="400"><metaData jcr:primaryType="nt:unstructured" GOTO="node1"/></nodeD>
 ```
-This is the `/var` runtime shape (`type="OR_SPLIT"` etc.) — logical reference only, per the
-accuracy caveat at the top of this file. **The `/conf` design-model recipe below is what you
-actually author, and it IS headlessly generatable** (see next section — this reverses an
-earlier, now-superseded conclusion that a real OR-split required Workflow Editor UI/browser
-access).
-
-### ⚠️ OR-split condition: use the editor's Rule Definition builder (`expression{N}`), not `script{N}` ECMA
-
-**FIX PASS 39 update — this is now the project's PRIMARY, recommended way to author a simple
-variable-equals-literal OR-split condition.** `employee-training-request-approval`'s two
-OR-splits (`orsplit_manager`, `orsplit_finance`) were built with the `script{N}` ECMA recipe
-below and, even after correcting the `workItem`→`graniteWorkflowData` binding bug (Fix Pass 38),
-the AEM Inbox's "Complete Work Item" dialog still failed to route Approve/Reject in practice
-(`WorkflowException: "No route found to continue from step nodeN"` from
-`WorkItemManager.getRoutes()`'s pre-click route-preview evaluation). The user resolved it —
-live-confirmed working end-to-end — by reconfiguring both splits' Approve/Reject conditions in
-the Workflow Model editor's own graphical **"Rule Definition"** builder (pick the workflow
-variable, e.g. `actionTaken`, operator "Equals", literal value `Approve`/`Reject`) instead of
-typing an ECMA script into the Script field. Reading the node back afterward
-(`.../orsplit_manager.infinity.json`) shows the editor persists this as an `expression{N}`
-property — a JSON rule-builder AST — and `script{N}` is gone entirely:
-
-```json
-"expression1": "{\"nodeName\":\"ROOT\",\"items\":[{\"nodeName\":\"STATEMENT\",\"choice\":{\"nodeName\":\"CONDITION\",\"choice\":{\"nodeName\":\"COMPARISON_EXPRESSION\",\"items\":[{\"nodeName\":\"EXPRESSION\",\"choice\":{\"nodeName\":\"COMPONENT\",\"value\":{\"id\":\"actionTaken\",\"displayName\":\"actionTaken\",\"type\":\"STRING\",\"displayPath\":\"workflow_variables/actionTaken/\",\"name\":\"actionTaken\",\"parent\":\"workflow_variables\",\"metadata\":{}}}},{\"nodeName\":\"OPERATOR\",\"choice\":{\"nodeName\":\"EQUALS_TO\",\"value\":null}},{\"nodeName\":\"EXPRESSION\",\"choice\":{\"nodeName\":\"STRING_LITERAL\",\"value\":\"Approve\"}}]},\"nested\":false}}],\"isValid\":true,\"enabled\":true,\"version\":1}"
-```
-(`expression2` is identical with `"value":"Reject"`.) In `/conf` DocView XML, wrap the attribute
-value in **single quotes** (the JSON itself is all double quotes) and still escape the leading
-`{` per this project's FileVault rule: `expression1='\{"nodeName":"ROOT",...}'`. See
-`employee-training-request-approval`'s `orsplit_manager`/`orsplit_finance` nodes for the
-live-deployed, byte-exact example.
-
-**How to author this for a new model:** this AST is an editor-internal format, not documented by
-Adobe — build the condition once in the Workflow Model editor's Rule Definition UI (select
-variable → operator → literal), **Sync**, then capture the resulting `expression{N}` value via a
-`.infinity.json` GET on the split node and copy it into the `/conf` design model you commit. Do
-not hand-write a new `expression{N}` JSON from scratch; always source it from a live editor build.
-
-**When `script{N}` ECMA is still appropriate:** only for conditions the graphical builder cannot
-express (e.g. multi-variable boolean logic, numeric comparisons/ranges, custom functions) — see
-the recipe below. If you do use it, it must use `graniteWorkflowData` (never `workItem`, see the
-Transition Node section below) — but treat it as a fallback, not the default, since it was the
-mechanism that failed real Inbox routing on this project even when correctly written.
-
----
-
-### `script{N}` ECMA recipe (fallback only — see above) — definitive, live-verified authoring shape
-
-An earlier investigation on this project concluded a real `cq/workflow/components/model/or`
-step with nested branches was a **hard `generate.json` failure** ("Unable to save workflow
-model") and that only a plain, unresolvable placeholder (`sling:resourceType=
-"cq/workflow/components/model/orsplit"` — note the **extra trailing "split"**, which is **not
-a registered component at all**, confirmed 404) would deploy — silently collapsing the whole
-model to sequential with no real branch. That conclusion was **wrong** — the actual bug was
-using descriptive branch-child names (`approve`/`reject`) instead of the exact shape the
-component's own renderer expects. Live-reading
-`/libs/cq/flow/components/control/split/split.jsp` (the component's real HTL/JSP renderer, not
-guessed) shows it iterates branch content via
-`<cq:include path="<%= String.valueOf(i) %>" resourceType="cq/flow/components/parsys" />` for
-`i=1..branches` — i.e. **the branch child nodes must be named literally `1`, `2`, …** (plain
-numeric JCR names — valid via Sling POST, which talks JCR directly; only the FileVault DocView
-XML *serialization* needs the ISO9075 escape `_x0031_`/`_x0032_` since XML element names can't
-start with a digit).
-
-The full recipe, live-verified end-to-end via `generate.json` on a disposable probe model
-(created, tested, and deleted this pass) and then applied to a real model
-(`employee-training-request-approval`) — the generated `/var` runtime showed a genuine
-`OR_SPLIT` node with two real transitions (each carrying an actual `rule` function keyed off
-`actionTaken`) reconverging through an auto-inserted `OR_JOIN`:
-
-```xml
-<!-- /conf design model, inside the flow parsys -->
-<my_or_split
-    jcr:primaryType="nt:unstructured"
-    sling:resourceType="cq/workflow/components/model/or"
-    jcr:title="Decision"
-    orSplit="{Boolean}true"
-    branches="{Long}2"
-    branchName1="Approve"
-    branchName2="Reject"
-    script1="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
-    script2="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}">
-
-    <!-- Branch "1" content — numeral node name, ISO9075-escaped as _x0031_ in DocView XML -->
-    <_x0031_
-        jcr:primaryType="nt:unstructured"
-        sling:resourceType="cq/flow/components/parsys">
-        <!-- Approve-path steps go here -->
-    </_x0031_>
-
-    <!-- Branch "2" content — ISO9075-escaped as _x0032_ -->
-    <_x0032_
-        jcr:primaryType="nt:unstructured"
-        sling:resourceType="cq/flow/components/parsys">
-        <!-- Reject-path steps go here -->
-    </_x0032_>
-</my_or_split>
-```
-
-Key points, all live-confirmed (not from Adobe docs, which don't cover this level of detail):
-- `sling:resourceType="cq/workflow/components/model/or"` — the REAL component (title "OR Split").
-  `.../model/orsplit` (extra "split") is **not a registered resourceType at all** — 404, and
-  silently dropped by `ModelGenerateServlet` rather than erroring, which is why it looked like a
-  harmless-but-inert placeholder rather than an obvious bug.
-- `orSplit="{Boolean}true"`, `branches="{Long}2"` (or 3/4/5), `branchName{N}` — cosmetic/config,
-  round-trip fine as plain strings too.
-- **`script{N}`** (1-indexed, directly on the split node — e.g. `script1`, `script2`) is the
-  **only** property that survives into the generated transition's `rule`. Tried and confirmed
-  NOT to work: `rule`, `condition`, `conditions` (a real round-trippable `String[]` — persists
-  fine, just never read by the generator), `branchCondition{N}`, and a `rule`/`condition`
-  property on the branch child node itself.
-- Branch content nodes **must** be named `1`, `2`, … (not descriptive names) with
-  `sling:resourceType="cq/flow/components/parsys"` — this is what makes the branch content
-  round-trip into the generated model at all; a wrong name here is what caused the earlier
-  "Unable to save workflow model" hard failure, not the `or` resourceType itself.
-- **Branches are strict tree containment, not graph edges.** A branch's content is nested
-  *inside* it; the generator auto-inserts an `OR_JOIN` that reconverges the branches into
-  whatever sibling comes after the split at that nesting level, and auto-adds `START`/`END`
-  nodes if the model doesn't declare its own. This means **a single downstream node cannot
-  literally be shared by two different splits** the way a true graph/DAG (e.g. LiveCycle's
-  process designer) allows — if two decision points must both lead to "the same" follow-on
-  logic (e.g. two reject routes both sending an identical rejection email), the
-  behaviorally-equivalent adaptation is to **nest the second split inside the first split's
-  branch, and duplicate the shared tail into each split's own Reject branch** (byte-identical
-  `PROCESS`/`PROCESS_ARGS`/template — same observable behavior, two JCR node instances instead
-  of one). See `employee-training-request-approval`'s Fix Pass 37 note for a full worked
-  example matching a legacy LiveCycle two-level-approval-with-shared-rejection process.
 
 ---
 
@@ -471,55 +264,23 @@ Key points, all live-confirmed (not from Adobe docs, which don't cover this leve
 </transition0>
 ```
 
-**OR-split transition with `actionTaken`:** this `/var` runtime `cq:WorkflowTransition/@rule`
-shape is what the generator produces from **either** a `/conf` `script{N}` ECMA property **or**
-an editor-built `expression{N}` (the two compile to the same kind of `rule` string on the
-generated transition). Prefer authoring the `/conf` side via `expression{N}` (see "OR-split
-condition: use the editor's Rule Definition builder" above) — this snippet is shown for
-understanding/troubleshooting the generated `/var` output, not as what you hand-author:
+**OR-split transition with `actionTaken` (official pattern — copy verbatim):**
 ```xml
 <transition1 jcr:primaryType="cq:WorkflowTransition" from="node3"
-  rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
+  rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
   to="node4" x="510" y="230"><metaData jcr:primaryType="nt:unstructured"/></transition1>
 ```
 
-⚠️ **Corrected this pass — the previous version of this snippet used
-`workItem.getWorkflowData().getMetaDataMap()` and was labelled "official pattern — copy
-verbatim." It is wrong and breaks task completion outright.** Live-proven root cause:
-`com.adobe.granite.workflow.core.rule.ScriptingRuleEngine` — the class that actually evaluates
-every OR-split/rule script, confirmed by decompiling its class file — binds
-`graniteWorkflowData`, `workflow`, `workflowSession`, `jcrSession`; **`workItem` never appears
-in its bindings at all.** Any rule using `workItem.getWorkflowData()...` throws
-`ReferenceError: "workItem" is not defined` the moment a route needs evaluating (opening the
-task detail page, or completing it) — this doesn't just fail to route, it makes the task
-**un-completable**, since the same script backs the Approve/Reject buttons themselves. Use
-`graniteWorkflowData.getMetaDataMap()` directly (no `.getWorkflowData()` call — 
-`graniteWorkflowData` already IS the `WorkflowData` object) in every rule script on every
-OR-split, everywhere in this project and in any new model. See
-`employee-training-request-approval`'s Fix Pass 38 note for the full live incident (Approve and
-Reject both broken after Fix Pass 37 introduced real branching using the then-undiscovered-wrong
-pattern) and the general fix.
-
 > `actionTaken` is the **Route Variable** on the Assign Task step. It holds the exact button
 > label clicked (`Approve`, `Reject`, …). Use the same variable name in every transition and
-> declare it in the `/conf` design model's `jcr:content/variables` (see "Workflow Variables" below
-> for the real, editor-visible shape — not the `/var` `metaData/variables` scaffold). Use
-> capital-S `String`, not `string`.
+> declare it in `metaData/variables`. Use capital-S `String`, not `string`.
 
 ---
 
 ## Workflow Variables
 
-Required when the model is marked for external data storage (then variables are the only option
-for data/attachments/DoR), and — separately — whenever an Assign Task or Send Email step's
-recipient must be a **variable** rather than a literal (see the Notifications rule above).
-
-### On the `/var` RUNTIME `cq:WorkflowModel` — `metaData/variables` (logical/unverified scaffold)
-
-This is the shape shown in Adobe's own `cq:WorkflowModel` XML docs. Per the accuracy caveat at the
-top of this file, treat it as a **scaffold to plan the flow**, not a verified, copy-paste shape —
-and never hand-author it into `/conf` (`/var` is generated by Sync/`generate.json`, never
-committed):
+Declared in `metaData/variables`. Required when the model is marked for external data storage
+(then variables are the only option for data/attachments/DoR).
 
 ```xml
 <variables jcr:primaryType="nt:unstructured">
@@ -533,66 +294,6 @@ committed):
 ```
 
 **Supported types:** `String`, `Long`, `Double`, `Boolean`, `Date`, `JSON`, `XML`, `Document`, `ArrayList`.
-
-### On the `/conf` DESIGN `cq:Page` — `jcr:content/variables` (REAL, live-confirmed shape)
-
-This is the shape that actually makes variables show up as first-class, authorable entries in the
-Workflow Model editor's left "Variables" panel, and it is **different** from the `/var` scaffold
-above — confirmed live on a real instance (CRXDE Lite tree + JSON dumps of both a UI-created
-variable and one added directly through the editor's "Default Value" field):
-
-```xml
-<jcr:content ...>
-    <variables
-        jcr:primaryType="nt:unstructured">
-        <managerEmail
-            jcr:primaryType="nt:unstructured"
-            name="managerEmail"
-            type="java.lang.String"
-            defaultValue="someone@example.com"
-            additionalProperties="\{}"/>
-    </variables>
-    <flow jcr:primaryType="nt:unstructured" sling:resourceType="foundation/components/parsys">
-        <!-- step nodes -->
-    </flow>
-</jcr:content>
-```
-
-Key differences from the `/var` scaffold — **do not mix the two shapes**:
-- The node is `jcr:content/variables` (a **sibling of `flow`**), **not** `jcr:content/metaData/variables`.
-  Declaring it under `metaData` builds and deploys clean but the editor's Variables panel will not
-  show the variables at all (live-confirmed regression — see the "unknown type" / wrong-location
-  entries in `troubleshooting.md`).
-- Each variable child node's properties are `name` (same as the node name), `type` — a
-  **fully-qualified Java class name** (`java.lang.String`, not the bare `String` the `/var` scaffold
-  uses), `defaultValue` (the variable's initial/default value — a plain string; **this is the field
-  that shows in the editor's "Default Value" input**, confirmed only after an earlier guess of
-  `value` was tried and found wrong), and `additionalProperties` (an extensibility bucket the
-  editor always writes, even when empty).
-- ⚠️ **`additionalProperties="{}"` breaks the build.** FileVault's DocView XML parser reads a
-  leading `{` in an attribute value as a JCR type prefix (e.g. `{Boolean}true`); a bare `{}` parses
-  as an **empty/unknown type** and fails `mvn package` with
-  `ValidationViolation: ... unknown type: ... jackrabbit-docviewparser ... Throwable: unknown type: `
-  pointing at that exact property. Escape it as `additionalProperties="\{}"` (a literal backslash
-  before the brace) so FileVault treats it as a literal string, not a type prefix. This escaping
-  rule applies to **any** attribute value that happens to start with `{` in **any** `.content.xml`
-  in this project, not just workflow variables — see AGENTS.md → "Common mistakes to avoid".
-- **Seeding a REAL default at runtime is a separate mechanism from `defaultValue`.** `defaultValue`
-  on the variable declaration is (at best) an editor-UI-facing default; there is no evidence it is
-  read by `SetVariableProcess` or any step at runtime. To actually initialize the variable's value
-  when a workflow instance starts, set it via the model's first Set Variable step (the "Capture
-  Submission Variables" node), e.g. `variableName=managerEmail, variableType=String,
-  variableValue=someone@example.com` — see "Set Variable Step PROCESS_ARGS" below. Author **both**:
-  `defaultValue` on the declaration (for the editor UI) **and** the same literal in the initial Set
-  Variable step (for actual runtime behavior) — one without the other leaves either the UI or the
-  running instance out of sync with what you intended.
-- `SetVariableProcess` has **no conditional "only if the variable is currently blank" logic** — a
-  Set Variable step always overwrites, unconditionally. If a variable's value should come from the
-  submitted payload (e.g. `applicantEmail` from `${payload.jcr:content/data/.../Email}`) but must
-  fall back to a real address when that field is empty, there is no built-in way to express that;
-  either accept the plain assignment (and pick a real payload-fallback value only if the form field
-  is guaranteed non-empty), or write a custom `WorkflowProcess` step that checks-then-defaults, the
-  same pattern as `SetStatusVariableAndPayloadProcess`.
 
 ---
 
@@ -612,47 +313,12 @@ uses an XDP/PDF model.
 
 ## Set Variable Step PROCESS_ARGS
 
-Single, literal value (this part of `SetVariableProcess` is fine, use it as-is):
-`variableName=actionTaken, variableType=String, variableValue=pending`
+Single: `variableName=actionTaken, variableType=String, variableValue=pending`
 
-⚠️ **`variableValue=${payload.jcr:content/data/...}` does NOT read a JSON-schema submission — do
-not use it for this project's forms, even though it looks correct and is what Adobe's own docs and
-older versions of this file showed.** Live-proven root cause: this EL expression is walked as a
-**literal JCR node/property path** relative to the payload
-(`payload/jcr:content/data/EmployeeDetails/ManagerId`), which only resolves if the submission is
-stored as real, expanded JCR child nodes — one node per JSON object, one property per leaf value.
-This project's forms (`schemaType=jsonschema`, the Forms Dashboard submit convention) instead store
-the ENTIRE submission as a single opaque JSON blob in one `jcr:data` Binary property on
-`<payload>/data.xml/jcr:content` — there is no `EmployeeDetails` child node to walk to at all, so
-the expression always resolves to nothing and the variable silently ends up blank, even when the
-submitted form field was filled in. Confirmed by fetching a real submitted `data.xml` directly
-(`GET <payload>/data.xml`, a flat JSON string) and by reading exactly what `SetVariableProcess`'s EL
-resolver does — not a guess.
-
-**Use `com.aem.forms.agents.forms.workflow.CaptureSubmissionVariablesProcess` instead** (in this
-project's `core/.../forms/workflow/`) for the "Capture Submission Variables" node whenever any
-variable's value must come from the submitted payload. It parses the JSON blob directly (Jackson)
-and reads a dot-separated path out of it — the read-side counterpart to
-`SetStatusVariableAndPayloadProcess`, which already proves the same JSON-blob-read/write technique
-for writing the payload. Its `PROCESS_ARGS` shape (semicolon-separated variable definitions, each a
-comma-separated `key=value` list):
-
+Multiple (semicolon-separated), reading submitted data:
 ```
-variableName=managerId, payloadPath=EmployeeDetails.ManagerId; variableName=applicantEmail, payloadPath=EmployeeDetails.Email; variableName=actionTaken, literalValue=pending; variableName=CurrentStatus, literalValue=Submitted
+variableName=applicantEmail, variableType=String, variableValue=${payload.jcr:content/data/applicantEmail}; variableName=requestAmount, variableType=String, variableValue=${payload.jcr:content/data/amount}
 ```
-
-- `payloadPath` — dot-separated path into the submitted JSON, matching the field's `dataRef` with
-  the leading `$.` dropped (`dataRef="$.EmployeeDetails.ManagerId"` → `EmployeeDetails.ManagerId`).
-  Missing path → variable set to `""` + a WARN log, never a thrown error.
-- `literalValue` — a fixed value with no payload lookup (route-variable seeds like `pending`, or an
-  email-recipient default with no real source yet — see "Workflow Variables" above). Exactly one of
-  `payloadPath` / `literalValue` per variable definition.
-- `dataFile` — optional, payload-relative data file name, settable in any one definition (step-wide,
-  not per-variable); defaults to `data.xml`.
-
-See `service-workflow.md` → "Model it on the closest existing Cloud-safe step" for the full custom
-Java process step pattern (JSON-or-XML sniffing, no service user needed since it only reads its own
-payload via the workflow session).
 
 ---
 

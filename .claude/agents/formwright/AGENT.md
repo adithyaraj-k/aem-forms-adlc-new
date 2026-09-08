@@ -1,8 +1,8 @@
 ---
 name: formwright
-# Sonnet: authors the schema/FDM/template/components/form/rules/theme. Highest-risk
+# Opus: authors the schema/FDM/template/components/form/rules/theme. Highest-risk
 # authoring in the pipeline — the rule-AST and served-selector defects originated here.
-model: sonnet
+model: opus
 description: >
   IMPL-phase BUILD lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. Engineers the
   form's data foundation and reusable UI artifacts — the data schema, the Form Data Model (FDM) + its
@@ -246,21 +246,14 @@ skill always produces — nothing about the outputs changes.
    POST the GeneratePDF servlet unconditionally.
 3b-i. **Document of Record (DoR) needs config in THREE places — you own two of them.** Whenever the
    form has DoR enabled (`dorType` ≠ `none` on `guideContainer`), OR the PLAN/Groundsmith says a
-   workflow will Generate-DoR from this form, set BOTH: (1) `dorType="generate"` on `guideContainer`
-   — and, if a real print/XDP template is required, ALSO `dorType="select"` + `dorTemplateRef`
-   (pointing at a genuine `dam:Asset`, never a `cq:Page`) on the **DAM guide asset's own
-   `jcr:content/metadata` node** (`/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`
-   — the "Form Properties" data), **NOT** on `guideContainer` — live-verified: `guideContainer`'s own
-   dialog has no DoR-template field, so a direct `dorTemplateRef` write there is silently inert; AND
-   (2) the String marker property `guide="1"` on the form page's own `jcr:content`
-   (`create-adaptive-form`'s "Document of Record" section has the full decompiled evidence —
-   `AFtoDORStep` throws `"Not a valid Adaptive Form"` without it, and this check is independent of
-   `dorType`). The THIRD place — the workflow's own Generate DoR step, pointed at this form — is
-   Groundsmith's; flag in `formwright.md` whether DoR is enabled, and whether a real template asset
-   was wired (with its DAM path), so Groundsmith knows to wire #3. A form built with `dorType` set but
-   `guide="1"` missing looks complete and deploys clean, then fails only when the workflow step
-   actually runs; a `dorTemplateRef` set on `guideContainer` instead of the DAM guide asset's
-   `metadata` looks complete too and silently renders the OLD layout.
+   workflow will Generate-DoR from this form, set BOTH: (1) `dorType="generate"` (or `"select"` +
+   a real `dorTemplateRef`) on `guideContainer`, AND (2) the String marker property `guide="1"` on
+   the form page's own `jcr:content` (`create-adaptive-form`'s "Document of Record" section has the
+   full decompiled evidence — `AFtoDORStep` throws `"Not a valid Adaptive Form"` without it, and this
+   check is independent of `dorType`). The THIRD place — the workflow's own Generate DoR step,
+   pointed at this form — is Groundsmith's; flag in `formwright.md` whether DoR is enabled so
+   Groundsmith knows to wire #3. A form built with `dorType` set but `guide="1"` missing looks
+   complete and deploys clean, then fails only when the workflow step actually runs.
 3c. **Form title via an explicit AF Title component.** The guideContainer `showTitle` band emits no
    `.cmp-adaptiveform-container__title` element (renders as an empty band — TC-031). Add an AF Title
    (v2) as the first child (`sling:resourceType={project}/components/adaptiveForm/title`,
@@ -341,40 +334,6 @@ reactive fixes after the user flags them. Before handoff, confirm:
 - [ ] **Validation-failure state is red** — an invalid field shows its error message in red AND a red
       border (base clientlib styles `data-cmp-valid="false"` + `aria-invalid`); verified on the form.
 
-## Token tracking
-
-At the end of your run (and after each fix pass), write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
-
-**Procedure:**
-1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
-2. Add or update the `"formwright"` key under `"agents"`. Append a new object to the `"passes"` array for each initial run or fix pass.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
-
-**Schema for your entry:**
-```json
-"formwright": {
-  "phase": "IMPL-build",
-  "passes": [
-    {
-      "pass": 0,
-      "label": "initial",
-      "cli_text": 0,
-      "read": 0,
-      "write": 0,
-      "other": 0,
-      "total": 0
-    }
-  ],
-  "agent_total": 0
-}
-```
-- `cli_text` — system/user prompt tokens (role instructions, pasted context).
-- `read` — tokens consumed reading files via tool calls.
-- `write` — tokens consumed writing files via tool calls.
-- `other` — tool-call overhead, shell output, scaffolding noise.
-- `total` per pass = sum of the four; `agent_total` = sum of all passes.
-- **Do not include the token breakdown in `formwright.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
-
 ## Handoff YAML (to aem-forms-program-agent)
 ```yaml
 agent: formwright
@@ -398,7 +357,7 @@ artifacts:
   form: "ui.content/.../content/forms/af/{project}/{formName}"
   clientlib: "ui.apps/.../apps/clientlibs/{formName}-clientlib"
   theme: reused | "/apps/fd/af/themes/{project}-{theme}"
-dor: { enabled: false, dorType: "none", guide_marker_set: false, template_asset: "" }   # template_asset (if a real print/XDP template was wired) is set via dorType="select"+dorTemplateRef on the DAM guide asset's jcr:content/metadata — NEVER on guideContainer (inert there, live-verified — rule 3b-i). If enabled, Groundsmith must also wire the workflow's Generate DoR step at this form (3rd of 3 DoR places — critical rule 3b-i)
+dor: { enabled: false, dorType: "none", guide_marker_set: false }   # if enabled, Groundsmith must also wire the workflow's Generate DoR step at this form (3rd of 3 DoR places — critical rule 3b-i)
 build_summary: ".claude/agents/runs/{runId}/implementation/formwright.md"
 gate_result: PASS
 next: aem-forms-program-agent runs groundsmith (integration) → forgemaster (build/deploy) → sentinel (test)

@@ -248,29 +248,6 @@ any theme/template remapping. Get a go-ahead before writing.
 > everything-as-text), layout containers (wizard/tabs/accordion), CAPTCHA on public forms, and
 > Document of Record where a record copy is needed.
 
-> ⚠️ **DoR template wiring — `dorType`/`dorTemplateRef` do NOT live on `guideContainer` (live-verified
-> the hard way — do not repeat this mistake).** Every DoR row below says "set `dorType`/`dorTemplateRef`
-> on the migrated `guideContainer`" for brevity, but that is **wrong** and was corrected in production
-> on `employee-training-request`: the guideContainer component's own dialog has **no DoR-template
-> field at all**. DoR template selection is a **"Form Properties"** setting
-> (`FormPropertiesModel`/`UpdateFormPropertiesProcessor`), and it persists onto the **DAM guide-asset's
-> own `jcr:content/metadata` node** — the same node that already carries `themeRef`, `formmodel`,
-> `allowedRenderFormat` (`sling:resourceType=fd/fm/af/render`, `guide="1"`, `type="guide"`, at
-> `/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`) — **not** on
-> `/content/forms/af/{appFolder}/{formName}/jcr:content/guideContainer`. Whenever this skill (or
-> `create-workflow`/`create-adaptive-form`) says to set `dorType`/`dorTemplateRef`, write BOTH:
-> 1. On the **DAM guide asset's `metadata` node**: `dorType="select"` + `dorTemplateRef="<cloud path
->    to the retained XDP/PDF>"` (+ `dorTemplateChanged="{Boolean}true"` if that property already
->    exists on the node) — **this is the property set that actually drives the template picker and
->    the rendered DoR.**
-> 2. On `guideContainer`, leave `dorType` as `"generate"` (or whatever it already is) — do **not** add
->    `dorTemplateRef` there; it is inert on that node (confirmed: neither the component dialog nor
->    `AFtoDORStep` reads it from `guideContainer`).
-> The retained XDP itself must be a genuine `dam:Asset` (binary + `nt:file` rendition at
-> `jcr:content/renditions/original` + `jcr:content/renditions/original.dir/.content.xml` declaring
-> `jcr:mimeType`) — **not** a `cq:Page` Adaptive Form — or `dorTemplateRef` has no valid target to
-> point at (see Step 4A's DoR-template row and Step B3 item 3 for the exact structure to author).
-
 ---
 
 ## Step 3 — Remap resource types (Foundation → Core Components)
@@ -359,11 +336,9 @@ equivalent.
   over — the CC captcha needs a cloud config; flag this to the user rather than silently dropping
   bot protection on a public form.
 - **Document of Record.** If the source form generated a DoR (`dorType` other than `none`,
-  `dorTemplateRef`), preserve the intent: remap the DoR template to a cloud path (as a real
-  `dam:Asset`, not a page) and set `dorType="select"` + `dorTemplateRef` on the **DAM guide asset's
-  `jcr:content/metadata` node** (Form Properties) — **not** on the migrated `guideContainer`, which
-  has no DoR-template field (see the callout above this step). Do not silently downgrade a form that
-  produced a PDF record to `dorType="none"`.
+  `dorTemplateRef`), preserve the intent: set `dorType` on the migrated `guideContainer` and remap
+  the DoR template to a cloud path, or wire it via `create-workflow`. Do not silently downgrade a
+  form that produced a PDF record to `dorType="none"`.
 - **Data binding → `dataRef` attribute with a JSONPath value (rename the attribute AND convert the
   value).** Foundation stores the binding as a slash-rooted XPath in the **`bindRef`/`bindReference`**
   attribute (e.g. `bindRef="/applicantDetails/firstName"`). Core Components binds with the
@@ -478,7 +453,7 @@ nothing is missed:
 |---|---|---|---|
 | **DAM images / logos** | `/content/dam/...`; referenced by `fileReference`/`src`/`imageRef` on image or logo components, or `url(...)` in theme CSS | `ui.content/.../jcr_root/content/dam/...` | Copy binary as-is; migrate the asset's `.content.xml` (`dam:Asset`, `jcr:content`, `metadata`) to cloud shape; **rewrite the reference** to the cloud DAM path; renditions regenerate at deploy — keep only `original` if the export shipped stale renditions |
 | **Fonts** | theme.zip `fonts/`, clientlib `resources/`, or DAM; `@font-face src` / `url(...)` | same module as its carrier (theme.zip, clientlib, or DAM) | Copy the font files as-is; keep the `@font-face` `src` **relative** to its carrier so it resolves after deploy; if the source used an on-prem absolute font URL, repoint it to the cloud carrier path |
-| **Document-of-Record template** | XDP/PDF under `/content/dam/formsanddocuments` or a DoR folder; `dorTemplateRef`, `dorType` | `ui.content/.../jcr_root/content/dam/formsanddocuments/XDP/{Name}.xdp` — the project's SHARED top-level XDP folder, not nested per-form (a real `dam:Asset` — binary at `jcr:content/renditions/original` + `jcr:content/renditions/original.dir/.content.xml` with `jcr:mimeType`, **not** a `cq:Page`) | Copy the template as a genuine DAM asset into the shared `XDP` folder (see the DoR callout above Step 3 for the exact structure); set `dorType="select"` + `dorTemplateRef` (to that asset path) on the **DAM guide asset's own `jcr:content/metadata` node** (`/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`, the "Form Properties" data) — **NOT** on the migrated `guideContainer`, which has no DoR-template field; if it was an on-prem-only DoR flow, wire it via `create-workflow` (Generate Document of Record step — that step reads the source form's `dorType` off the same DAM guide-asset metadata, not from any step arg). **Never downgrade a form that produced a PDF record to `dorType="none"`** |
+| **Document-of-Record template** | XDP/PDF under `/content/dam/formsanddocuments` or a DoR folder; `dorTemplateRef`, `dorType` | `ui.content/.../jcr_root/content/dam/...` (preserve path) | Copy the template; set `dorType` + `dorTemplateRef` on the migrated `guideContainer` to the cloud path; if it was an on-prem-only DoR flow, wire it via `create-workflow` (Generate Document of Record step). **Never downgrade a form that produced a PDF record to `dorType="none"`** |
 | **Data schema / bindings** | `/content/dam/formsanddocuments/schema/{name}.schema.json` (or XSD); `schemaRef`, `schemaType` | `ui.content/.../jcr_root/content/dam/formsanddocuments/schema/...` | Copy the schema; keep `schemaRef` pointing at the cloud path; confirm every field's `dataRef` (converted in Step 3) resolves against it. If the schema is missing but fields bind, regenerate it with `generate-schema` |
 | **Referenced Adaptive Form Fragments** | fragment page under `/content/forms/af/...` + its DAM fragment asset; `fragmentPath`/`fragmentRef` on a fragment component | `ui.content/.../jcr_root/content/forms/af/...` + `.../content/dam/formsanddocuments/...` | Migrate each fragment as its **own** form (Steps 2–6) — it is a `cq:Page` with a `fragmentcontainer` root; do NOT inline it. Keep `fragmentPath` pointing at the migrated fragment path. Give each fragment its own filter coverage |
 | **Icons / SVGs** | DAM or clientlib `resources/`; `url(...)`, `src`, icon-sprite refs | same module as its carrier | Copy as-is; rewrite the reference to the cloud path |
@@ -940,7 +915,7 @@ Apply in every file you write (same as the other skills):
 | Placeholders missing / a radio or field loses its preselected value | Foundation attribute names kept — CC ignores `placeholderText` and `_value`, passing them through the model as unknown keys | Rename `placeholderText` → `placeholder` and `_value` → `default` on the migrated fields (Step 3 attribute-migration); confirm `"placeholder"`/`"default"` in `guideContainer.model.json` |
 | Broken image / missing logo on the rendered form | The DAM image was not migrated, or its reference (`fileReference`/`src`/`imageRef`/`url(...)`) still points at the source/on-prem path | Copy the DAM asset to its cloud path with filter coverage and rewrite every reference (Step 4A.2–4A.4) |
 | Text renders in a fallback font | Font files not migrated, or `@font-face`/`url(...)` points at an on-prem absolute URL | Copy the fonts into their carrier (theme.zip/clientlib/DAM) and keep the `src` relative/repointed to the cloud path (Step 4A.2) |
-| Submit produces no PDF / Document of Record | DoR template not migrated, `dorType` downgraded to `none`, or `dorType`/`dorTemplateRef` set on `guideContainer` instead of the DAM guide-asset's `metadata` node | Copy the DoR template as a real `dam:Asset`, set `dorType="select"`+`dorTemplateRef` on the **DAM guide asset's `jcr:content/metadata`** (Form Properties), or wire via `create-workflow` (Step 4A.2) |
+| Submit produces no PDF / Document of Record | DoR template not migrated or `dorType` downgraded to `none` | Copy the DoR template, restore `dorType`+`dorTemplateRef` to the cloud path, or wire via `create-workflow` (Step 4A.2) |
 | Fields don't bind / Bind Reference blank even after `dataRef` fix | The schema/bindings file was not migrated, so `dataRef`/`schemaRef` resolves against nothing | Copy the schema to `/content/dam/formsanddocuments/schema/...` with filter coverage, or regenerate with `generate-schema` (Step 4A.2) |
 | Embedded fragment renders empty / 404 | The referenced fragment (page + DAM fragment asset) was not migrated, or `fragmentPath` still points at the source path | Migrate the fragment as its own form (Steps 2–6), keep `fragmentPath` on the cloud path, add filter coverage (Step 4A.2) |
 | Rules don't fire | `guideRule` left in Foundation format, or `== true` instead of `== true()` | Re-author via `create-form-rules`; use `true()` |
@@ -1258,20 +1233,10 @@ and keep the XDP itself as the Document-of-Record template so the record PDF is 
    | `button` (submit) | `actions/submit` |
 
    Preserve field order, titles, captions (→ label), and mandatory state.
-3. **Set the XDP as the Document of Record.** Upload the original XDP as a genuine `dam:Asset` under
-   the project's SHARED top-level XDP folder — `/content/dam/formsanddocuments/XDP/{Name}.xdp` (every
-   retained-XDP DoR template lives here, not nested per-form — a template is not tied one-to-one to a
-   single form's own DAM folder) — binary at `jcr:content/renditions/original` + a sibling
-   `jcr:content/renditions/original.dir/.content.xml` (`nt:file`/`nt:resource`,
-   `jcr:mimeType=application/vnd.adobe.xdp+xml`); a `cq:Page` is **not** a valid target. Then set
-   `dorType="select"` + `dorTemplateRef` (pointing at that asset) on the **DAM guide asset's own
-   `jcr:content/metadata` node** at
-   `/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata` (the "Form Properties"
-   data, `sling:resourceType=fd/fm/af/render`) — **do NOT** set them on the migrated `guideContainer`;
-   that component's dialog has no DoR-template field and a direct edit there is inert (live-verified:
-   neither the editor UI nor `AFtoDORStep` reads `dorTemplateRef` from `guideContainer`). Cover the new
-   asset path with the existing `/content/dam/formsanddocuments` filter root (usually already present).
-   **Never downgrade a form that produced a PDF record to `dorType="none"`.**
+3. **Set the XDP as the Document of Record.** Copy the XDP (and any print PDF) into the DAM under the
+   form's `{appFolder}` path, set `dorType`/`dorTemplateRef` on the migrated `guideContainer` to that
+   XDP, and cover it with a filter — exactly as Path A Step 4A handles a DoR template. **Never
+   downgrade a form that produced a PDF record to `dorType="none"`.**
 4. **Author the resulting AF using Path A's shapes.** Everything downstream — resource types (Step
    3), the 4 cloud artifacts (Step 4), asset migration (Step 4A), the global XML conventions — is
    **identical to Path A**. Follow those steps for the generated form; Path B only changes where the
@@ -1508,7 +1473,7 @@ Path B uses the **same** deploy step (**Step 7**) and **UI/behaviour-parity gate
 |---|---|---|
 | `.lca` won't unpack | Not a ZIP / corrupt export | Re-export from Workbench; confirm it opens as a ZIP before proceeding |
 | Migrated form missing fields present in the XDP | Positioned-subform / nested-subform fields skipped during reverse-engineering | Re-walk the XDP subform tree; map every field & subform (Step B3.2) |
-| Record PDF lost / blank | XDP not retained as DoR, `dorType` downgraded to `none`, or `dorType`/`dorTemplateRef` were set on `guideContainer` instead of the DAM guide-asset's `metadata` node (inert there — no field, not read by `AFtoDORStep`) | Copy the XDP to DAM as a real `dam:Asset`, set `dorType="select"`+`dorTemplateRef` on the **DAM guide asset's `jcr:content/metadata`** node (Form Properties), add filter coverage (Step B3.3) |
+| Record PDF lost / blank | XDP not retained as DoR, or `dorType` downgraded to `none` | Copy the XDP to DAM, set `dorType`/`dorTemplateRef`, add filter coverage (Step B3.3) |
 | Migrated HTML form doesn't look like the XDP (stock/blue theme, wrong colours, no section bands) | The XDP's inline `<font>/<fill>/<color>/<border>` styling was not extracted; a stock project theme (`-wknd`) was used instead | Parse the XDP style nodes and reproduce every value in all three theme carriers (Step B3.5); build a new app-named theme, don't reuse a stock one |
 | XFA calculation/validation doesn't run | XFA script left in the XDP; it has no Core Components runtime | Re-author as a clientlib-function rule (Step B4 / Path A Step 5a) |
 | Workflow step does nothing / process route missing | Orchestration activity/gateway not mapped to a workflow step | Map every activity & route via `create-workflow` (Step B5) |
@@ -1525,7 +1490,7 @@ Path B uses the **same** deploy step (**Step 7**) and **UI/behaviour-parity gate
 - [ ] Both inputs collected: `.lca` unpacked (XDPs, XSDs, XML, PDFs, processes enumerated) and the DSC `.jar` (operations/signatures recovered); `{originalReference}` captured for parity
 - [ ] LiveCycle inventory built (forms, fragments, schemas, data, PDFs, processes, DSC operations, built-in service calls) and the Path B migration plan shown and approved
 - [ ] Every XDP reverse-engineered to a Core Components Adaptive Form (exact field/subform/type/order replica), authored via `generate-schema` + `create-adaptive-form` using Path A Steps 3–4 shapes (theme comes from the XDP per Step B3.5, not Path A Step 6)
-- [ ] The original XDP retained as the Document-of-Record template — uploaded as a genuine `dam:Asset` (not a page), `dorType="select"`+`dorTemplateRef` set on the **DAM guide asset's `jcr:content/metadata`** node (Form Properties — NOT `guideContainer`, which has no DoR-template field), filter-covered — no form that produced a PDF downgraded to `dorType="none"`
+- [ ] The original XDP retained as the Document-of-Record template (`dorType`/`dorTemplateRef` set, copied to DAM, filter-covered) — no form that produced a PDF downgraded to `dorType="none"`
 - [ ] **Theme extracted from the XDP's own XML (Step B3.5), NOT a stock theme** — every `<font>` (typeface/size/weight/colour), section/panel `<fill><color>`, header-band colour, `<field>` `<border>/<edge>` and input background parsed and reproduced VERBATIM in all three carriers under a new app-named `{project}-{theme}`; HTML render matches the XDP to ≥ 90%; font substitutions (non-web XDP typefaces) flagged to the user
 - [ ] Every XFA FormCalc/JS script re-authored as an Adaptive Form rule (single clientlib-function call, no inline JS, `true()`/`false()`), verified in `guideContainer.model.json` (Path A Step 5a) — **BOTH sources harvested (Step B4.1): inline `<event activity=…>` handlers (initialize/ready/docReady/enter/exit/change/click/calculate/validate) AND reusable `<script>` script objects, for every field/subform/host**; LiveCycle harness scripts (`ContainerFoundation_JS`, `FormReady`, `DO NOT MODIFY` blocks) recognised and recorded as intentionally-not-ported, not fabricated
 - [ ] Every Workbench process re-implemented as an AEM Workflow (every variable, sequence, route/gateway, and start-point mapped); submit wired to "Invoke an AEM Workflow"

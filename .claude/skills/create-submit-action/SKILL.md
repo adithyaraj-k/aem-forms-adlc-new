@@ -373,6 +373,348 @@ System user mapping — add to `ui.config`:
 
 ---
 
+## Submit to REST endpoint
+
+### End-to-end flow (map to every implementation decision)
+
+```
+Step 1  User fills Adaptive Form
+Step 2  Clicks Submit → submitForm() fires (fd:click AST on the Submit button)
+Step 3  AEM Forms runtime collects form data
+           OOTB path  → browser serialises fields as multipart/form-data (POST)
+                         or query parameters (GET, unchecked)
+           Custom path → FormSubmitInfo.getData() returns the payload as a
+                         String in JSON format (Core Components AF default)
+Step 4  HTTP request sent to external REST API
+           OOTB path  → Browser makes a DIRECT cross-origin POST to restEndPointUrl
+                         ⚠ CORS headers MUST be set on the EXTERNAL server
+           Custom path → AEM server makes the call (HttpClient) — no CORS issue
+Step 5  External system processes the request
+Step 6  API returns response (HTTP status + optional body)
+           OOTB path  → AEM cannot inspect the response; any API error is invisible
+           Custom path → submit() reads the status code + optionally parses the
+                         response body; can forward values via fd:redirectParameters
+Step 7  AEM shows success or error message
+           success  → GuideConstants.FORM_SUBMISSION_COMPLETE = Boolean.TRUE
+                      → runtime shows thankYouMessage / redirectUrl on the guideContainer
+           error    → GuideConstants.FORM_SUBMISSION_COMPLETE = Boolean.FALSE  (soft)
+                      or FORM_SUBMISSION_ERROR = GuideValidationResult (hard, shows inline)
+```
+
+### Decision: OOTB vs. custom
+
+| Situation | Use |
+|---|---|
+| Simple POST to an external URL, no custom auth/headers, external server has CORS enabled, API errors don't need to surface to the user | **OOTB "Submit to REST endpoint"** — zero code |
+| Bearer / OAuth token, custom headers, need to inspect the API response, surface errors to user, server-side secret, no CORS control on external server | **Custom `FormSubmitActionService`** |
+
+### OOTB "Submit to REST endpoint" wiring (no code needed)
+
+The AEM Forms editor exposes the **"Submit to REST endpoint"** action in the form container's
+Submission-tab dropdown. When selected, the editor writes on the `guideContainer`:
+
+```
+actionType       = "fd/af/components/guidesubmittype/restendpoint"
+restEndPointUrl  = "https://your-api.example.com/endpoint"   ← set by author
+enableRestEndpointPost = "{Boolean}true"                      ← POST; false = GET
+```
+
+The action dialog (screenshot reference) shows:
+- **"Mapping for passing field values as Thank You Page request parameters"** (Add button) — optional key→field mappings forwarded to the redirect/thank-you page (Step 7).
+- **"Enable POST request"** checkbox — when checked, the browser POSTs form data as `multipart/form-data` to `restEndPointUrl`; when unchecked it GETs with query parameters.
+
+**No Java code, no OSGi service, no JCR submit-action node is required.**
+
+**To wire it in content XML** (when pre-configuring a form via `create-adaptive-form`):
+```xml
+<guideContainer
+    ...
+    actionType="fd/af/components/guidesubmittype/restendpoint"
+    restEndPointUrl="https://api.example.com/submit"
+    enableRestEndpointPost="{Boolean}true"
+    thankYouOption="message"
+    thankYouMessage="Your form has been submitted successfully." />
+```
+
+> ⚠️ **OOTB = browser-side POST → CORS is YOUR problem.**
+> The OOTB action makes a **direct browser-to-API request**. The external server MUST respond
+> with `Access-Control-Allow-Origin: *` (or the AEM origin) or the browser blocks the response
+> with a CORS error — the form appears to submit but the user sees no confirmation and the
+> external system receives the data silently. If you cannot control CORS on the external server,
+> use the **custom action** (server-side, no CORS).
+
+> ⚠️ **OOTB cannot inspect the API response (Step 6).**
+> If the external API returns a 4xx/5xx, AEM shows the thank-you message anyway — there is no
+> error path. Use the custom action if API errors must be surfaced to the user.
+
+### Custom REST submit action (auth / response handling / no-CORS)
+
+Use the **Java class template** from the "What to generate" section above. Key points per flow step:
+
+**Step 3 — data format:** `submitInfo.getData()` returns the submitted payload as a **JSON string**
+(Core Components AF serialises fields to JSON). Send it directly as `application/json`.
+
+**Step 4 — server-side call (no CORS):** AEM makes the HTTP call, not the browser.
+
+**Step 6 — response parsing:** read the response body; extract a reference ID or error message;
+forward useful values to the thank-you page via `fd:redirectParameters`.
+
+**Step 7 — success/error:** map API HTTP status to `FORM_SUBMISSION_COMPLETE` / `FORM_SUBMISSION_ERROR`.
+
+```java
+@Override
+public Map<String, Object> submit(FormSubmitInfo submitInfo) {
+    Map<String, Object> result = new HashMap<>();
+    String formData = submitInfo.getData();   // JSON string (Step 3)
+    String formPath = submitInfo.getFormContainerPath();
+
+    try {
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(timeoutMs))
+            .build();
+
+        // Step 4 — server-side HTTP call, no CORS issue
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(apiEndpoint))
+            .timeout(Duration.ofMillis(timeoutMs))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + apiToken)
+            .POST(HttpRequest.BodyPublishers.ofString(formData))
+            .build();
+
+        HttpResponse<String> response = client.send(request,
+            HttpResponse.BodyHandlers.ofString());
+
+        int status = response.statusCode();
+        LOG.info("REST submit response: HTTP {} for form: {}", status, formPath);
+
+        if (status >= 200 && status < 300) {
+            // Step 7 — success: runtime shows thankYouMessage on the guideContainer
+            result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.TRUE);
+
+            // Step 6 — optionally parse the response body and forward values to the
+            // thank-you / redirect page as request parameters
+            // Map<String, Object> redirectParams = new HashMap<>();
+            // redirectParams.put("referenceId", parseReferenceId(response.body()));
+            // result.put("fd:redirectParameters", redirectParams);
+
+        } else {
+            // Step 7 — API error: surface to the user
+            LOG.warn("API rejected submission: HTTP {} — {}", status, response.body());
+            result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.FALSE);
+            // To show an inline error message in the form, return FORM_SUBMISSION_ERROR:
+            // result.put(GuideConstants.FORM_SUBMISSION_ERROR,
+            //     buildValidationResult("Submission failed: " + response.body()));
+        }
+
+    } catch (IOException | InterruptedException e) {
+        // Step 7 — network/timeout error
+        LOG.error("REST call failed to: {} for form: {}", apiEndpoint, formPath, e);
+        Thread.currentThread().interrupt();
+        result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.FALSE);
+    }
+
+    return result;
+}
+```
+
+**Step 7 success/error mapping:**
+
+| Return value | What AEM does |
+|---|---|
+| `FORM_SUBMISSION_COMPLETE = Boolean.TRUE` | Shows `thankYouMessage` / redirects to `redirectUrl` configured on the `guideContainer` |
+| `FORM_SUBMISSION_COMPLETE = Boolean.FALSE` | Submission acknowledged as failed; form stays; no specific inline message |
+| `FORM_SUBMISSION_ERROR = GuideValidationResult` | Shows the validation result as an inline error on the form |
+
+**OSGi config** (`config` or `config.publish`):
+```json
+{
+  "apiEndpoint": "https://api.example.com/v1/form-submit",
+  "apiToken": "$[secret:forms.submit.apiToken]",
+  "timeoutMs": 5000
+}
+```
+
+**Never hardcode secrets** — use `$[secret:{key}]` resolved from AEM Cloud Manager environment variables.
+
+### Common errors
+
+| Symptom | Flow step | Cause | Fix |
+|---|---|---|---|
+| Submission dropdown shows "Select" (blank) after deploy | Step 2 | `actionType` on `guideContainer` set to generic marker instead of node path | Set `actionType="{project}/fd/af/submitactions/{NodeName}"` (node path relative to `/apps`) |
+| OOTB REST action: form submits but external system logs a CORS error | Step 4 | Browser-direct cross-origin POST blocked by missing CORS headers on external server | Add `Access-Control-Allow-Origin` on the external server, OR switch to the custom (server-side) action |
+| OOTB REST action: external API gets data but AEM shows thank-you even on 4xx/5xx | Step 7 | OOTB cannot inspect response — no error path | Switch to custom action; map `status >= 400` to `FORM_SUBMISSION_COMPLETE = FALSE` |
+| External API expects JSON but receives `multipart/form-data` | Step 3 | OOTB always sends `multipart/form-data` | Switch to custom action with `Content-Type: application/json` |
+| HTTP 401 from external API | Step 4 | Missing or wrong token | Store token in Cloud Manager secret; reference via `$[secret:...]` in OSGi config |
+| Form submits but external system never receives data (OOTB) | Step 4 | "Enable POST request" unchecked (GET with params) | Check the "Enable POST request" checkbox in the editor dialog |
+| Thank-you page receives no reference ID from the API | Step 6 | Response body not parsed / `fd:redirectParameters` not populated | Parse `response.body()` in `submit()` and put values into `fd:redirectParameters` map |
+
+---
+
+## Agent-orchestrated submit (REST API → Agent → multiple Skills)
+
+### When to use this pattern
+
+When the requirement is: **"On submit, invoke an Agent that fans out to multiple Skills before returning the final response"** — e.g.:
+
+- Form submit → Agent validates data with one Skill → enriches with another → writes to FDM → sends email
+- Form submit → Agent calls an external API, processes the result with a Skill, then generates a PDF
+- Any multi-step server-side pipeline that is too complex for a single `FormSubmitActionService`
+
+This is the **Agent-orchestrated submit** pattern. The Adaptive Form's custom `FormSubmitActionService` acts as the **entry point**: it POSTs form data to the Agent's REST endpoint, the Agent orchestrates multiple Skills, and the final HTTP response drives the AEM thank-you / error message.
+
+### End-to-end flow
+
+```
+Step 1  User fills Adaptive Form
+Step 2  Clicks Submit → submitForm() (fd:click AST)
+Step 3  AEM Forms runtime → FormSubmitActionService.submit(FormSubmitInfo)
+           getData() → form payload as JSON string
+Step 4  submit() POSTs JSON to the Agent's REST endpoint (AEM Sling servlet or external)
+           Uses java.net.http.HttpClient (server-side → no CORS)
+           Bearer token / API key from OSGi config $[secret:...]
+Step 5  Agent receives the request and orchestrates Skills:
+           Skill A  → validate / transform / enrich the payload
+           Skill B  → call external system / FDM / database
+           Skill C  → generate PDF / send email / trigger workflow
+           (Skills run sequentially or in parallel as the Agent decides)
+Step 6  Agent returns a JSON response: { "status": "success"|"error", "message": "...", "referenceId": "..." }
+Step 7  submit() reads the response:
+           status == "success" → FORM_SUBMISSION_COMPLETE = TRUE
+                               → optionally forward referenceId via fd:redirectParameters
+           status == "error"   → FORM_SUBMISSION_COMPLETE = FALSE (or FORM_SUBMISSION_ERROR)
+                               → log the Agent's error message
+Step 8  AEM shows thankYouMessage (success) or surfaces error (failure)
+```
+
+### What to generate
+
+The same **4-file scaffold** as any custom REST action (service / JCR node / OSGi config / test), with `submit()` calling the Agent endpoint:
+
+```java
+@Override
+public Map<String, Object> submit(FormSubmitInfo submitInfo) {
+    Map<String, Object> result = new HashMap<>();
+    String formData = submitInfo.getData();   // JSON string — Step 3
+
+    try {
+        // Step 4 — POST to the Agent's REST endpoint (server-side, no CORS)
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(timeoutMs))
+            .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(agentEndpoint))
+            .timeout(Duration.ofMillis(timeoutMs))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer " + agentApiToken)
+            .POST(HttpRequest.BodyPublishers.ofString(formData))
+            .build();
+
+        HttpResponse<String> response = client.send(request,
+            HttpResponse.BodyHandlers.ofString());
+
+        // Step 6 — parse Agent's JSON response
+        // Expected shape: { "status": "success"|"error", "message": "...", "referenceId": "..." }
+        if (response.statusCode() >= 200 && response.statusCode() < 300) {
+            String body = response.body();
+            String status = extractJsonField(body, "status");
+            String referenceId = extractJsonField(body, "referenceId");
+
+            if ("success".equalsIgnoreCase(status)) {
+                // Step 7/8 — success: runtime shows thankYouMessage
+                result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.TRUE);
+                if (referenceId != null && !referenceId.isEmpty()) {
+                    Map<String, Object> redirectParams = new HashMap<>();
+                    redirectParams.put("referenceId", referenceId);
+                    result.put("fd:redirectParameters", redirectParams);   // Step 7 → redirect page
+                }
+            } else {
+                String errorMsg = extractJsonField(body, "message");
+                LOG.warn("Agent returned error for form {}: {}", submitInfo.getFormContainerPath(), errorMsg);
+                result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.FALSE);
+            }
+        } else {
+            LOG.error("Agent HTTP {} for form: {}", response.statusCode(), submitInfo.getFormContainerPath());
+            result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.FALSE);
+        }
+
+    } catch (IOException | InterruptedException e) {
+        LOG.error("Agent call failed to: {} for form: {}", agentEndpoint, submitInfo.getFormContainerPath(), e);
+        Thread.currentThread().interrupt();
+        result.put(GuideConstants.FORM_SUBMISSION_COMPLETE, Boolean.FALSE);
+    }
+
+    return result;
+}
+
+/** Minimal field extractor — replace with Jackson/Gson if available in the bundle. */
+private String extractJsonField(String json, String field) {
+    // Looks for "field":"value" or "field": "value"
+    String pattern = "\"" + field + "\"\\s*:\\s*\"([^\"]+)\"";
+    java.util.regex.Matcher m = java.util.regex.Pattern.compile(pattern).matcher(json);
+    return m.find() ? m.group(1) : "";
+}
+```
+
+**OSGi config** (`config` or `config.publish`):
+```json
+{
+  "agentEndpoint": "https://agent.example.com/api/process-form",
+  "agentApiToken": "$[secret:forms.agent.apiToken]",
+  "timeoutMs": 10000
+}
+```
+
+> ⚠️ **Increase `timeoutMs` for Agent calls.** An Agent that fans out to multiple Skills takes longer
+> than a direct API write. Default `5000 ms` is too short — start with `10000`–`30000 ms` and tune
+> based on the Agent's measured p99 latency. A timeout throws `InterruptedException` and surfaces as
+> a submit failure to the user.
+
+### Agent response contract (document this with the Agent author)
+
+The `FormSubmitActionService` expects the Agent to return JSON with this shape:
+
+```json
+{
+  "status": "success",          // required: "success" | "error"
+  "message": "...",             // optional: human-readable description (logged on error)
+  "referenceId": "abc-123"      // optional: forwarded to thank-you page via fd:redirectParameters
+}
+```
+
+Any deviation (different field names, non-JSON response) must be handled in `extractJsonField()` or by switching to a proper JSON parser. **Agree on this contract before implementation** — it is the interface between the form layer and the Agent layer.
+
+### JCR submit-action node
+
+Same as any custom action — place under `/apps/{project}/fd/af/submitactions/{ActionName}/`:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+    jcr:primaryType="sling:Folder"
+    jcr:description="{Action Display Name}"
+    guideComponentType="fd/af/components/guidesubmittype"
+    guideDataModel="basic,xfa,xsd"
+    submitService="{Action Display Name}"/>
+```
+
+Wire on the `guideContainer`:
+```
+actionType   = "{project}/fd/af/submitactions/{ActionName}"
+submitService = "{Action Display Name}"    ← must equal getServiceName()
+```
+
+### Common errors
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Agent receives request but submit always fails | Agent response not matching expected JSON shape | Check `extractJsonField()` against actual response; add debug logging of `response.body()` |
+| Submit times out (user sees error) | Agent's multi-skill pipeline exceeds `timeoutMs` | Increase `timeoutMs` in OSGi config; optimise Agent's skill fan-out |
+| `referenceId` missing from thank-you page | Agent returns it but `fd:redirectParameters` not wired on the redirect page | Add `{referenceId}` as a query param on `redirectUrl`, or use `thankYouOption="message"` + embed in `thankYouMessage` |
+| 401 from Agent endpoint | Wrong or missing `agentApiToken` | Check Cloud Manager secret `forms.agent.apiToken`; verify token format expected by Agent |
+
+---
+
 ## Email submit pattern
 
 ```java
@@ -404,6 +746,51 @@ private void sendEmail(String formData, String recipientEmail) {
 > Adobe also ships a built-in **Send email** submit action — prefer it for
 > simple notification emails; write a custom action only for bespoke templating
 > or conditional recipients.
+
+### Email with PDF attachment (fixed body message)
+
+When the requirement is "send email with attached PDF and message 'I have attached pdf file'":
+
+1. **Reuse the shared `Custom-Submit-GeneratePDF` servlet** (`/bin/{project}/generate-pdf`) to
+   generate the PDF bytes — do NOT add a new PDF library.
+2. **Custom `FormSubmitActionService`** (`getServiceName()` == e.g. `"Custom-Submit-EmailWithPDF"`):
+   - Call `GeneratePDFServlet`-style logic (or inject the same `buildPdf()` helper) to get `byte[] pdf`.
+   - Build a `HtmlEmail` with a `ByteArrayDataSource` attachment:
+   ```java
+   @Reference private MessageGatewayService messageGatewayService;
+
+   private void sendEmailWithPdf(String recipientEmail, byte[] pdfBytes, String fileName) {
+       try {
+           HtmlEmail email = new HtmlEmail();
+           email.setCharset("UTF-8");
+           email.addTo(recipientEmail);
+           email.setSubject("Form Submission");
+           email.setHtmlMsg("<p>I have attached pdf file</p>");  // fixed message
+
+           // Attach the PDF
+           DataSource ds = new ByteArrayDataSource(pdfBytes, "application/pdf");
+           email.attach(ds, fileName, "Form submission PDF");
+
+           MessageGateway<HtmlEmail> gateway =
+               messageGatewayService.getGateway(HtmlEmail.class);
+           gateway.send(email);
+           LOG.info("Email with PDF attachment sent to: {}", recipientEmail);
+       } catch (EmailException e) {
+           LOG.error("Failed to send email with PDF to: {}", recipientEmail, e);
+           // Do not rethrow — email failure must not block form submission
+       }
+   }
+   ```
+3. **Submit-action node** lives under `/apps/{project}/fd/af/submitactions/Custom-Submit-EmailWithPDF/`.
+   Set `submitService="Custom-Submit-EmailWithPDF"` and `actionType="{project}/fd/af/submitactions/Custom-Submit-EmailWithPDF"` on the `guideContainer`.
+4. **Fixed body text is always `"I have attached pdf file"`** — do not make it configurable unless
+   the PLAN explicitly asks for a dynamic template.
+5. **Idempotency rule** — check before generating: if `Custom-Submit-EmailWithPDF` service +
+   submit-action node already exist, just select the action in the form's Submission dropdown.
+
+> Required Maven dependency for `ByteArrayDataSource`:
+> `javax.mail:mail` is already transitively available in AEM; `org.apache.commons:commons-email`
+> is the `HtmlEmail` provider and is bundled in AEM. No new `pom.xml` entry needed.
 
 ---
 

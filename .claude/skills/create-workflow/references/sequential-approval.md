@@ -17,16 +17,7 @@ Project tokens: `{project}` = `aem-demo-site` (the single project namespace; the
 
 - The Assign Task step's **Route Variable** is `actionTaken` (String, declared in the model).
 - Routes (buttons) are added on the step's **Actions** tab: `Approve`, `Reject`.
-- The OR-split condition checks `actionTaken == 'Approve'` — but **author this in the Workflow
-  Model editor's graphical Rule Definition builder** (variable `actionTaken`, operator Equals,
-  literal `Approve`/`Reject`), which persists as `expression{N}`, **not** as a hand-written
-  `script{N}` ECMA rule. Live-verified on `employee-training-request-approval`: a correctly
-  written `graniteWorkflowData`-based `script{N}` rule for this exact condition still failed to
-  route in the real AEM Inbox; switching to the Rule Definition builder is what actually worked.
-  The `meta.get('actionTaken', String) == 'Approve'` script shown in the `/var` transition scaffold
-  below is kept only to illustrate what the editor-built condition compiles down to — don't
-  hand-author it. See workflow-model-spec.md → "OR-split condition: use the editor's Rule
-  Definition builder" for the exact `expression{N}` shape.
+- The OR-split transition checks `meta.get('actionTaken', String) == 'Approve'`.
 - Each step references a **Workflow Stage** defined in `metaData/stages`.
 - Review-only steps use `formType=READ_ONLY_ADAPTIVE_FORM` + `formReadOnly=true`.
 
@@ -154,17 +145,17 @@ design copy — see workflow-model-spec.md.)
     <t0 jcr:primaryType="cq:WorkflowTransition" from="node0" rule="" to="node1" x="90"  y="280"><metaData jcr:primaryType="nt:unstructured"/></t0>
     <t1 jcr:primaryType="cq:WorkflowTransition" from="node1" rule="" to="node2" x="230" y="280"><metaData jcr:primaryType="nt:unstructured"/></t1>
     <t2 jcr:primaryType="cq:WorkflowTransition" from="node2"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
       to="node3" x="370" y="220"><metaData jcr:primaryType="nt:unstructured"/></t2>
     <t3 jcr:primaryType="cq:WorkflowTransition" from="node2"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
       to="node4" x="370" y="340"><metaData jcr:primaryType="nt:unstructured"/></t3>
     <t4 jcr:primaryType="cq:WorkflowTransition" from="node3" rule="" to="node5" x="510" y="160"><metaData jcr:primaryType="nt:unstructured"/></t4>
     <t5 jcr:primaryType="cq:WorkflowTransition" from="node5"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
       to="node6" x="650" y="120"><metaData jcr:primaryType="nt:unstructured"/></t5>
     <t6 jcr:primaryType="cq:WorkflowTransition" from="node5"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
       to="node8" x="650" y="200"><metaData jcr:primaryType="nt:unstructured"/></t6>
     <t7  jcr:primaryType="cq:WorkflowTransition" from="node6" rule="" to="node7" x="790" y="80"><metaData jcr:primaryType="nt:unstructured"/></t7>
     <t8  jcr:primaryType="cq:WorkflowTransition" from="node7" rule="" to="node9" x="930" y="180"><metaData jcr:primaryType="nt:unstructured"/></t8>

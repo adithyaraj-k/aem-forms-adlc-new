@@ -351,9 +351,13 @@ pre-bound so the form works on deploy without manual editor selection:
     |---|---|---|
     | (none specified — **DEFAULT**) | `fd/dashboard/components/actions/aemworkflowsubmit` + `workflowModel=/var/workflow/models/assign-task-to-admin` | — |
     | `dor_pdf` / "generate a PDF" / "PDF of the submission" / Document of Record | **KEEP the workflow action** (assign-task-to-admin) — PDF is client-side | add `{project}.forms.generate-pdf` to the form-specific clientlib's `dependencies` (it has no `@name` functions, safe; NOT to `clientLibRef`, NOT via `embed` of `forms.base`) + `thankYouOption="message"` so the SPA stays alive for the client-side PDF. Result: **admin task + PDF**. |
-    | `rest` / REST endpoint write-back | the custom REST submit action's name — `{project}/fd/af/submitactions/{restActionNode}` (+ `submitService=…`) | a **Workflow Launcher** (see `create-workflow`) on the submitted-data path so the admin task is still assigned |
-    | `email` | the email submit action's name — `{project}/fd/af/submitactions/{emailActionNode}` (+ `submitService=…`) | Workflow Launcher, as above |
+    | `rest` / "Submit to REST endpoint" (simple, no custom auth/headers) | **OOTB action** — `actionType="fd/af/components/guidesubmittype/restendpoint"` + `restEndPointUrl="https://…"` + `enableRestEndpointPost="{Boolean}true"`. **Data format: `multipart/form-data` (browser-direct POST).** ⚠️ External server MUST have CORS enabled (`Access-Control-Allow-Origin`); OOTB cannot inspect the API response or surface errors (Step 7 always shows thank-you). No OSGi service needed. | a **Workflow Launcher** (see `create-workflow`) on the submitted-data path so the admin task is still assigned |
+    | `rest_custom` / REST write-back with Bearer token / custom headers / response parsing / no CORS on external server | **Custom `FormSubmitActionService`** — `{project}/fd/af/submitactions/{restActionNode}` (+ `submitService=…`). **Server-side** `java.net.http.HttpClient` call — no CORS. Data format: JSON (`submitInfo.getData()`). Parses API response; maps `status >= 400` → `FORM_SUBMISSION_COMPLETE = FALSE`; optionally forwards response values via `fd:redirectParameters` to thank-you page. Token from OSGi config `$[secret:…]`. See `create-submit-action` → "Submit to REST endpoint". | a **Workflow Launcher** on the submitted-data path |
+    | `rest_agent` / "invoke an Agent on submit" / "Agent processes the form" / multi-skill pipeline | **Custom `FormSubmitActionService`** — POSTs JSON to the Agent's REST endpoint (`agentEndpoint` from OSGi config `$[secret:…]`). Agent fans out to multiple Skills (validate → enrich → FDM write / email / PDF / workflow). Agent returns `{ "status": "success"\|"error", "referenceId": "…" }`. `submit()` maps `status == "success"` → `FORM_SUBMISSION_COMPLETE = TRUE` + forwards `referenceId` via `fd:redirectParameters`; error → `FALSE`. **Increase `timeoutMs` (10 000–30 000 ms)** to cover multi-skill latency. See `create-submit-action` → "Agent-orchestrated submit". | a **Workflow Launcher** on the submitted-data path |
+    | `email` / "send email" (plain notification) | the email submit action's name — `{project}/fd/af/submitactions/{emailActionNode}` (+ `submitService=…`) | Workflow Launcher, as above |
+    | `email_with_pdf` / "send email with attached PDF" / "attach PDF" / "I have attached pdf file" | `Custom-Submit-EmailWithPDF` action (`{project}/fd/af/submitactions/Custom-Submit-EmailWithPDF`). Generates the form PDF via the shared `buildPdf()` helper, attaches it to an `HtmlEmail` via `ByteArrayDataSource`, and sends with **fixed body `"I have attached pdf file"`**. See `create-submit-action` → "Email with PDF attachment". | Workflow Launcher, as above |
     | `workflow` / approval (a DIFFERENT process) | "Invoke an AEM Workflow" wiring (see `create-workflow`) — the workflow submit node path | if that process must ALSO assign the admin task, add the Assign Task step to it, or a launcher |
+    | `fdm` / "Submit using Form Data Model" / FDM write-back / "invoke FDM service on submit" | **`actionType="fd/afaddon/components/actions/fdm"`** + **`fdmEntityPath="$.{Entity}"`** (root entity bind ref, e.g. `$.SimpleInterestResult`). This writes form data through the FDM's write operations. The form MUST also be FDM-bound: `schemaType="formdatamodel"` + `schemaRef="/content/dam/formsanddocuments-fdm/{project}/{fdm}-data-model"`. Canonical project example: `simple-interset-fdm` (backed by `SimpleInterestServlet` at `/bin/aem-adaptive-forms-agents/calculate-simple-interest`). | a **Workflow Launcher** on the submitted-data path so the admin task is still assigned (the FDM submit action is terminal — it does NOT trigger the workflow itself). |
 - **Prefill:** `prefillService="{the DataProvider SERVICE_NAME}"` on the `guideContainer` (the
   identifier the `create-prefill-service` DataProvider registers, e.g. `myFormPrefillService`).
   Omitting this is why a prefill service deploys but the form never calls it / the author has to
@@ -736,18 +740,12 @@ a required `checkbox`/`checkbox-group` for the agreement — model it on this re
 until consent is given.
 
 **Document of Record (DoR) — PDF record of the submission.** The form-page template defaults to
-`dorType="none"` on `guideContainer`. For regulated / government / financial forms where the user
-needs a PDF copy of what they submitted, set `dorType="generate"` on `guideContainer` (the form
-renders as its own DoR — the Core Components default when there's no separate print/XDP template).
-If instead a genuine print/XDP template must be used, set `dorType="select"` + `dorTemplateRef`
-(pointing at a real `dam:Asset`, never a `cq:Page`) on the **DAM guide asset's own
-`jcr:content/metadata` node** (`/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`,
-the "Form Properties" data) — **NOT** on `guideContainer`, whose own dialog has no DoR-template
-field at all (live-verified: a direct `dorTemplateRef` write there is inert). `guideContainer`'s own
-`dorType` may still be left as `"generate"`/`"none"` regardless of what Form Properties says; only
-`dorTemplateRef` is exclusively a Form-Properties/DAM-metadata concern. If the requirement mentions
-"PDF of the submission", "record copy", "downloadable receipt", or compliance retention, raise DoR
-with the user and wire it via `create-workflow` (its "Generate Document of Record" step) or
+`dorType="none"`. For regulated / government / financial forms where the user needs a PDF copy of
+what they submitted, set `dorType="generate"` (the form renders as its own DoR — the Core
+Components default when there's no separate print/XDP template) or `"select"` + `dorTemplateRef`
+pointing at a genuine DoR template asset, on the `guideContainer`. If the requirement mentions "PDF
+of the submission", "record copy", "downloadable receipt", or compliance retention, raise DoR with
+the user and wire it via `create-workflow` (its "Generate Document of Record" step) or
 `create-submit-action` (the shared Generate-PDF action). Leave `dorType="none"` only when no record
 copy is needed.
 
@@ -758,11 +756,9 @@ copy is needed.
 > absent, **independent of `dorType`/`dorTemplateRef`**; a Core Components AF page does not carry
 > this marker by default, so add it explicitly whenever the form's DoR will be generated from a
 > workflow. This is the SAME marker the editor's own DoR-configured advisory checks. Always set
-> **all three** DoR places together — this form page's `guide="1"`, `guideContainer`'s `dorType`
-> (plus, if a real template is used, `dorType="select"`+`dorTemplateRef` on the **DAM guide asset's
-> `metadata` node**, not `guideContainer`), and (if applicable) the workflow's Generate DoR step
-> pointed at this form — see `create-workflow`'s "DoR prerequisite" for the full three-place
-> requirement and troubleshooting.
+> **all three** DoR places together — this form page's `guide="1"`, this `guideContainer`'s
+> `dorType`, and (if applicable) the workflow's Generate DoR step pointed at this form — see
+> `create-workflow`'s "DoR prerequisite" for the full three-place requirement and troubleshooting.
 
 **Adaptive Form Fragments (reuse repeated content).** When the same block of fields recurs across
 forms (address, applicant identity, bank details), Adobe recommends authoring it once as an

@@ -81,38 +81,6 @@ Project tokens: `{project}` = `aem-demo-site` (the single project namespace; the
 
 ---
 
-## 7a. "Set Status" step runs fine, but the form still shows the old value on the next task
-
-- **Cause:** the step uses `com.adobe.granite.workflow.core.process.SetVariableProcess`, which
-  only writes the WORKFLOW's own `metaDataMap` — never the submitted payload. A form field bound
-  via `dataRef` (e.g. `$.ApprovalInfo.CurrentStatus`) and any Rule-Editor rule reading that field
-  only ever reflect what's persisted in the payload's `data.xml`, which `SetVariableProcess` never
-  touches. Deploys clean, runs with no error — the workflow variable changes but nothing visible
-  does. Routing/OR-split still work because those DO read the workflow variable; only the form's
-  own re-rendered state is stale.
-- **Fix:** replace that node's `PROCESS` with a small custom step that sets the variable **and**
-  writes into the payload JSON — see this repo's
-  `core/.../forms/workflow/SetStatusVariableAndPayloadProcess.java` and
-  [service-workflow.md](./service-workflow.md) → "`SetVariableProcess` only writes the workflow —
-  never the payload". Keep plain `SetVariableProcess` only for values a later **workflow** step
-  reads (routing rule, email template) — not values the **form** must re-display.
-
-## 7b. Task completion crashes / assignee's typed comment never shows up on the next task
-
-- **Crash** (`WorkflowException: "Invalid value : <variableName>"`) — caused by wiring
-  `WORKITEM_COMMENT=<variableName>` on the Assign Task step. `WorkSpacePayLoadManagerImpl
-  .saveComment()` requires `"CATEGORY:value"`-formatted input; plain typed text fails that parse
-  and crashes task completion outright. **Fix:** don't wire `WORKITEM_COMMENT`. Read the comment
-  from workflow history in a later custom step instead (see service-workflow.md).
-- **Comment silently missing** even after switching to a history read — caused by checking only
-  `HistoryItem.getComment()`. AEM Forms' own Workspace/Inbox completion dialog stamps the typed
-  comment onto the completed `WorkItem`'s own metadata map under `workitemComment`, a different
-  property than the standard Granite comment field. Check
-  `historyItem.getWorkItem().getMetaDataMap().get("workitemComment", String.class)` first, fall
-  back to `getComment()` — see `extractComment()` in `SetStatusVariableAndPayloadProcess.java`.
-
----
-
 ## 8. Workflow instance stuck (RUNNING forever)
 
 Causes: Assign Task waiting on a deleted user/group; AND Join waiting on a branch that errored;

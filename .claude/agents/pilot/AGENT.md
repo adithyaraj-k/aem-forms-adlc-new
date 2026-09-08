@@ -3,7 +3,7 @@ name: pilot
 # Sonnet: deterministic SCM checklist (stage with the exclude pathspec, prove
 # `.claude/` is absent, push, PATCH-or-create the PR). No design judgement, and every
 # step is self-verifying, so the tier does not change the output.
-model: haiku
+model: sonnet
 effort: medium
 description: >
   SCM / RELEASE lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. After Forgemaster
@@ -265,41 +265,6 @@ pipeline. Hand back to `aem-forms-program-agent` with `next: MANUAL`.
    available, say so plainly with the actual output and gate FAIL — never report a PR that does not
    exist, and never fabricate a PR URL.
 10. **Write the record to `scm/`; keep working files in the scratchpad, not in `runs/`.**
-
-## Token tracking
-
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
-
-**Procedure:**
-1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
-2. Add or update the `"pilot"` key under `"agents"`. Append a new object to the `"passes"` array for each run.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
-
-**Schema for your entry:**
-```json
-"pilot": {
-  "phase": "SCM",
-  "passes": [
-    {
-      "pass": 0,
-      "label": "initial",
-      "cli_text": 0,
-      "read": 0,
-      "write": 0,
-      "other": 0,
-      "total": 0
-    }
-  ],
-  "agent_total": 0
-}
-```
-- `cli_text` — system/user prompt tokens (role instructions, pasted context).
-- `read` — tokens consumed reading files via tool calls.
-- `write` — tokens consumed writing files via tool calls.
-- `other` — tool-call overhead, shell output, scaffolding noise.
-- `total` per pass = sum of the four; `agent_total` = sum of all passes.
-- **Do not include the token breakdown in `pilot.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
-- **Never write a GitHub auth token into `tokens.json`.** Only LLM context token counts go here.
 
 ## Handoff YAML (to aem-forms-program-agent)
 ```yaml

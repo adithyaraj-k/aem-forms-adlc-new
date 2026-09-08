@@ -9,34 +9,22 @@ Project tokens: `{project}` = `aem-demo-site` (the single project namespace; the
 > ⚠️ The `cq:WorkflowModel` XML below is an **unverified scaffold** — `PROCESS`/`PROCESS_ARGS`
 > values are not officially documented. Recreate this shape in the **Workflow editor** using the
 > documented UI fields ([workflow-model-spec.md](./workflow-model-spec.md)), Sync, then capture to
-> `ui.content`. The routing **rule functions** below (`meta.get('actionTaken', String)`, amount
-> checks) illustrate the logic and are fine as a *reference* for what each branch should check.
->
-> ⚠️ **For a simple variable-equals-literal condition (e.g. `actionTaken == 'Approve'`), do NOT
-> hand-author it as a `script{N}` ECMA rule on the `/conf` OR-split node.** Live-verified on
-> `employee-training-request-approval`: even a correctly-written `graniteWorkflowData`-based
-> script still failed to route in the real AEM Inbox ("Complete Work Item" dialog). The fix that
-> actually worked was building the condition in the Workflow Model editor's graphical **"Rule
-> Definition"** builder (variable `actionTaken`, operator Equals, literal `Approve`/`Reject`),
-> which persists as an `expression{N}` JSON property instead of `script{N}`. See
-> workflow-model-spec.md → "OR-split condition: use the editor's Rule Definition builder" for the
-> exact shape. Reserve hand-written `script{N}` ECMA (the patterns below) for conditions the
-> builder can't express — numeric thresholds, multi-variable boolean logic, group-membership
-> lookups — not for a plain Approve/Reject check.
+> `ui.content`. The routing **rule functions** (`meta.get('actionTaken', String)`, amount checks)
+> are the reliable part — copy those verbatim.
 
 ## Common routing rule patterns
 
 ```javascript
 // Route by amount (set into a variable by a Set Variable step first)
 function check() {
-  var meta = graniteWorkflowData.getMetaDataMap();
+  var meta = workItem.getWorkflowData().getMetaDataMap();
   return parseInt(meta.get('requestAmount', '0'), 10) > 10000;
 }
 ```
 ```javascript
 // Route by department from form data
 function check() {
-  var meta = graniteWorkflowData.getMetaDataMap();
+  var meta = workItem.getWorkflowData().getMetaDataMap();
   var dept = meta.get('department', '');
   return dept === 'Engineering' || dept === 'Product';
 }
@@ -44,7 +32,7 @@ function check() {
 ```javascript
 // Route by group membership of the submitter
 function check() {
-  var wfData = graniteWorkflowData;
+  var wfData = workItem.getWorkflowData();
   var submittedBy = wfData.getMetaDataMap().get('startedBy', String);
   var um = workflowSession.getSession().getUserManager();
   var group = um.getAuthorizable('senior-employees');
@@ -113,18 +101,18 @@ function check() {
     <transition0 jcr:primaryType="cq:WorkflowTransition" from="node0" rule="" to="node1" x="90"  y="280"><metaData jcr:primaryType="nt:unstructured"/></transition0>
     <transition1 jcr:primaryType="cq:WorkflowTransition" from="node1" rule="" to="node2" x="230" y="280"><metaData jcr:primaryType="nt:unstructured"/></transition1>
     <transition2 jcr:primaryType="cq:WorkflowTransition" from="node2"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return parseInt(meta.get('requestAmount','0'),10)>10000;}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return parseInt(meta.get('requestAmount','0'),10)>10000;}"
       to="node3" x="370" y="220"><metaData jcr:primaryType="nt:unstructured"/></transition2>
     <transition3 jcr:primaryType="cq:WorkflowTransition" from="node2"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return parseInt(meta.get('requestAmount','0'),10)&lt;=10000;}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return parseInt(meta.get('requestAmount','0'),10)&lt;=10000;}"
       to="node4" x="370" y="340"><metaData jcr:primaryType="nt:unstructured"/></transition3>
     <transition4 jcr:primaryType="cq:WorkflowTransition" from="node3" rule="" to="node5" x="510" y="220"><metaData jcr:primaryType="nt:unstructured"/></transition4>
     <transition5 jcr:primaryType="cq:WorkflowTransition" from="node4" rule="" to="node5" x="510" y="340"><metaData jcr:primaryType="nt:unstructured"/></transition5>
     <transition6 jcr:primaryType="cq:WorkflowTransition" from="node5"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Approve';}"
       to="node6" x="650" y="230"><metaData jcr:primaryType="nt:unstructured"/></transition6>
     <transition7 jcr:primaryType="cq:WorkflowTransition" from="node5"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('actionTaken',String)=='Reject';}"
       to="node7" x="650" y="330"><metaData jcr:primaryType="nt:unstructured"/></transition7>
     <transition8 jcr:primaryType="cq:WorkflowTransition" from="node6" rule="" to="node8" x="790" y="230"><metaData jcr:primaryType="nt:unstructured"/></transition8>
     <transition9 jcr:primaryType="cq:WorkflowTransition" from="node7" rule="" to="node8" x="790" y="330"><metaData jcr:primaryType="nt:unstructured"/></transition9>
@@ -144,7 +132,7 @@ step's Participant Chooser, with `assigneeType=DYNAMIC`.
 
 ```javascript
 // Resolves assignee dynamically from form data
-var meta = graniteWorkflowData.getMetaDataMap();
+var meta = workItem.getWorkflowData().getMetaDataMap();
 var department = meta.get("department", String);
 var assignee;
 switch (department) {

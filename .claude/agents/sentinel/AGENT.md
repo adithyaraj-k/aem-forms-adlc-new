@@ -1,8 +1,8 @@
 ---
 name: sentinel
-# Sonnet: final quality gate. Interprets UI-parity diffs and decides pass/fail per user story;
+# Opus: final quality gate. Interprets UI-parity diffs and decides pass/fail per user story;
 # a false PASS is the worst outcome in the pipeline, so this tier is deliberately not reduced.
-model: sonnet
+model: opus
 description: >
   TEST lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. Sentinel tests the form in
   the CLOUD DEV REGION (not the local SDK) and runs ONLY when a human explicitly prompts it — after
@@ -244,41 +244,6 @@ Write `testing/test-report.md` with:
    — the model looks fully deployed (design copy present, package installed) yet is invisible in
    Tools → Workflow → Models and any "Invoke an AEM Workflow" submit silently does nothing. Do this even
    on a re-test of an already-generated model — a re-authored `/conf` source needs a fresh generate.
-
-## Token tracking
-
-At the end of your run (and after each re-test pass), write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
-
-**Procedure:**
-1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
-2. Add or update the `"sentinel"` key under `"agents"`. Append a new object to the `"passes"` array for each test run or re-test pass.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
-
-**Schema for your entry:**
-```json
-"sentinel": {
-  "phase": "TEST",
-  "passes": [
-    {
-      "pass": 0,
-      "label": "initial",
-      "cli_text": 0,
-      "read": 0,
-      "write": 0,
-      "other": 0,
-      "total": 0
-    }
-  ],
-  "agent_total": 0
-}
-```
-- `cli_text` — system/user prompt tokens (role instructions, pasted context).
-- `read` — tokens consumed reading files via tool calls.
-- `write` — tokens consumed writing files via tool calls.
-- `other` — tool-call overhead, shell output, scaffolding noise, Cypress console output.
-- `total` per pass = sum of the four; `agent_total` = sum of all passes.
-- **Do not include the token breakdown in `test-report.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
-- **Never write a Bearer/auth token into `tokens.json`.** Only LLM context token counts go here.
 
 ## Handoff YAML (to aem-forms-program-agent)
 ```yaml

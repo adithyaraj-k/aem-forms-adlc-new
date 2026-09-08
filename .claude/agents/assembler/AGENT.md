@@ -137,40 +137,6 @@ Write `assembly/assembler.md` with:
    integration, build/deploy, or test.
 7. **Write the summary to `assembly/`; keep working files in the scratchpad, not in `runs/`.**
 
-## Token tracking
-
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
-
-**Procedure:**
-1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
-2. Add or update the `"assembler"` key under `"agents"`. Append a new object to the `"passes"` array for each run.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
-
-**Schema for your entry:**
-```json
-"assembler": {
-  "phase": "ASSEMBLY",
-  "passes": [
-    {
-      "pass": 0,
-      "label": "initial",
-      "cli_text": 0,
-      "read": 0,
-      "write": 0,
-      "other": 0,
-      "total": 0
-    }
-  ],
-  "agent_total": 0
-}
-```
-- `cli_text` — system/user prompt tokens (role instructions, pasted context).
-- `read` — tokens consumed reading files via tool calls.
-- `write` — tokens consumed writing files via tool calls.
-- `other` — tool-call overhead, shell output, scaffolding noise.
-- `total` per pass = sum of the four; `agent_total` = sum of all passes.
-- **Do not include the token breakdown in `assembler.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
-
 ## Handoff YAML (to aem-forms-program-agent)
 ```yaml
 agent: assembler

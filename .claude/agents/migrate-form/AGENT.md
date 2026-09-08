@@ -1,8 +1,8 @@
 ---
 name: migrate-form
-# Sonnet: heaviest inference in the project — Foundation-to-Core-Components rewriting and
+# Opus: heaviest inference in the project — Foundation-to-Core-Components rewriting and
 # LiveCycle/JEE re-platforming, mapping unfamiliar inputs onto this repo's exact structure.
-model: sonnet
+model: opus
 description: >
   Migrates existing forms to AEM as a Cloud Service with Core Components via TWO paths. PATH A — AEM Adaptive Forms: accepts a legacy form as an AEM content package (.zip), loose JCR tree, or JCR path; migrates the WHOLE package — not just the form page: every field, panel, and rule PLUS all form-related assets (DAM images/logos, fonts, Document-of-Record templates, schema/binding files, referenced Adaptive Form Fragments, icons/SVGs); rewrites Foundation resource types to Core Components, generates all 4 required cloud artifacts, corrects theme AND asset references, and migrates deprecated rules. PATH B — Adobe LiveCycle / AEM Forms on JEE: accepts a LiveCycle Archive (.lca) of XDP templates, XSD schemas, XML data, PDFs and Workbench processes PLUS a .jar of custom DSC Java components, and re-platforms them into native AEMaaCS assets — each XDP becomes a Core Components Adaptive Form (with the original XDP retained as the Document of Record), each Workbench orchestration becomes an AEM Workflow, and each custom DSC operation is re-implemented as an OSGi service. Invoke PROACTIVELY and ALWAYS run this agent whenever "migrate form", "migrate a form", or "migrate-form" is mentioned in any form — regardless of how the request is phrased. Triggers on any request to migrate, upgrade, port, modernise, convert, or "make work on cloud" an Adaptive Form, to convert a Foundation / AEM 6.x form to Core Components, OR to migrate a LiveCycle / AEM Forms on JEE application, an .lca, XDP forms, Workbench orchestrations/processes, or custom DSCs. A migration is ALWAYS run as a full ADLC delivery (PLAN → DESI → IMPL → ASSEMBLY → DEPLOY → TEST → HANDOFF), never as a one-shot standalone skill run — when invoked directly it hands the migration to the aem-forms-program-agent to orchestrate that pipeline, and runs itself only as the IMPL-build migrate step (Phase 11).
 ---
@@ -154,40 +154,6 @@ does it run its own deploy/parity steps.
   (IMPL-build Step B6) is reserved for **custom DSC operations** that have no OOTB counterpart. The full
   LiveCycle-service → AEMaaCS-OOTB mapping and the per-step authoring requirements live in `SKILL.md` Step B5.
 
-## Token tracking
-
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
-
-**Procedure:**
-1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
-2. Add or update the `"migrate-form"` key under `"agents"`. Append a new object to the `"passes"` array for each run or fix pass.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
-
-**Schema for your entry:**
-```json
-"migrate-form": {
-  "phase": "IMPL-build",
-  "passes": [
-    {
-      "pass": 0,
-      "label": "initial",
-      "cli_text": 0,
-      "read": 0,
-      "write": 0,
-      "other": 0,
-      "total": 0
-    }
-  ],
-  "agent_total": 0
-}
-```
-- `cli_text` — system/user prompt tokens (role instructions, pasted context).
-- `read` — tokens consumed reading files via tool calls.
-- `write` — tokens consumed writing files via tool calls.
-- `other` — tool-call overhead, shell output, scaffolding noise.
-- `total` per pass = sum of the four; `agent_total` = sum of all passes.
-- **Do not include the token breakdown in the migration report or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
-
 ## Handoff YAML
 When complete as the ADLC IMPL-build migrate step, return (author-only — deploy is `forgemaster`'s,
 UI parity is `sentinel`'s):
@@ -205,7 +171,7 @@ artifacts:
   - filter_entries: updated
   - assets_migrated: []   # every DAM image/font/DoR-template/schema/fragment/SVG copied + re-referenced
   # Path B only — the re-platformed integration artifacts:
-  - dor_template: ""      # the retained XDP, uploaded as a dam:Asset and wired via dorType="select"+dorTemplateRef on the DAM guide asset's jcr:content/metadata (Form Properties) — NEVER on guideContainer, which has no DoR-template field (live-verified)
+  - dor_template: ""      # the retained XDP wired as Document of Record (dorType/dorTemplateRef)
   - workflows: []         # AEM Workflow models re-implemented from Workbench orchestrations
   - osgi_services: []     # core-module OSGi services re-implemented from custom DSC operations
 migration_delta:

@@ -163,22 +163,7 @@ manager, email on reject"), and **confirm your reading before generating**.
 4. **Assignees** — specific users/groups, or dynamic (script-based by form data)?
 5. **Routes** — the action buttons reviewers see (e.g. `Approve`, `Reject`, `Request More Info`).
 6. **Due dates** — should tasks expire? (interval + `DAYS`/`HOURS`).
-7. **Notifications** — email on submit / approve / reject? To whom (form field or fixed)? Every
-   recipient — on an Assign Task's "Send Notification Email" AND on every dedicated Send Email
-   step — MUST resolve via a declared workflow **variable** (`RECIPIENT_EMAIL_RESOLUTION="VARIABLE"`
-   + `EMAIL_VARIABLE=...`, or `toAddressType="Variable"` + `toAddressValue=...`); never author a
-   literal recipient address. If no real source for that address exists yet (no form field, no
-   payload path, no directory/lookup service), use `AskUserQuestion` to ask the user for a default
-   recipient email address before finalizing the step — do not leave the variable blank or invent
-   a plausible-looking address. Set that default in **both** places (they are independent — see
-   workflow-model-spec.md → "Workflow Variables" for the full explanation): the variable's own
-   `defaultValue` property on its `jcr:content/variables/<name>` declaration (editor-UI-facing;
-   **not** `value` — that guess was tried and confirmed wrong), AND the model's initial "Capture
-   Submission Variables" Set Variable step (`variableName=<var>, variableType=String,
-   variableValue=<default-address>`, runtime-facing) — the same way
-   `employee-training-request-approval`'s `managerEmail`/`financeEmail`/`applicantEmail` variables
-   are seeded. The Set Variable step is a plain literal assignment, not a conditional fallback
-   (`SetVariableProcess` has no "only if blank" logic).
+7. **Notifications** — email on submit / approve / reject? To whom (form field or fixed)?
 8. **Document of Record** — generate a PDF after approval? (requires DoR enabled on the form).
 9. **Data storage** — payload path (`data.xml`) or workflow **variables** (variables are
    mandatory if the model is marked for external data storage).
@@ -567,28 +552,8 @@ When you respond, always:
   never write a `cq:WorkflowModel` into `/conf`. Never `/etc/workflow/models`, never `/libs`.
 - **Reuse first**: scan for an existing model and reuse/extend it before creating a new one.
 - **Route Variable** on every Assign Task that branches must be `actionTaken` (String,
-  declared in the `/conf` design model's `jcr:content/variables`).
-- **OR-split condition — prefer the editor's Rule Definition builder, not a hand-written
-  script.** Configure the split's Approve/Reject condition via the Workflow Model editor's
-  graphical "Rule Definition" UI (pick variable `actionTaken`, operator "Equals", literal
-  `Approve`/`Reject`) — this persists as an `expression{N}` JSON property and is the
-  **live-confirmed working** mechanism for `employee-training-request-approval`'s real Inbox
-  Approve/Reject routing. See workflow-model-spec.md → "OR-split condition: use the editor's
-  Rule Definition builder" for the exact JSON shape and how to capture/replicate it headlessly.
-  Only fall back to a hand-written `script{N}` ECMA rule (`meta.get('actionTaken', String) ==
-  'Approve'` — capital-S `String`, exact button label) for conditions the builder can't express
-  (multi-variable/numeric logic) — and if you do, it **must** read
-  `graniteWorkflowData.getMetaDataMap()`, **NEVER** `workItem.getWorkflowData().getMetaDataMap()`.
-  Live-proven by decompiling `com.adobe.granite.workflow.core.rule.ScriptingRuleEngine` (the class
-  that evaluates every rule script): its bindings are
-  `graniteWorkflowData`/`workflow`/`workflowSession`/`jcrSession` — `workItem` is never bound. A
-  script using `workItem...` throws `ReferenceError: "workItem" is not defined` the moment a
-  route is evaluated, which makes the task **un-completable** (not just mis-routed) since the
-  same script gates the Approve/Reject buttons. `graniteWorkflowData` already IS the
-  `WorkflowData` object — no `.getWorkflowData()` call needed on it. Even with that fix applied,
-  the ECMA path still failed real Inbox routing on this project (the Inbox's pre-click
-  route-preview call found no valid route) — the Rule Definition builder is what actually worked,
-  so treat `script{N}` as a fallback, not the default.
+  declared in `metaData/variables`). OR-split rules check
+  `meta.get('actionTaken', String) == 'Approve'` — capital-S `String`, exact button label.
 - **Submit action (Core Components)**: use the modern `fd/dashboard/components/actions/aemworkflowsubmit`
   with **`dataXMLPath` + `dataXMLType=FOLDER_PAYLOAD`** (and `attachmentsFolderPath`/`attachmentsType`,
   `dorPath`/`workflowDorType`). **Not** the legacy `afDataFile`/`afAttachmentsPath`/`afDoRPath` — the
@@ -600,30 +565,6 @@ When you respond, always:
 - **Custom Java process step**: implement `WorkflowProcess`, select by FQCN in the model's Process
   step, write through the repo (`AssetManager`) via a **service user** — never the local filesystem
   (Cloud has none). Throw `WorkflowException` on failure so the error surfaces.
-- **"Set Status" steps must write the payload, not just the workflow variable**:
-  `com.adobe.granite.workflow.core.process.SetVariableProcess` only writes the running instance's
-  `metaDataMap` — never the submitted payload's `data.xml`. If the status value must be visible on
-  a form re-render (a `dataRef`-bound dropdown, a Rule-Editor show/hide or unlock rule, another
-  assignee's task), use a custom step that sets the variable **and** writes the payload field (see
-  `core/.../forms/workflow/SetStatusVariableAndPayloadProcess.java` and service-workflow.md).
-  Plain `SetVariableProcess` remains correct when only a later **workflow** step reads the value —
-  and even then, ONLY for literal values (see the next bullet for reading values, which it cannot do).
-- **"Capture Submission Variables" steps must actually parse the payload — `SetVariableProcess`'s
-  `${payload.jcr:content/data/...}` EL does NOT work on this project's forms.** That EL is walked as
-  a literal JCR node/property path; it only resolves if the payload is stored as real, expanded JCR
-  child nodes. This project's forms (`schemaType=jsonschema`) store the whole submission as ONE
-  opaque JSON blob (a `jcr:data` Binary property on `<payload>/data.xml/jcr:content`) — there is no
-  child node to walk to, so the variable silently ends up blank regardless of what the form field
-  held (live-confirmed against a real submitted `data.xml`). Use
-  `com.aem.forms.agents.forms.workflow.CaptureSubmissionVariablesProcess` (this project's own step)
-  instead — it parses the JSON blob with Jackson and reads a dot-separated `payloadPath` out of it,
-  alongside `literalValue` entries for variables with no payload source. See
-  workflow-model-spec.md → "Set Variable Step PROCESS_ARGS" for the exact `PROCESS_ARGS` shape.
-- **Never wire `WORKITEM_COMMENT` to capture an assignee's typed comment** — it crashes task
-  completion for plain text (`WorkflowException: "Invalid value : ..."`). Read the comment from
-  workflow **history** in a later step instead, checking the completed `WorkItem`'s
-  `workitemComment` metadata key (AEM Forms' own completion-dialog write target) before falling
-  back to `HistoryItem.getComment()` — see service-workflow.md and troubleshooting.md §7b.
 - **Payload type** is always `JCR_PATH` for adaptive forms (never `BLOB`).
 - **External data storage**: if the model is marked for it, every step's data/attachments/DoR
   must use the **variable** option, not a payload path. All variables must be declared first.
@@ -643,54 +584,22 @@ When you respond, always:
      so a missing `guide="1"` also shows as "not DoR-configured" in the UI, not just a runtime failure.
      This check is **independent of `dorType`** — setting `dorType` alone (below) with `guide` absent
      has zero effect (a real fix pass on this project hit exactly that and it did nothing).
-  2. **Form Properties — the DAM guide asset's `jcr:content/metadata` node**
-     (`/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`,
-     `sling:resourceType=fd/fm/af/render`) — `dorType` must be `"generate"` (the form renders as its
-     own DoR — the Core Components-idiomatic default when no separate print/XDP template exists) or
-     `"select"` with `dorTemplateRef` pointing at a genuine DoR template asset (a real `dam:Asset`
-     with a binary rendition — never a `cq:Page`). ⚠️ **Live-verified the hard way: `dorType` and
-     `dorTemplateRef` do NOT live on `guideContainer`.** A direct edit there is inert — the
-     guideContainer component's own dialog has no DoR-template field at all, and neither the editor's
-     Form Properties UI nor `AFtoDORStep` reads `dorType`/`dorTemplateRef` from it. Set them on the
-     DAM guide asset's `metadata` node instead; leave `guideContainer`'s own `dorType` (if it has one
-     at all — many forms don't) untouched. `dorTemplateRef` is **not read by `AFtoDORStep`** either
-     way — only `dorType` matters to that step; `dorTemplateRef` only matters for `dorType="select"`'s
-     own template resolution elsewhere (the Form Properties template picker / DoRService).
-  3. **The workflow's Generate DoR step** — present in the model (`afToDorStep`,
-     `PROCESS=com.adobe.fd.workflow.dorGeneration.AFtoDORStep`), pointed at the right `AF_PATH`
-     (the form whose DoR the step should render), and its own three payload-facing fields
-     (`INPUT_DATAXML`, `INPUT_ATTACHMENT`, `DOR_PATH`) filled in with a real, colon-prefixed
-     `"CATEGORY:value"` string — **leaving them bare (no category prefix) is NOT equivalent and can
-     make the step throw at runtime.** Live-verified via a real Workflow-editor session (selecting
-     "Input Data = Relative to Payload / data.xml", "Input Attachments = Relative to Payload /
-     attachments", "Document of Record = Stored Under Payload Folder", then exporting the saved
-     design model) that the ACTUAL persisted tokens are:
-     - `INPUT_DATAXML="FOLDER_PAYLOAD:data.xml"`
-     - `INPUT_ATTACHMENT="FOLDER_PAYLOAD:attachments"`
-     - `DOR_PATH="RELATIVE_PLOAD:DocumentofRecord/DoR.pdf"` (any payload-relative path)
-     Do **not** guess a different category token for these three fields (e.g. `RELATIVE_PLOAD` for
-     the two inputs, or `UNDER_PLOAD` for the output) — an earlier pass on this project did exactly
-     that, got a `WorkflowException: Invalid type for resolving property RELATIVE_PLOAD` crash from
-     `AFtoDORStep`'s own `PropertyResolver.getColonSeparatedPropertyValue`, and wrongly concluded
-     colon-prefixed values are unsafe on this step in general — the crash was actually from using the
-     wrong token, not from the colon-prefix format itself. If the model's data is stored externally,
-     use the **variable** category instead (same widget, different token) for the DoR output.
-  All four must be checked together whenever DoR is wired or debugged — Formwright/Groundsmith
-  authoring only #2 and #3 while missing #1, or getting #3's category tokens wrong, are the two most
-  common ways a DoR step deploys clean and still fails (or silently no-ops) at runtime.
+  2. **`guideContainer` (the form component itself)** — `dorType` must be `"generate"` (the form
+     renders as its own DoR — the Core Components-idiomatic default when no separate print/XDP
+     template exists) or `"select"` with `dorTemplateRef` pointing at a genuine DoR template asset.
+     `dorTemplateRef` is **not read by `AFtoDORStep`** — only `dorType` matters to this step;
+     `dorTemplateRef` only matters for `dorType="select"`'s own template resolution elsewhere.
+  3. **The workflow's Generate DoR step** — present in the model (`afToDorStep`), pointed at the
+     right `formPath` (the DAM guide-asset or form path whose DoR the step should render), and — if
+     the model's data is stored externally — using the **variable** option for its DoR output
+     (`dorPath`/`workflowDorType`), same as any other step's data/attachment output.
+  All three must be checked together whenever DoR is wired or debugged — Formwright/Groundsmith
+  authoring only #2 and #3 while missing #1 is the single most common way a DoR step deploys clean
+  and still fails at runtime.
 - **Assignees** must belong to `workflow-users`. Interactive Communications also need
   `cm-agent-users`.
 - **Notifications** need `notifyParticipant=true` on the step **and** Day CQ Mail Service
   **and** Day CQ Link Externalizer configured.
-- **Every email recipient — Assign Task's own notification AND every Send Email step — must be a
-  workflow variable, never a literal.** `RECIPIENT_EMAIL_RESOLUTION="VARIABLE"`/`EMAIL_VARIABLE=...`
-  on Assign Task; `toAddressType="Variable"`/`toAddressValue=...` on Send Email. If no real value
-  source exists for that variable yet, `AskUserQuestion` for a default recipient address while
-  authoring, then set it in BOTH the variable's own `defaultValue` property (`jcr:content/
-  variables/<name>/defaultValue` — NOT `value`) and as a literal in the "Capture Submission
-  Variables" Set Variable step — do not leave it blank, do not invent a plausible address, and do
-  not reuse an unrelated variable
-  (e.g. the submitting applicant's email) for a different audience's notification.
 - **Adobe Sign** step uses `PROCESS_AUTO_ADVANCE="false"` (it waits for signing) and requires
   the Adobe Sign cloud config under `/conf/.../settings/cloudconfigs`.
 - **Scripts** under `/apps/{project}/workflow/scripts/`, never `/etc`.
@@ -713,24 +622,10 @@ When you respond, always:
 | Model not found / can't be resolved after deploy | Deployed `/conf` design model but never Synced, so no `/var` runtime exists | Open the model in the editor and **Sync**, or also package the generated `/var` tree |
 | Task never appears in Inbox | Assignee not in `workflow-users`, or user/group doesn't exist, or form not published | Add to `workflow-users`; verify the assignee; publish the form |
 | OR-split always takes one branch | Route Variable not `actionTaken`, or rule uses lowercase `string` | Set Route Variable `actionTaken`; use `meta.get('actionTaken', String)` |
-| Task's Approve/Reject buttons don't work at all (not "wrong branch" — completion itself fails), error.log shows `ScriptEvaluationException ... ReferenceError: "workItem" is not defined` from `/libs/workflow/scripts/dynamic.ecma` | The OR-split's `script{N}` rule used `workItem.getWorkflowData().getMetaDataMap()` — `workItem` is never bound in `ScriptingRuleEngine`'s evaluation context | Change every rule script to `graniteWorkflowData.getMetaDataMap()` (no `.getWorkflowData()` — it's already the `WorkflowData` object); regenerate; note that any ALREADY-RUNNING instance is pinned to the old model and must be terminated — only a fresh submission picks up the fix. **If the Inbox still can't route even after this fix**, don't keep patching the ECMA — reconfigure the split's condition via the editor's Rule Definition builder instead (persists as `expression{N}`, not `script{N}`) — this is what actually fixed real routing on `employee-training-request-approval`; see workflow-model-spec.md → "OR-split condition: use the editor's Rule Definition builder" |
-| Model deploys clean and generates with no error, but runs fully sequential — no real branch at all | Used `sling:resourceType="cq/workflow/components/model/orsplit"` (extra "split") — **not a registered component** (404); `ModelGenerateServlet` silently drops it instead of erroring | Use the REAL resourceType `cq/workflow/components/model/or` with branch children named literally `1`/`2` (not descriptive names) — see workflow-model-spec.md → "Authoring a REAL OR-split headlessly" for the full live-verified recipe, including which property (`script{N}`) actually carries each branch's rule |
-| Real `or` split + nested branches fails `generate.json` with "Unable to save workflow model" / "Split steps must have a valid step in every branch" | Branch child nodes named descriptively (e.g. `approve`/`reject`) instead of the literal numerals the component's own renderer (`split.jsp`) iterates | Name branch children `1`, `2`, … (ISO9075-escaped as `_x0031_`/`_x0032_` in committed DocView XML) with `sling:resourceType="cq/flow/components/parsys"` — see workflow-model-spec.md for the exact shape |
-| OR-split branch has no visible condition even after setting `rule`/`condition`/`conditions`/`branchCondition{N}` on the split or branch node | None of those properties are read by the generator for this component | Use `script{N}` (1-indexed) directly on the split node — the only property confirmed to survive into the generated transition's `rule` |
 | Email not sent | Mail Service or Link Externalizer not configured, or `notifyParticipant=false` | Add 4.7 config; set `notifyParticipant=true` |
-| Assign Task's "Send Notification Email" never arrives — `EmailService` logs `NullPointerException` from `StrSubstitutor.replace(Object)`, or `FormsWorkflowException: "Email template is not defined"` | `HTML_EMAIL_TEMPLATE_LOCATION` is set — live-proven broken on this platform for `com.adobe.fd.workspace.step.service.EmailService` (the Assign Task step's own mailer), regardless of path shape (plain `nt:file` path or `/jcr:content`-suffixed) | Remove `HTML_EMAIL_TEMPLATE_LOCATION` entirely — leave it unset. Keep `RECIPIENT_EMAIL_RESOLUTION`/`EMAIL_LITERAL`/`EMAIL_VARIABLE` (that part works). Put the template's information in the step's own `jcr:description` (Description field) instead, or use a dedicated Send Email step (`com.adobe.fd.workflow.email.SendEmailStep`) if a branded template is required — see workflow-model-spec.md's "Assign Task" section |
-| DoR step fails (`"Not a valid Adaptive Form"`) or the editor's DoR advisory shows "not configured", even though `dorType` is already set | Missing the `guide="1"` marker property on the form page's `jcr:content` — `AFtoDORStep` gates on this independently of `dorType`/`dorTemplateRef` (see "DoR prerequisite" above) | Add `guide="1"` (String) to the form page's `jcr:content`, keep `dorType="generate"` (or `"select"` + a real `dorTemplateRef`) on the **DAM guide asset's `jcr:content/metadata`**, and confirm the workflow's DoR step points at the right `formPath` — all three, not just one |
-| DoR renders the OLD layout (auto-generated, or the previous template) after setting `dorType="select"`+`dorTemplateRef` — package deployed clean, no error | Set `dorType`/`dorTemplateRef` directly on `guideContainer` by hand-editing the JCR instead of the DAM guide asset's `metadata` node — `guideContainer` has no DoR-template field, so the write is silently inert | Move the properties to the DAM guide asset's `jcr:content/metadata` node (`/content/dam/formsanddocuments/{appFolder}/{formName}/jcr:content/metadata`); revert whatever was added to `guideContainer` |
-| Generate DoR step's editor dialog shows "Input Data"/"Input Attachments"/"Document of Record" as blank/unconfigured even after hand-editing `INPUT_DATAXML`/`INPUT_ATTACHMENT`/`DOR_PATH`, or the step throws `WorkflowException: Invalid type for resolving property <TOKEN>` at runtime | Wrong or missing `"CATEGORY:value"` category prefix on these three fields — a bare value (`data.xml`) or the wrong token (`RELATIVE_PLOAD:data.xml`/`UNDER_PLOAD:...`) both fail; the real tokens are `INPUT_DATAXML="FOLDER_PAYLOAD:data.xml"`, `INPUT_ATTACHMENT="FOLDER_PAYLOAD:attachments"`, `DOR_PATH="RELATIVE_PLOAD:<payload-relative path>"` | Set the three fields to the exact tokens above (live-verified via a real editor save — see "DoR prerequisite" #3); re-deploy and re-test rather than guessing another token |
+| DoR step fails (`"Not a valid Adaptive Form"`) or the editor's DoR advisory shows "not configured", even though `dorType` is already set | Missing the `guide="1"` marker property on the form page's `jcr:content` — `AFtoDORStep` gates on this independently of `dorType`/`dorTemplateRef` (see "DoR prerequisite" above) | Add `guide="1"` (String) to the form page's `jcr:content`, keep `dorType="generate"` (or `"select"` + a real `dorTemplateRef`) on `guideContainer`, and confirm the workflow's DoR step points at the right `formPath` — all three, not just one |
 | Model/script missing after deploy | Not covered by a `filter.xml` root, or placed under `/etc` | Add the filter roots in Step 5; move scripts to `/apps/{project}/workflow/scripts` |
-| Variables empty between steps | Variable not declared, or type mismatch (`string` vs `String`), or external-storage path used | Declare in the `/conf` design model's `jcr:content/variables` (see workflow-model-spec.md → "Workflow Variables"); match type; use variable option under external storage |
-| Variables panel in the Workflow Model editor doesn't list a variable at all, even though the model deploys clean | Declared under `jcr:content/metaData/variables` instead of `jcr:content/variables` (a sibling of `flow`) — the wrong location deploys fine but the editor UI never reads it | Move the declaration to `jcr:content/variables`; see workflow-model-spec.md → "Workflow Variables" for the exact node shape (`name`/`type`/`defaultValue`/`additionalProperties`) |
-| `mvn package` fails: `ValidationViolation: ... unknown type: ... jackrabbit-docviewparser ...` pointing at a variable node | An attribute value starts with a literal `{` (e.g. `additionalProperties="{}"`) — FileVault's DocView XML reads a leading `{` as a JCR type prefix (`{Boolean}true`), and a bare `{}` parses as an empty/unknown type | Escape the leading brace: `additionalProperties="\{}"`. Applies to any `.content.xml` attribute starting with `{` in any module, not just workflow variables |
-| Editor's "Default Value" field for a variable stays blank even after setting a value on the declaration | Wrong property name — `value` is NOT the backing field | Use `defaultValue` on the variable node (`jcr:content/variables/<name>/defaultValue`) — live-confirmed against the real editor. Also seed the same literal in the model's initial Set Variable step if the value must take effect at runtime, since `defaultValue` is not proven to be read by any process step |
-| "Capture Submission Variables" step runs with no error, but a variable that should hold a submitted form value (e.g. `managerId` from `EmployeeDetails.ManagerId`) is always blank | Used `com.adobe.granite.workflow.core.process.SetVariableProcess` with `variableValue=${payload.jcr:content/data/...}` — that EL only resolves against a payload stored as expanded JCR child nodes; this project's JSON-schema forms store the whole submission as one opaque JSON blob, so there's no child node to walk to | Switch that step's `PROCESS` to `com.aem.forms.agents.forms.workflow.CaptureSubmissionVariablesProcess` and its `PROCESS_ARGS` to the `payloadPath`/`literalValue` shape — see workflow-model-spec.md → "Set Variable Step PROCESS_ARGS" |
-| "Set Status" step runs fine, but the next task's form still shows the OLD status/value | Node uses `SetVariableProcess`, which only writes the workflow's `metaDataMap`, never the payload the form re-renders from | Use a custom step that also writes the payload field — `SetStatusVariableAndPayloadProcess` pattern (service-workflow.md, troubleshooting.md §7a) |
-| Task completion throws `WorkflowException: "Invalid value : <variableName>"` | `WORKITEM_COMMENT=<variableName>` wired on the Assign Task step — the comment-save call requires `"CATEGORY:value"` input, plain text fails it | Remove `WORKITEM_COMMENT`; read the comment from workflow history in a later step instead (service-workflow.md, troubleshooting.md §7b) |
-| Assignee's typed comment never appears on a later task even after reading history | Checked only `HistoryItem.getComment()` — AEM Forms' completion dialog stamps the comment onto the `WorkItem`'s `workitemComment` metadata key instead | Check `workItem.getMetaDataMap().get("workitemComment", String.class)` first, fall back to `getComment()` (troubleshooting.md §7b) |
+| Variables empty between steps | Variable not declared, or type mismatch (`string` vs `String`), or external-storage path used | Declare in `metaData/variables`; match type; use variable option under external storage |
 
 ---
 
@@ -741,34 +636,18 @@ When you respond, always:
 - [ ] **`/conf` design model** (`cq:Page`) captured to `ui.content` (`/conf/global/settings/workflow/models/{workflowName}`) — the required deliverable; `/var` runtime is generated by **Sync** (package it only if you want it shipped)
 - [ ] Assign Task steps configured via editor: form selection, assignee, due date, notification, data/attachment/DoR output
 - [ ] Branching Assign Task steps set Route Variable `actionTaken`; OR-split rules use `meta.get('actionTaken', String)`
-- [ ] Typed variables declared in the `/conf` design model's `jcr:content/variables` (sibling of `flow` — NOT `metaData/variables`), each with `name`/`type` (fully-qualified, e.g. `java.lang.String`)/`defaultValue`/`additionalProperties="\{}"` (escaped brace); external-storage models use variable (not path) everywhere
-- [ ] **Completeness audit — every declared variable is set AND consumed.** The "Capture Submission
-  Variables" step uses `CaptureSubmissionVariablesProcess` (NOT `SetVariableProcess`'s
-  `${payload.jcr:content/data/...}` EL, which does not work on this project's JSON-schema forms —
-  see workflow-model-spec.md → "Set Variable Step PROCESS_ARGS") and sets every variable that has a
-  real payload source via `payloadPath` from the submitted `data.xml`, and every variable without
-  one gets an explicit `literalValue` (never left unset). Then grep the whole model for
-  each variable name and confirm at least one downstream consumer (`EMAIL_VARIABLE`,
-  `toAddressValue`, `ROUTE_PROPERTYNAME`, an OR-split `rule=`, a later Set Variable's own args, an
-  email template's `${workflowData.metaDataMap.X}` — check the referenced `.html` templates too,
-  not just the `.content.xml`). A variable with zero consumers is either dead (remove it) or an
-  intentionally-unused placeholder for a disclosed future follow-up (document why in a comment,
-  as `employee-training-request-approval`'s `managerId` does) — never leave an unexplained orphan.
+- [ ] Typed variables declared in `metaData/variables`; external-storage models use variable (not path) everywhere
 - [ ] Stages declared in `metaData/stages` and referenced per step (Inbox progress)
 - [ ] Submit action on `guideContainer` = `fd/dashboard/components/actions/aemworkflowsubmit` → correct `workflowModel` + **`dataXMLPath=data.xml`** + `dataXMLType=FOLDER_PAYLOAD` (NOT legacy `afDataFile`); `dataXMLPath` is payload-relative, never empty/absolute/URL
 - [ ] If the form has a file-upload field: **`attachmentsFolderPath=attachments` + `attachmentsType=FOLDER_PAYLOAD`** also set (else Submit 502s); DoR path set only when `dorType` ≠ `none`
-- [ ] **If the model has a Generate DoR step, all FOUR DoR places are configured, not just the step**:
-  (1) form page `jcr:content` has `guide="1"`, (2) the **DAM guide asset's `jcr:content/metadata`**
-  node (Form Properties — NOT `guideContainer`, which has no DoR-template field) has
-  `dorType="generate"` (or `"select"` + a real `dorTemplateRef`), (3) the DoR step's `AF_PATH`
-  points at the right form, (4) the DoR step's `INPUT_DATAXML`/`INPUT_ATTACHMENT`/`DOR_PATH` use the
-  real `"CATEGORY:value"` tokens — `FOLDER_PAYLOAD:data.xml` / `FOLDER_PAYLOAD:attachments` /
-  `RELATIVE_PLOAD:<path>` — not bare values and not a guessed token — see "DoR prerequisite" above
+- [ ] **If the model has a Generate DoR step, all THREE DoR places are configured, not just the step**:
+  (1) form page `jcr:content` has `guide="1"`, (2) `guideContainer` has `dorType="generate"` (or
+  `"select"` + a real `dorTemplateRef`), (3) the DoR step's `formPath` points at the right form —
+  see "DoR prerequisite" above
 - [ ] Existing `guideContainer` `clientLibRef` **preserved** — appended (comma-separated), not overwritten, so the form's validation clientlib still loads
 - [ ] Browser auto-download (if required): hidden correlation field + deterministic asset name + GET download servlet (404-until-ready) + polling clientlib + `thankYouOption=message` (4.9); verified the id reaches the submit POST body
 - [ ] Single-module deploy uses **`-PautoInstallPackage -pl {module}`** (look for `Package installed`); `-PautoInstallSinglePackage` is for the full reactor build only
 - [ ] Custom Java step (if any): reads `data.xml` as JSON-or-XML (sniff + strip BOM), writes via `AssetManager` + service user, throws `WorkflowException` on error; deployed via `-PautoInstallSinglePackage`
-- [ ] Any "Set Status" step whose value the form re-renders (dataRef-bound field, Rule-Editor rule) uses the `SetStatusVariableAndPayloadProcess` pattern (writes the payload), not plain `SetVariableProcess`; no step wires `WORKITEM_COMMENT` (crashes completion) — comments are read from history's `workitemComment` metadata key
 - [ ] Scripts (if any) under `/apps/{project}/workflow/scripts/`; email templates under `/apps/{project}/workflow/notification/email/`
 - [ ] Launcher (if any) as `…WorkflowLauncherImpl~{name}.cfg.json` in `ui.config`
 - [ ] Mail Service + Link Externalizer configured (if any email); secrets via `$[secret:]`

@@ -11,14 +11,6 @@ Project tokens: `{project}` = `aem-demo-site` (the single project namespace; the
 > values are not officially documented. Recreate this shape in the **Workflow editor** using the
 > documented UI fields ([workflow-model-spec.md](./workflow-model-spec.md)), Sync, then capture to
 > `ui.content`. Use the XML to review structure, not as final output.
->
-> The join-condition scripts below (ANDing/ORing three reviewers' decisions) are a legitimate use
-> of hand-written `script{N}` ECMA — the editor's graphical Rule Definition builder only handles a
-> single variable-equals-literal comparison, not this kind of multi-variable boolean logic. For a
-> plain single-variable Approve/Reject OR-split elsewhere in the same model, prefer the Rule
-> Definition builder (`expression{N}`) instead — see workflow-model-spec.md → "OR-split condition:
-> use the editor's Rule Definition builder" for why (live-verified: even a corrected
-> `graniteWorkflowData` script failed real Inbox routing for that simpler case on this project).
 
 ## How AND Split / AND Join behave
 
@@ -97,10 +89,10 @@ Project tokens: `{project}` = `aem-demo-site` (the single project namespace; the
     <transition6 jcr:primaryType="cq:WorkflowTransition" from="node4" rule="" to="node5" x="380" y="360"><metaData jcr:primaryType="nt:unstructured"/></transition6>
     <transition7 jcr:primaryType="cq:WorkflowTransition" from="node5" rule="" to="node6" x="530" y="280"><metaData jcr:primaryType="nt:unstructured"/></transition7>
     <transition8 jcr:primaryType="cq:WorkflowTransition" from="node6"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('reviewer1Decision','')=='Approve' &amp;&amp; meta.get('reviewer2Decision','')=='Approve' &amp;&amp; meta.get('reviewer3Decision','')=='Approve';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('reviewer1Decision','')=='Approve' &amp;&amp; meta.get('reviewer2Decision','')=='Approve' &amp;&amp; meta.get('reviewer3Decision','')=='Approve';}"
       to="node7" x="670" y="230"><metaData jcr:primaryType="nt:unstructured"/></transition8>
     <transition9 jcr:primaryType="cq:WorkflowTransition" from="node6"
-      rule="function check(){var meta=graniteWorkflowData.getMetaDataMap();return meta.get('reviewer1Decision','')=='Reject' || meta.get('reviewer2Decision','')=='Reject' || meta.get('reviewer3Decision','')=='Reject';}"
+      rule="function check(){var meta=workItem.getWorkflowData().getMetaDataMap();return meta.get('reviewer1Decision','')=='Reject' || meta.get('reviewer2Decision','')=='Reject' || meta.get('reviewer3Decision','')=='Reject';}"
       to="node8" x="670" y="330"><metaData jcr:primaryType="nt:unstructured"/></transition9>
     <transition10 jcr:primaryType="cq:WorkflowTransition" from="node7" rule="" to="node9" x="810" y="230"><metaData jcr:primaryType="nt:unstructured"/></transition10>
     <transition11 jcr:primaryType="cq:WorkflowTransition" from="node8" rule="" to="node9" x="810" y="330"><metaData jcr:primaryType="nt:unstructured"/></transition11>

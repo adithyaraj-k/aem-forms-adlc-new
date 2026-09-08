@@ -87,15 +87,6 @@ When no built-in step does what you need (e.g. "save submission as a JSON asset"
 - **Throw `WorkflowException` on failure** so the instance shows the error instead of silently
   advancing — then check `crx-quickstart/logs/error.log` for the real root cause.
 
-Not every custom step writes an asset — `core/.../forms/workflow/CaptureSubmissionVariablesProcess.java`
-is the **read**-side counterpart: no DAM write, no service user (it only reads its own payload via
-the workflow session, same access `SetStatusVariableAndPayloadProcess` already has), just parses
-`data.xml`'s JSON blob (Jackson) and sets workflow variables from dot-separated paths into it (plus
-literal values with no payload source) — model any "read a value out of the submitted payload into
-a workflow variable" requirement on this class, never on `SetVariableProcess`'s EL (see the
-"`SetVariableProcess` only writes the workflow" section below for why that EL doesn't work on this
-project's JSON-blob payloads).
-
 Reference implementations in this repo (all Cloud-safe — write to a DAM folder via `AssetManager`
 + a dedicated service user, sniff `data.xml` as JSON-or-XML, throw `WorkflowException` on failure):
 - `core/.../forms/workflow/SaveFormDataAsJsonProcess.java` — JSON asset per submission.
@@ -112,88 +103,6 @@ Each pairs with a `ServiceUserMapperImpl.amended~...` + `RepositoryInitializer~.
 ⚠️ **Do not reuse `core/.../forms/workflow/ExcelExportProcess.java`** for a DAM/asset-folder
 requirement — it writes the workbook to a **local filesystem path** and, per its own Javadoc,
 **cannot deploy to AEM as a Cloud Service**. Use `SaveFormDataAsExcelProcess` instead.
-
----
-
-## `SetVariableProcess` only writes the workflow — never the payload (Set Status steps)
-
-`com.adobe.granite.workflow.core.process.SetVariableProcess` is a genuine OOTB Granite step and is
-still the right choice for a literal-value variable-capture (e.g. seeding `actionTaken=pending`).
-
-⚠️ It is **NOT** a working choice for reading a value OUT of the payload on a JSON-schema form
-(`schemaType=jsonschema`, this project's forms). Its `variableValue=${payload.jcr:content/data/...}`
-EL expression walks a literal JCR node/property path — it only resolves against a payload stored as
-real, expanded JCR child nodes, but this project's forms store the whole submission as ONE opaque
-JSON blob in `<payload>/data.xml/jcr:content/jcr:data` (a Binary property), so there is no child
-node to walk to and the variable silently ends up blank even when the form field was filled in
-(live-confirmed by reading a real submitted `data.xml` directly and by reading the EL resolver's own
-behavior). Use `com.aem.forms.agents.forms.workflow.CaptureSubmissionVariablesProcess` (this
-project's own step, `core/.../forms/workflow/`) for that instead — it parses the JSON blob directly
-and reads a dot-separated path out of it. See workflow-model-spec.md → "Set Variable Step
-PROCESS_ARGS" for its `PROCESS_ARGS` shape.
-
-Separately, `SetVariableProcess` also only ever writes the running instance's own
-`workflowData.metaDataMap`. It
-**never** touches the submitted payload's `data.xml`. If a "Set Status" step's *purpose* is to
-record an approval-state change that the form itself must reflect on re-render — e.g. a
-`currentStatus` dropdown bound via `dataRef="$.ApprovalInfo.CurrentStatus"`, or a Rule-Editor
-show/hide or unlock rule that reads that same field — using `SetVariableProcess` there deploys
-clean, runs with no error, and **silently does nothing visible**: the workflow variable changes,
-but the next Assign Task's `READ_ONLY_AF` re-renders straight off the payload, which still holds
-whatever the employee originally submitted. This is easy to miss because everything upstream
-(routing, the OR-split, task assignment) keeps working — only the form's own displayed state is
-stale.
-
-**Fix: a small custom `WorkflowProcess` that sets the variable AND writes into the payload.**
-Reference implementation in this repo:
-`core/.../forms/workflow/SetStatusVariableAndPayloadProcess.java` (used on the
-`employee-training-request-approval` model's `process_setstatus_managerapproved` /
-`process_setstatus_financeapproved` nodes). Shape:
-
-- `PROCESS_ARGS` (comma-separated, same style as `SetVariableProcess`): `variableName`,
-  `variableValue` (both required); `payloadFieldPath` (optional, dot-separated path into the
-  payload JSON with the field's `dataRef`'s leading `$.` dropped, e.g.
-  `dataRef="$.ApprovalInfo.CurrentStatus"` → `payloadFieldPath=ApprovalInfo.CurrentStatus`);
-  `commentFieldPath` (optional, see below); `dataFile` (optional, defaults to `data.xml`, must
-  match `guideContainer/@dataXMLPath`).
-- It sets the workflow variable exactly like `SetVariableProcess` (so anything already reading it
-  keeps working), then — only if `payloadFieldPath` is set — reads the payload's `data.xml` via
-  the **workflow session's own JCR access** (no service user needed; a workflow always has
-  legitimate access to its own payload), sniffs it as JSON (this project's forms submit JSON, not
-  XML — see the sniffing section above), sets the target key with a small dot-path JSON walker,
-  and writes it back.
-- Because it only ever touches the payload node it is already executing against, it needs **no
-  OSGi service-user config, no repoinit** — unlike the DAM-writing steps in the section above.
-
-Any "Set Status" node whose value must be visible on a **later re-render of the same form**
-(dropdown, Rule-Editor rule, another assignee's task) needs this pattern, not plain
-`SetVariableProcess`. A node whose value is only ever read by a later **workflow** step
-(routing rule, email template `${workflowData.metaDataMap.x}`) can stay on `SetVariableProcess`.
-
-### Capturing the assignee's task-completion comment — do not wire `WORKITEM_COMMENT`
-
-A tempting way to capture what the assignee typed when completing the preceding Assign Task step
-is `WORKITEM_COMMENT=<variableName>` on that step. **Do not do this on this platform.**
-`WorkSpacePayLoadManagerImpl.saveComment()` hands the raw text to
-`PropertyResolver.setPropertyValueUsingColonSeparatedValue()`, which requires
-`"CATEGORY:value"`-formatted input — plain text throws `WorkflowException: "Invalid value :
-<variableName>"` and **crashes task completion outright**.
-
-Instead, read the comment from workflow **history** after the fact, inside the custom step above
-(`commentFieldPath` arg): call `workflowSession.getHistory(workflow)` and walk it **newest-first**
-for the first non-blank comment. Do not rely on `HistoryItem.getComment()` alone — AEM Forms' own
-Workspace/Inbox task-completion dialog (`saveComment()`, same call as above) stamps the typed
-comment onto the completed `WorkItem`'s **own metadata map** under the key `workitemComment`, a
-different property than the standard Granite comment-on-complete field `getComment()` reads. A
-comment entered through that Forms-specific completion UI — the normal approval path — silently
-never surfaces if you only check `getComment()`. Check `historyItem.getWorkItem().getMetaDataMap()
-.get("workitemComment", String.class)` first, fall back to `historyItem.getComment()`. See
-`extractComment()` in the reference implementation.
-
-If the form has a comment field the assignee is meant to see reflected back (e.g.
-`managerComments` shown to the next approver), make that field `readOnly="{Boolean}true"` on the
-form and let this step's `commentFieldPath` be its only writer — don't also let the employee or a
-prior step write it inline, or the two writers race/overwrite each other.
 
 ---
 

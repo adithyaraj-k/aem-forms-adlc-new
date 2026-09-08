@@ -1,8 +1,8 @@
 ---
 name: draftsmith
-# Opus: produces the component/design specs and test cases the build consumes.
+# sonnet: produces the component/design specs and test cases the build consumes.
 # A wrong spec is faithfully implemented downstream, so errors here are expensive.
-model: opus
+model: sonnet
 tools: "Read, Write, Edit, Glob, Grep, Bash, PowerShell, Skill, WebFetch,
   mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_metadata,
   mcp__figma__get_variable_defs, mcp__figma__search_design_system"

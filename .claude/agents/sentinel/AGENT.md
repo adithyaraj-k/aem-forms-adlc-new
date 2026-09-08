@@ -1,8 +1,8 @@
 ---
 name: sentinel
-# Opus: final quality gate. Interprets UI-parity diffs and decides pass/fail per user story;
+# sonnet: final quality gate. Interprets UI-parity diffs and decides pass/fail per user story;
 # a false PASS is the worst outcome in the pipeline, so this tier is deliberately not reduced.
-model: opus
+model: sonnet
 description: >
   TEST lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. Sentinel tests the form in
   the CLOUD DEV REGION (not the local SDK) and runs ONLY when a human explicitly prompts it — after

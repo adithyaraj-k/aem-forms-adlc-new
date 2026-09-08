@@ -1,9 +1,9 @@
 ---
 name: pilot
-# Sonnet: deterministic SCM checklist (stage with the exclude pathspec, prove
+# haiku: deterministic SCM checklist (stage with the exclude pathspec, prove
 # `.claude/` is absent, push, PATCH-or-create the PR). No design judgement, and every
 # step is self-verifying, so the tier does not change the output.
-model: sonnet
+model: haiku
 effort: medium
 description: >
   SCM / RELEASE lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. After Forgemaster

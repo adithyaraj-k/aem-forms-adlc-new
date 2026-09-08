@@ -1,8 +1,8 @@
 ---
 name: aem-forms-program-agent
-# Opus: master ADLC orchestrator — plans the delivery and sequences every phase.
+# sonnet: master ADLC orchestrator — plans the delivery and sequences every phase.
 # A misjudgement here cascades into all downstream phases.
-model: opus
+model: sonnet
 tools: "Read, Write, Edit, Glob, Grep, Bash, PowerShell, Skill, Agent, WebFetch,
   mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma__get_metadata,
   mcp__figma__get_variable_defs, mcp__figma__search_design_system"

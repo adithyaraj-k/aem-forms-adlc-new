@@ -1,8 +1,8 @@
 ---
 name: formwright
-# Opus: authors the schema/FDM/template/components/form/rules/theme. Highest-risk
+# sonnet: authors the schema/FDM/template/components/form/rules/theme. Highest-risk
 # authoring in the pipeline — the rule-AST and served-selector defects originated here.
-model: opus
+model: sonnet
 description: >
   IMPL-phase BUILD lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. Engineers the
   form's data foundation and reusable UI artifacts — the data schema, the Form Data Model (FDM) + its

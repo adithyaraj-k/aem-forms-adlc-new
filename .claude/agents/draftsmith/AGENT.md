@@ -1,6 +1,6 @@
 ---
 name: draftsmith
-# Opus: produces the component/design specs and test cases the build consumes.
+# Sonnet: produces the component/design specs and test cases the build consumes.
 # A wrong spec is faithfully implemented downstream, so errors here are expensive.
 model: sonnet
 description: >

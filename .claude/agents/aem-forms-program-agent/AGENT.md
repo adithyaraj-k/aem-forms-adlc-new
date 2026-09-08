@@ -1,6 +1,6 @@
 ---
 name: aem-forms-program-agent
-# Opus: master ADLC orchestrator — plans the delivery and sequences every phase.
+# Sonnet: master ADLC orchestrator — plans the delivery and sequences every phase.
 # A misjudgement here cascades into all downstream phases.
 model: sonnet
 description: >

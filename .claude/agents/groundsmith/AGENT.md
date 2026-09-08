@@ -1,8 +1,8 @@
 ---
 name: groundsmith
-# Opus: writes real Java (OSGi DataProvider/FormSubmitActionService) and workflow models.
+# Sonnet: writes real Java (OSGi DataProvider/FormSubmitActionService) and workflow models.
 # Novel code with runtime-only failure modes.
-model: opus
+model: sonnet
 description: >
   IMPL-phase INTEGRATION lead agent for AEM Adaptive Forms delivery on AEM as a Cloud Service. Wires
   the form to the outside world — the prefill service (DataProvider SPI), the submit action (REST /

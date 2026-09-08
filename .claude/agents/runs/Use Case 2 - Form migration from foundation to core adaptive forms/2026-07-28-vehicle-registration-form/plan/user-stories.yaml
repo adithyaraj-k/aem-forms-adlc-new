@@ -1,0 +1,846 @@
+structured_requirements:
+  delivery_type: "new_single_form"
+  brief: "Vehicle Registration Form"
+  business_objective: |
+    Build a native AEM Adaptive Form (Core Components, AEM as a Cloud Service) that captures
+    complete vehicle registration details from owners. The form must be an EXACT visual and
+    functional replica of the provided screenshot, including all fields, validations, layout,
+    typography, colors, buttons, and styling. The form will accept owner details, vehicle
+    information, address, document/insurance data, and a declaration, then submit via PDF
+    generation (Document of Record) and an approval workflow.
+  source_inputs:
+    - "Reference screenshot: vehicle_registration_form.png (EXACT visual + functional replica)"
+    - "Field inventory with labels, types, required flags, and validation rules"
+    - "Styling specification (layout, colors, typography, spacing)"
+    - "Form rules and validation requirements"
+
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      subtitle: "Please provide the details below to complete your registration."
+      audience: "public"
+      channels: ["web"]
+      locales: ["en"]
+      layout: "single_page"
+
+      data:
+        binding_intent: "schema"
+        source_of_truth: "none (standalone form)"
+        api_spec: "none"
+        api_auth: "none"
+        prefill: "none"
+        submit: ["dor_pdf", "workflow"]
+
+      display_content:
+        - type: "title"
+          text: "VEHICLE REGISTRATION FORM"
+          styling: "centered, bold, dark navy/charcoal color"
+        - type: "subtitle"
+          text: "Please provide the details below to complete your registration."
+          styling: "gray text, centered, regular weight"
+        - type: "mandatory_legend"
+          text: "* indicates a required field"
+          styling: "small text, gray"
+
+      sections:
+        - name: "1. OWNER DETAILS"
+          header_style: "green/teal bold color (#228B22 or similar), ALL CAPS with numbering"
+          divider: "thin horizontal line (border-bottom) below section header"
+          layout: "3-column field rows"
+          fields:
+            - name: "ownerFullName"
+              label: "Owner Full Name"
+              type: "text"
+              required: true
+              aria_label: "Owner Full Name"
+              validations:
+                - "required"
+                - "max 100 characters"
+              placeholder: ""
+
+            - name: "dateOfBirth"
+              label: "Date of Birth"
+              type: "date"
+              format: "DD/MM/YYYY"
+              required: true
+              aria_label: "Date of Birth"
+              placeholder: "DD / MM / YYYY"
+              validations:
+                - "required"
+                - "cannot be a future date"
+                - "optionally enforce minimum age 18+ years"
+              error_message: "Date of birth cannot be in the future."
+
+            - name: "gender"
+              label: "Gender"
+              type: "dropdown"
+              required: true
+              aria_label: "Gender selection"
+              options:
+                - value: "male"
+                  label: "Male"
+                - value: "female"
+                  label: "Female"
+                - value: "other"
+                  label: "Other"
+              placeholder: "Select"
+              validations:
+                - "required"
+
+            - name: "contactNumber"
+              label: "Contact Number"
+              type: "tel"
+              required: true
+              aria_label: "Contact Number (10 digits)"
+              placeholder: ""
+              validations:
+                - "required"
+                - "exactly 10 digits"
+                - "numeric only (no letters or special characters)"
+              error_message: "Contact number must be 10 digits."
+
+            - name: "emailAddress"
+              label: "Email Address"
+              type: "email"
+              required: true
+              aria_label: "Email Address"
+              placeholder: ""
+              validations:
+                - "required"
+                - "RFC 5322 email format"
+              error_message: "Please enter a valid email address."
+
+            - name: "emergencyContactNo"
+              label: "Emergency Contact No."
+              type: "tel"
+              required: true
+              aria_label: "Emergency Contact Number (10 digits)"
+              placeholder: ""
+              validations:
+                - "required"
+                - "exactly 10 digits"
+                - "numeric only (no letters or special characters)"
+              error_message: "Contact number must be 10 digits."
+
+        - name: "2. VEHICLE DETAILS"
+          header_style: "green/teal bold color, ALL CAPS with numbering"
+          divider: "thin horizontal line below section header"
+          layout: "3-column field rows"
+          fields:
+            - name: "vehicleType"
+              label: "Vehicle Type"
+              type: "dropdown"
+              required: true
+              aria_label: "Vehicle Type selection"
+              default_value: "Electric Vehicle"
+              options:
+                - value: "two_wheeler"
+                  label: "Two Wheeler"
+                - value: "four_wheeler"
+                  label: "Four Wheeler"
+                - value: "commercial_vehicle"
+                  label: "Commercial Vehicle"
+                - value: "electric_vehicle"
+                  label: "Electric Vehicle"
+              validations:
+                - "required"
+                - "default value: Electric Vehicle"
+
+            - name: "makeModel"
+              label: "Make & Model"
+              type: "text"
+              required: true
+              aria_label: "Vehicle Make and Model"
+              placeholder: ""
+              validations:
+                - "required"
+                - "max 100 characters"
+
+            - name: "registrationYear"
+              label: "Registration Year"
+              type: "text"
+              required: true
+              aria_label: "Vehicle Registration Year (4-digit)"
+              placeholder: ""
+              validations:
+                - "required"
+                - "4-digit year format (1900-present)"
+                - "cannot be in the future"
+              error_message: "Registration year must be a valid past year."
+
+            - name: "chassisNumber"
+              label: "Chassis Number"
+              type: "text"
+              required: true
+              aria_label: "Vehicle Chassis Number"
+              placeholder: ""
+              validations:
+                - "required"
+                - "max 50 characters"
+
+            - name: "fuelType"
+              label: "Fuel Type"
+              type: "dropdown"
+              required: true
+              aria_label: "Fuel Type selection"
+              options:
+                - value: "petrol"
+                  label: "Petrol"
+                - value: "diesel"
+                  label: "Diesel"
+                - value: "cng"
+                  label: "CNG"
+                - value: "electric"
+                  label: "Electric"
+                - value: "hybrid"
+                  label: "Hybrid"
+              placeholder: "Select"
+              validations:
+                - "required"
+
+        - name: "3. ADDRESS DETAILS"
+          header_style: "green/teal bold color, ALL CAPS with numbering"
+          divider: "thin horizontal line below section header"
+          layout: "full-width address line; then 3-column row for city/state/pincode"
+          fields:
+            - name: "addressLine"
+              label: "Address Line"
+              type: "text"
+              required: true
+              aria_label: "Full Address"
+              placeholder: ""
+              layout: "full-width"
+              validations:
+                - "required"
+                - "max 200 characters"
+
+            - name: "city"
+              label: "City"
+              type: "text"
+              required: true
+              aria_label: "City name"
+              placeholder: ""
+              layout: "3-column"
+              validations:
+                - "required"
+                - "max 50 characters"
+
+            - name: "state"
+              label: "State"
+              type: "text"
+              required: true
+              aria_label: "State name"
+              placeholder: ""
+              layout: "3-column"
+              validations:
+                - "required"
+                - "max 50 characters"
+
+            - name: "pincode"
+              label: "Pincode / ZIP Code"
+              type: "text"
+              required: true
+              aria_label: "Postal code (6 digits)"
+              placeholder: ""
+              layout: "3-column"
+              validations:
+                - "required"
+                - "exactly 6 digits"
+                - "numeric only"
+              error_message: "Pincode must be 6 digits."
+
+        - name: "4. DOCUMENT & INSURANCE DETAILS"
+          header_style: "green/teal bold color, ALL CAPS with numbering"
+          divider: "thin horizontal line below section header"
+          layout: "3-column field rows"
+          fields:
+            - name: "rcBookNumber"
+              label: "RC Book Number"
+              type: "text"
+              required: true
+              aria_label: "Registration Certificate Book Number"
+              placeholder: ""
+              validations:
+                - "required"
+                - "max 50 characters"
+
+            - name: "insurancePolicyNumber"
+              label: "Insurance Policy Number"
+              type: "text"
+              required: true
+              aria_label: "Insurance Policy Number"
+              placeholder: ""
+              validations:
+                - "required"
+                - "max 50 characters"
+
+            - name: "pucCertificateNumber"
+              label: "PUC Certificate Number"
+              type: "text"
+              required: true
+              aria_label: "PUC Certificate Number"
+              placeholder: ""
+              validations:
+                - "required"
+                - "max 50 characters"
+
+        - name: "5. DECLARATION"
+          header_style: "green/teal bold color, ALL CAPS with numbering"
+          divider: "thin horizontal line below section header"
+          display_content:
+            - type: "static_text"
+              text: "I confirm that the above information is accurate."
+              styling: "regular text, dark color"
+          layout: "2-column field row for submitted by and date"
+          fields:
+            - name: "submittedBy"
+              label: "Submitted By"
+              type: "text"
+              required: true
+              aria_label: "Name of person submitting the form"
+              placeholder: ""
+              layout: "2-column"
+              validations:
+                - "required"
+                - "max 100 characters"
+
+            - name: "declarationDate"
+              label: "Date"
+              type: "date"
+              format: "DD/MM/YYYY"
+              required: true
+              aria_label: "Declaration submission date"
+              placeholder: "DD / MM / YYYY"
+              layout: "2-column"
+              default_value: "today"
+              validations:
+                - "required"
+                - "default value: today's date"
+                - "cannot be after today"
+              error_message: "Date cannot be in the future."
+
+      buttons:
+        - name: "submit"
+          label: "Submit Form"
+          type: "submit"
+          styling: "solid green/teal background (#228B22 or similar), white text, standard button sizing"
+          action: "submit"
+
+        - name: "reset"
+          label: "Reset"
+          type: "reset"
+          styling: "outlined style, white/transparent background, green/teal border and text"
+          action: "reset"
+
+      style_spec:
+        source_screenshot: "vehicle_registration_form.png"
+        layout: |
+          Responsive multi-panel layout:
+          - Panel 1 (Owner Details): 3-column grid for 6 fields (2 rows of 3 columns each)
+          - Panel 2 (Vehicle Details): 3-column grid for 5 fields (2 rows, first row 3 cols, second row 2 cols)
+          - Panel 3 (Address Details): Full-width address line, then 3-column grid for city/state/pincode
+          - Panel 4 (Document & Insurance): 3-column grid for 3 fields (1 row)
+          - Panel 5 (Declaration): Static text + 2-column grid for submitted by and date
+          - Buttons: Centered or left-aligned group at bottom
+
+        field_order: |
+          1. ownerFullName, dateOfBirth, gender
+          2. contactNumber, emailAddress, emergencyContactNo
+          3. vehicleType, makeModel, registrationYear
+          4. chassisNumber, fuelType
+          5. addressLine (full-width)
+          6. city, state, pincode
+          7. rcBookNumber, insurancePolicyNumber, pucCertificateNumber
+          8. submittedBy, declarationDate
+          9. submit, reset buttons
+
+        typography: |
+          - Main title: "VEHICLE REGISTRATION FORM" - centered, bold, dark navy/charcoal (#1a1a1a or similar), ~32px
+          - Subtitle: "Please provide the details below to complete your registration." - gray (#666 or similar), ~14px, regular weight
+          - Section headers: green/teal bold (#228B22 or #006B5B), ALL CAPS with numbering, ~16px, bold
+          - Field labels: dark (#333 or #1a1a1a), ~14px, regular/semi-bold weight
+          - Required asterisk: RED color (#d32f2f or similar)
+          - Field text (input): dark (#1a1a1a), ~14px, regular weight
+          - Placeholder text: light gray (#999 or #aaa), ~14px
+
+        colours:
+          primary_button: "#228B22 (forest green) or similar teal/green"
+          primary_button_text: "#ffffff (white)"
+          secondary_button: "white/transparent background"
+          secondary_button_border: "#228B22 (forest green/teal)"
+          secondary_button_text: "#228B22 (forest green/teal)"
+          text: "#1a1a1a (dark)"
+          labels: "#333333 (dark)"
+          required_asterisk: "#d32f2f (red)"
+          border: "#cccccc (light gray)"
+          input_background: "#ffffff (white)"
+          placeholder: "#999999 (gray)"
+          section_header: "#228B22 (forest green/teal)"
+
+        borders: |
+          - Form field borders: 1px solid #cccccc
+          - Border radius: 4px on form fields
+          - Section header divider: 1px solid #e0e0e0 (bottom border)
+
+        spacing: |
+          - Padding between sections: 24px
+          - Padding within sections: 16px-24px
+          - Field row gap: 16px vertical between rows
+          - Column gap: 16px horizontal between columns in multi-column rows
+          - Label to input gap: 8px
+          - Bottom margin on field containers: 16px
+          - Button group spacing: 16px gap between buttons
+          - Form container padding: 24px all sides
+
+        card: |
+          - White background card with subtle styling
+          - 1px border: #e0e0e0
+          - 24px padding on all sides
+          - Optional subtle shadow for depth
+
+        buttons: |
+          - Primary (Submit Form):
+            - Background: #228B22 (forest green/teal)
+            - Text: white (#ffffff)
+            - Padding: 12px 24px (or full-width responsive)
+            - Border radius: 4px
+            - Font: ~14px, semi-bold
+            - Cursor: pointer
+
+          - Secondary (Reset):
+            - Background: white/transparent
+            - Border: 2px solid #228B22 (forest green/teal)
+            - Text: #228B22 (forest green/teal)
+            - Padding: 12px 24px (or full-width responsive)
+            - Border radius: 4px
+            - Font: ~14px, semi-bold
+            - Cursor: pointer
+
+          - Buttons centered or left-aligned at bottom, with 16px gap between them
+
+        responsive_notes: |
+          - On mobile/small screens, multi-column rows stack to single column
+          - Button layout adapts to screen width (may stack vertically on very small screens)
+          - Form stays readable and usable on all breakpoints
+
+        form_rules: []
+        js_behaviour: []
+
+      rules:
+        - id: "R01"
+          name: "Owner Full Name validation"
+          description: "Owner Full Name is required and limited to 100 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "ownerFullName is not empty AND ownerFullName.length <= 100"
+          action: "show error if invalid"
+          error_message: "Owner Full Name is required and must not exceed 100 characters."
+
+        - id: "R02"
+          name: "Date of Birth validation"
+          description: "Date of Birth cannot be a future date and optionally enforce minimum age 18+"
+          trigger: "onBlur or on submit validation"
+          condition: "dateOfBirth is not empty AND dateOfBirth <= today AND (dateOfBirth is at least 18 years before today)"
+          action: "show error if invalid"
+          error_message: "Date of Birth cannot be in the future and you must be at least 18 years old."
+
+        - id: "R03"
+          name: "Gender validation"
+          description: "Gender is required"
+          trigger: "on submit validation"
+          condition: "gender is selected"
+          action: "block submit if not selected"
+          error_message: "Please select a gender."
+
+        - id: "R04"
+          name: "Contact Number validation"
+          description: "Contact Number must be exactly 10 digits"
+          trigger: "onBlur or on submit validation"
+          condition: "contactNumber is not empty AND contactNumber matches pattern ^[0-9]{10}$"
+          action: "show error if invalid"
+          error_message: "Contact number must be 10 digits."
+
+        - id: "R05"
+          name: "Email Address validation"
+          description: "Email Address must be in valid RFC 5322 format"
+          trigger: "onBlur or on submit validation"
+          condition: "emailAddress is not empty AND emailAddress matches RFC 5322 pattern"
+          action: "show error if invalid"
+          error_message: "Please enter a valid email address."
+
+        - id: "R06"
+          name: "Emergency Contact No. validation"
+          description: "Emergency Contact No. must be exactly 10 digits"
+          trigger: "onBlur or on submit validation"
+          condition: "emergencyContactNo is not empty AND emergencyContactNo matches pattern ^[0-9]{10}$"
+          action: "show error if invalid"
+          error_message: "Contact number must be 10 digits."
+
+        - id: "R07"
+          name: "Vehicle Type validation"
+          description: "Vehicle Type is required with default value Electric Vehicle"
+          trigger: "on submit validation"
+          condition: "vehicleType is selected"
+          action: "block submit if not selected"
+          default_value: "Electric Vehicle"
+          error_message: "Please select a vehicle type."
+
+        - id: "R08"
+          name: "Make & Model validation"
+          description: "Make & Model is required and limited to 100 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "makeModel is not empty AND makeModel.length <= 100"
+          action: "show error if invalid"
+          error_message: "Make & Model is required and must not exceed 100 characters."
+
+        - id: "R09"
+          name: "Registration Year validation"
+          description: "Registration Year must be a 4-digit year and cannot be in the future"
+          trigger: "onBlur or on submit validation"
+          condition: "registrationYear is not empty AND registrationYear matches pattern ^[0-9]{4}$ AND registrationYear <= current year"
+          action: "show error if invalid"
+          error_message: "Registration year must be a valid past year."
+
+        - id: "R10"
+          name: "Chassis Number validation"
+          description: "Chassis Number is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "chassisNumber is not empty AND chassisNumber.length <= 50"
+          action: "show error if invalid"
+          error_message: "Chassis Number is required and must not exceed 50 characters."
+
+        - id: "R11"
+          name: "Fuel Type validation"
+          description: "Fuel Type is required"
+          trigger: "on submit validation"
+          condition: "fuelType is selected"
+          action: "block submit if not selected"
+          error_message: "Please select a fuel type."
+
+        - id: "R12"
+          name: "Address Line validation"
+          description: "Address Line is required and limited to 200 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "addressLine is not empty AND addressLine.length <= 200"
+          action: "show error if invalid"
+          error_message: "Address is required and must not exceed 200 characters."
+
+        - id: "R13"
+          name: "City validation"
+          description: "City is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "city is not empty AND city.length <= 50"
+          action: "show error if invalid"
+          error_message: "City is required and must not exceed 50 characters."
+
+        - id: "R14"
+          name: "State validation"
+          description: "State is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "state is not empty AND state.length <= 50"
+          action: "show error if invalid"
+          error_message: "State is required and must not exceed 50 characters."
+
+        - id: "R15"
+          name: "Pincode validation"
+          description: "Pincode must be exactly 6 digits"
+          trigger: "onBlur or on submit validation"
+          condition: "pincode is not empty AND pincode matches pattern ^[0-9]{6}$"
+          action: "show error if invalid"
+          error_message: "Pincode must be 6 digits."
+
+        - id: "R16"
+          name: "RC Book Number validation"
+          description: "RC Book Number is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "rcBookNumber is not empty AND rcBookNumber.length <= 50"
+          action: "show error if invalid"
+          error_message: "RC Book Number is required and must not exceed 50 characters."
+
+        - id: "R17"
+          name: "Insurance Policy Number validation"
+          description: "Insurance Policy Number is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "insurancePolicyNumber is not empty AND insurancePolicyNumber.length <= 50"
+          action: "show error if invalid"
+          error_message: "Insurance Policy Number is required and must not exceed 50 characters."
+
+        - id: "R18"
+          name: "PUC Certificate Number validation"
+          description: "PUC Certificate Number is required and limited to 50 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "pucCertificateNumber is not empty AND pucCertificateNumber.length <= 50"
+          action: "show error if invalid"
+          error_message: "PUC Certificate Number is required and must not exceed 50 characters."
+
+        - id: "R19"
+          name: "Submitted By validation"
+          description: "Submitted By is required and limited to 100 characters"
+          trigger: "onBlur or on submit validation"
+          condition: "submittedBy is not empty AND submittedBy.length <= 100"
+          action: "show error if invalid"
+          error_message: "Submitted By is required and must not exceed 100 characters."
+
+        - id: "R20"
+          name: "Declaration Date validation"
+          description: "Declaration Date is required, defaults to today, and cannot be after today"
+          trigger: "on submit validation"
+          condition: "declarationDate is not empty AND declarationDate <= today"
+          action: "show error if invalid"
+          default_value: "today"
+          error_message: "Date cannot be in the future."
+
+      workflow:
+        needed: true
+        summary: "Form submission triggers an auto-approval workflow; assigns Medium-priority task to admin for review; includes Document of Record (PDF) generation on submission."
+        approval_workflow: "assign-task-to-admin (shared reusable model)"
+        participants: ["admin"]
+        priority: "Medium"
+        notifications: "Email notification to admin on task assignment"
+        dor_generation: "PDF/Document of Record generated on successful submission"
+
+      submit_actions:
+        - type: "dor_pdf"
+          label: "Generate PDF (Document of Record)"
+          description: "Create and download a PDF snapshot of the submitted form data"
+        - type: "invoke_workflow"
+          label: "Invoke Approval Workflow"
+          description: "Route the submission to the assign-task-to-admin workflow for admin review"
+          workflow_model: "assign-task-to-admin"
+          workflow_payload: "complete form data with all field values and metadata"
+
+  user_stories:
+    - id: "US-01"
+      form: "vehicle-registration-form"
+      title: "Owner provides identifying details"
+      as_a: "vehicle owner"
+      i_want: "to enter my full name, date of birth, and gender in the form"
+      so_that: "the registration system can identify and record my personal details"
+      acceptance_criteria:
+        - id: "AC-01.1"
+          criterion: "Owner Full Name field is visible, required (marked with red *), and accepts up to 100 characters"
+        - id: "AC-01.2"
+          criterion: "Date of Birth field is visible, required, accepts DD/MM/YYYY format, and rejects future dates"
+        - id: "AC-01.3"
+          criterion: "Date of Birth optionally enforces minimum age 18+ with appropriate error message"
+        - id: "AC-01.4"
+          criterion: "Gender dropdown is visible, required, and offers Male, Female, Other options with default 'Select'"
+      covers_fields: ["ownerFullName", "dateOfBirth", "gender"]
+      covers_rules: ["R01", "R02", "R03"]
+
+    - id: "US-02"
+      form: "vehicle-registration-form"
+      title: "Owner provides contact information"
+      as_a: "vehicle owner"
+      i_want: "to enter my contact number, email, and emergency contact number"
+      so_that: "the authority can reach me if needed and I can be contacted for updates"
+      acceptance_criteria:
+        - id: "AC-02.1"
+          criterion: "Contact Number field is visible, required, accepts only 10-digit numeric input"
+        - id: "AC-02.2"
+          criterion: "Contact Number shows error 'Contact number must be 10 digits.' if validation fails"
+        - id: "AC-02.3"
+          criterion: "Email Address field is visible, required, and validates RFC 5322 email format"
+        - id: "AC-02.4"
+          criterion: "Email Address shows error 'Please enter a valid email address.' if validation fails"
+        - id: "AC-02.5"
+          criterion: "Emergency Contact No. field is visible, required, accepts only 10-digit numeric input"
+        - id: "AC-02.6"
+          criterion: "Emergency Contact No. shows error 'Contact number must be 10 digits.' if validation fails"
+      covers_fields: ["contactNumber", "emailAddress", "emergencyContactNo"]
+      covers_rules: ["R04", "R05", "R06"]
+
+    - id: "US-03"
+      form: "vehicle-registration-form"
+      title: "Owner specifies vehicle type and basic vehicle information"
+      as_a: "vehicle owner"
+      i_want: "to select my vehicle type and enter make, model, registration year, and chassis number"
+      so_that: "the system has accurate vehicle identification details"
+      acceptance_criteria:
+        - id: "AC-03.1"
+          criterion: "Vehicle Type dropdown is visible, required, defaults to 'Electric Vehicle', and offers Two Wheeler, Four Wheeler, Commercial Vehicle, Electric Vehicle"
+        - id: "AC-03.2"
+          criterion: "Make & Model field is visible, required, accepts text up to 100 characters"
+        - id: "AC-03.3"
+          criterion: "Registration Year field is visible, required, accepts 4-digit year, and rejects future years"
+        - id: "AC-03.4"
+          criterion: "Registration Year shows error 'Registration year must be a valid past year.' if validation fails"
+        - id: "AC-03.5"
+          criterion: "Chassis Number field is visible, required, accepts text up to 50 characters"
+      covers_fields: ["vehicleType", "makeModel", "registrationYear", "chassisNumber"]
+      covers_rules: ["R07", "R08", "R09", "R10"]
+
+    - id: "US-04"
+      form: "vehicle-registration-form"
+      title: "Owner specifies vehicle fuel type"
+      as_a: "vehicle owner"
+      i_want: "to select my vehicle's fuel type"
+      so_that: "the system can categorize the vehicle correctly"
+      acceptance_criteria:
+        - id: "AC-04.1"
+          criterion: "Fuel Type dropdown is visible, required, and offers Petrol, Diesel, CNG, Electric, Hybrid options"
+        - id: "AC-04.2"
+          criterion: "Fuel Type shows error message if not selected on submission"
+      covers_fields: ["fuelType"]
+      covers_rules: ["R11"]
+
+    - id: "US-05"
+      form: "vehicle-registration-form"
+      title: "Owner provides residential address details"
+      as_a: "vehicle owner"
+      i_want: "to enter my address, city, state, and postal code"
+      so_that: "the registration is linked to my residential location"
+      acceptance_criteria:
+        - id: "AC-05.1"
+          criterion: "Address Line field is visible, required, full-width, and accepts text up to 200 characters"
+        - id: "AC-05.2"
+          criterion: "City field is visible, required, and accepts text up to 50 characters"
+        - id: "AC-05.3"
+          criterion: "State field is visible, required, and accepts text up to 50 characters"
+        - id: "AC-05.4"
+          criterion: "Pincode / ZIP Code field is visible, required, accepts only 6-digit numeric input"
+        - id: "AC-05.5"
+          criterion: "Pincode shows error 'Pincode must be 6 digits.' if validation fails"
+      covers_fields: ["addressLine", "city", "state", "pincode"]
+      covers_rules: ["R12", "R13", "R14", "R15"]
+
+    - id: "US-06"
+      form: "vehicle-registration-form"
+      title: "Owner provides document and insurance details"
+      as_a: "vehicle owner"
+      i_want: "to enter my RC Book number, insurance policy number, and PUC certificate number"
+      so_that: "the registration system has proof of legal compliance and insurance"
+      acceptance_criteria:
+        - id: "AC-06.1"
+          criterion: "RC Book Number field is visible, required, and accepts text up to 50 characters"
+        - id: "AC-06.2"
+          criterion: "Insurance Policy Number field is visible, required, and accepts text up to 50 characters"
+        - id: "AC-06.3"
+          criterion: "PUC Certificate Number field is visible, required, and accepts text up to 50 characters"
+      covers_fields: ["rcBookNumber", "insurancePolicyNumber", "pucCertificateNumber"]
+      covers_rules: ["R16", "R17", "R18"]
+
+    - id: "US-07"
+      form: "vehicle-registration-form"
+      title: "Owner declares accuracy and signs the form"
+      as_a: "vehicle owner"
+      i_want: "to acknowledge that the information is accurate and provide submitter name and date"
+      so_that: "I take responsibility for the accuracy of the submitted information"
+      acceptance_criteria:
+        - id: "AC-07.1"
+          criterion: "Static declaration text 'I confirm that the above information is accurate.' is visible"
+        - id: "AC-07.2"
+          criterion: "Submitted By field is visible, required, and accepts text up to 100 characters"
+        - id: "AC-07.3"
+          criterion: "Date field is visible, required, accepts DD/MM/YYYY format, defaults to today's date, and rejects future dates"
+        - id: "AC-07.4"
+          criterion: "Date field shows error 'Date cannot be in the future.' if validation fails"
+      covers_fields: ["submittedBy", "declarationDate"]
+      covers_rules: ["R19", "R20"]
+
+    - id: "US-08"
+      form: "vehicle-registration-form"
+      title: "Owner submits the completed form"
+      as_a: "vehicle owner"
+      i_want: "to submit the form and generate a PDF record of my registration"
+      so_that: "I have a document copy and the registration is recorded in the system"
+      acceptance_criteria:
+        - id: "AC-08.1"
+          criterion: "'Submit Form' button is visible, styled with solid green/teal background and white text"
+        - id: "AC-08.2"
+          criterion: "Submit button is disabled or shows validation errors if any required field is empty"
+        - id: "AC-08.3"
+          criterion: "Clicking Submit generates a PDF/Document of Record with all submitted data"
+        - id: "AC-08.4"
+          criterion: "Submission triggers the assign-task-to-admin workflow for admin review"
+      covers_fields: []
+      covers_rules: []
+
+    - id: "US-09"
+      form: "vehicle-registration-form"
+      title: "Owner resets the form to start over"
+      as_a: "vehicle owner"
+      i_want: "to clear all entered data and start filling the form again"
+      so_that: "I can correct mistakes or re-enter information"
+      acceptance_criteria:
+        - id: "AC-09.1"
+          criterion: "'Reset' button is visible, styled with white background, green/teal border and text"
+        - id: "AC-09.2"
+          criterion: "Clicking Reset clears all form fields to their initial/empty state"
+        - id: "AC-09.3"
+          criterion: "Default values (e.g., Vehicle Type = 'Electric Vehicle', Date = today) are restored after reset"
+      covers_fields: []
+      covers_rules: []
+
+    - id: "US-10"
+      form: "vehicle-registration-form"
+      title: "Form displays exact visual replica of the reference design"
+      as_a: "user"
+      i_want: "the form to match the provided screenshot in all visual aspects"
+      so_that: "the form looks professional and maintains brand consistency"
+      acceptance_criteria:
+        - id: "AC-10.1"
+          criterion: "Title 'VEHICLE REGISTRATION FORM' is centered, bold, dark navy/charcoal color"
+        - id: "AC-10.2"
+          criterion: "Subtitle 'Please provide the details below to complete your registration.' is gray, centered, regular weight"
+        - id: "AC-10.3"
+          criterion: "Section headers (1. OWNER DETAILS, etc.) are green/teal bold, ALL CAPS, with numbering and thin border dividers below"
+        - id: "AC-10.4"
+          criterion: "Required asterisks (*) are RED color on all required field labels"
+        - id: "AC-10.5"
+          criterion: "Fields are laid out in correct multi-column rows: Panel 1 (3-col), Panel 2 (3-col), Panel 3 (full+3col), Panel 4 (3-col), Panel 5 (2-col)"
+        - id: "AC-10.6"
+          criterion: "Form field borders are 1px light gray, white/light background, radius 4px"
+        - id: "AC-10.7"
+          criterion: "All fonts, colors, spacing, and padding match the reference screenshot exactly"
+        - id: "AC-10.8"
+          criterion: "Submit and Reset buttons are positioned correctly with proper spacing and styling"
+      covers_fields: []
+      covers_rules: []
+
+  nfrs:
+    accessibility: "WCAG 2.1 AA compliance; every field has aria-label; form is keyboard navigable; color contrast meets standards"
+    localization: "English (en) primary; prepare for future localization"
+    volume: "Expected to handle moderate submission volume; form state must be reliable"
+    security_pii: |
+      Form collects PII (contact numbers, email, residential address).
+      - Ensure all PII is encrypted in transit (HTTPS)
+      - Do not log sensitive field values (contact numbers, email, address)
+      - Comply with applicable data protection regulations
+    compliance: "No specific compliance driver stated; general best practices apply"
+    branding: "Use the project's default theme (aem-adaptive-forms-agents-wknd) and apply green/teal brand colors (#228B22 or similar) for section headers and buttons"
+    record_copy: "Document of Record (PDF) REQUIRED on successful submission"
+    bot_protection: "Not required (internal/trusted submission channel)"
+    environments: "Deploy to AEM Cloud (publish); author for content management"
+    performance: "Form should load and be interactive within 2 seconds on 4G networks; lazy-load assets if needed"
+
+  reference_for_ui_check: "c:\\Users\\2035448\\OneDrive - Cognizant\\Desktop\\vehicle_registration_form.png"
+
+  assumptions:
+    - "Form is for public/anonymous users (no authentication required at submission time)"
+    - "No prefill data source specified; form starts with empty fields (except default values like Vehicle Type = 'Electric Vehicle' and Date = today)"
+    - "Data binding uses schema (no external API integration); form data is stored as JSON/XML in JCR"
+    - "The submit workflow (assign-task-to-admin) is a shared, reusable model across all forms"
+    - "Email and SMS notifications are handled by AEM's out-of-the-box workflow capabilities"
+    - "The form does not require CAPTCHA or bot protection (can be added later if needed)"
+    - "Mobile responsiveness is expected (multi-column layouts collapse to single column on small screens)"
+    - "The form is embedded on an AEM Sites page (Test Adaptive Form page) for end-user access"
+
+  open_questions:
+    - "Should the 18+ age validation for Date of Birth be enforced as a hard requirement, or is it optional?"
+    - "Are there any additional fields or sections that should be added to this form in future versions?"
+    - "Should form data be saved as draft before final submission (save-to-draft capability)?"
+    - "What is the expected response/confirmation message after successful submission?"
+    - "Should admins receive immediate email notification or digest notifications for submitted forms?"
+    - "Is there a need for prefill from user profile or previous submissions?"
+
+  acceptance_criteria:
+    - "All user stories (US-01 through US-10) are implemented and verified"
+    - "All validation rules (R01 through R20) are working as specified"
+    - "Form visually matches the reference screenshot in all aspects (layout, colors, typography, spacing)"
+    - "Form is accessible (WCAG 2.1 AA) with proper aria-labels, keyboard navigation, and color contrast"
+    - "Submit button generates a PDF/Document of Record with all submitted data"
+    - "Submission triggers the assign-task-to-admin workflow and creates an admin task"
+    - "Reset button clears all fields and restores default values"
+    - "Form is responsive and works on mobile/tablet devices"
+    - "All required fields are marked with red asterisks"
+    - "Deployment includes the Test Adaptive Form Sites page with the form embedded"

@@ -1,0 +1,501 @@
+test_cases:
+  forms:
+    - key: "employee-training-request"
+      cases:
+        - id: TC-001
+          title: "All required fields block submit when empty"
+          category: field_validation
+          level: e2e
+          target: "all 20 required fields (EmployeeId, EmployeeName, Email, Department, ManagerId, ManagerName, Location, RequestId, RequestType, ProviderName, CourseName, StartDate, EndDate, TrainingMode, Amount, Currency, BusinessNeed, BenefitsToProject, TrainingCategory, AcceptedTerms)"
+          preconditions: "form loaded, deployed, all fields empty"
+          steps: ["click Submit with all required fields empty", "observe inline validation"]
+          expected: "submit is blocked; every required field shows a mandatory-field error; focus moves to the first invalid field; no workflow is invoked"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+
+        - id: TC-002
+          title: "Valid full-form submit invokes the AEM workflow with form data as payload"
+          category: submit
+          level: e2e
+          target: "guideContainer submit action (Invoke an AEM Workflow)"
+          preconditions: "all required fields completed with valid values; AcceptedTerms checked"
+          steps: ["fill every required field with valid data", "click Submit"]
+          expected: "employee-training-request-approval workflow model starts; the submitted form data is present as the workflow's initial payload (verifiable via workflow console instance variables)"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.2
+
+        - id: TC-003
+          title: "EmployeeId <= 10 auto-populates and locks ManagerId/ManagerName"
+          category: business_rule
+          level: functional
+          target: "EmployeeId, ManagerId, ManagerName"
+          preconditions: "form loaded"
+          steps: ["enter EmployeeId = 7 (or any value <=10)", "tab out of the field"]
+          expected: "ManagerId and ManagerName auto-populate from the prefill lookup and become readOnly (grey/non-editable)"
+          executes_with: sentinel
+          traces_to_story: US-02
+          traces_to_ac: AC-02.1
+
+        - id: TC-004
+          title: "Manager lookup is NOT the hardcoded legacy constant (pre-production follow-up acceptance)"
+          category: business_rule
+          level: functional
+          target: "ManagerId/ManagerName prefill source"
+          preconditions: "prefill service (Groundsmith, ask-then-build) is deployed"
+          steps: ["enter EmployeeId <= 10 for two DIFFERENT employee ids", "compare the resulting ManagerId/ManagerName across both"]
+          expected: >
+            The rule/prefill wiring does not hardcode 'venuga5'/'Arjun Venugopal' as a Rule-Editor
+            literal — the value is sourced from the prefill lookup Groundsmith built. ACCEPTED CONDITION:
+            if the lookup source is still a placeholder roster (not yet the confirmed real HR system per
+            open question #1 in plan/planwright.md), the case still PASSES as long as the value is not a
+            baked-in rule-editor constant; a real distinct-per-employee roster is a recorded
+            pre-production follow-up, not a blocking failure of this test.
+          executes_with: sentinel
+          traces_to_story: US-02
+          traces_to_ac: AC-02.2
+
+        - id: TC-005
+          title: "Invalid email format shows validation message and refocuses the field"
+          category: business_rule
+          level: functional
+          target: "Email"
+          preconditions: "form loaded"
+          steps: ["enter 'not-an-email' into Email", "tab out (exit event)"]
+          expected: "a validation message appears (Rule-Editor validate rule); focus returns to the Email field"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.1
+
+        - id: TC-006
+          title: "Valid email format passes without error"
+          category: business_rule
+          level: functional
+          target: "Email"
+          preconditions: "form loaded"
+          steps: ["enter 'employee@example.com'", "tab out"]
+          expected: "no validation message; field accepted"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.1
+
+        - id: TC-007
+          title: "RequestType is readOnly while RequestId is empty"
+          category: business_rule
+          level: functional
+          target: "RequestId, RequestType"
+          preconditions: "form loaded, RequestId empty"
+          steps: ["attempt to open/change the RequestType dropdown while RequestId is blank"]
+          expected: "RequestType remains readOnly/disabled"
+          executes_with: sentinel
+          traces_to_story: US-04
+          traces_to_ac: AC-04.1
+
+        - id: TC-008
+          title: "RequestType becomes editable once RequestId is entered"
+          category: business_rule
+          level: functional
+          target: "RequestId, RequestType"
+          preconditions: "form loaded, RequestId empty"
+          steps: ["enter any value in RequestId", "tab out", "attempt to select a RequestType option"]
+          expected: "RequestType becomes editable and the selection succeeds"
+          executes_with: sentinel
+          traces_to_story: US-04
+          traces_to_ac: AC-04.1
+
+        - id: TC-009
+          title: "EndDate <= StartDate blocks submit"
+          category: business_rule
+          level: e2e
+          target: "StartDate, EndDate"
+          preconditions: "all other required fields valid"
+          steps: ["set StartDate = 2026-08-01", "set EndDate = 2026-08-01 (equal) or 2026-07-30 (earlier)", "click Submit"]
+          expected: "EndDate is marked invalid with an inline error; submit is blocked; no workflow invoked"
+          executes_with: sentinel
+          traces_to_story: US-05
+          traces_to_ac: AC-05.1
+
+        - id: TC-010
+          title: "EndDate strictly after StartDate passes validation"
+          category: business_rule
+          level: functional
+          target: "StartDate, EndDate"
+          preconditions: "all other required fields valid"
+          steps: ["set StartDate = 2026-08-01", "set EndDate = 2026-08-10", "tab out / submit"]
+          expected: "no EndDate validation error"
+          executes_with: sentinel
+          traces_to_story: US-05
+          traces_to_ac: AC-05.1
+
+        - id: TC-011
+          title: "Manager receives a task-assignment notification referencing the employee"
+          category: workflow
+          level: e2e
+          target: "Assign Task — Manager Approval step, Send Email (task notification)"
+          preconditions: "form submitted with valid data; workflow started"
+          steps: ["submit the form", "inspect the workflow instance's Assign Task — Manager Approval step + its notification action"]
+          expected: >
+            A task is created for the participant resolved from ManagerId (per the user's confirmed
+            decision, this resolves to the administrators/admin group — see TC-013); the notification
+            content references the employee by name. ACCEPTED CONDITION (see TC-032): on the local SDK
+            with no SMTP configured, the notification step completing without throwing is sufficient —
+            actual email delivery is not required for this case to pass.
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+
+        - id: TC-012
+          title: "Manager Approve routes to finance-manager step; Reject sends 'Request Rejected' email"
+          category: workflow
+          level: e2e
+          target: "Assign Task — Manager Approval routes"
+          preconditions: "workflow instance at the Manager Approval task"
+          steps: ["complete the manager task with outcome=Approve", "(separately, on a second instance) complete with outcome=Reject and manager comments"]
+          expected: >
+            Approve -> workflow instance advances to Assign Task — Finance Manager Approval.
+            Reject -> a 'Request Rejected' Send Email step executes, referencing RequestId and the
+            manager's comments as the reason (delivery itself is subject to the same SMTP-no-op
+            acceptance as TC-032).
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.2
+
+        - id: TC-013
+          title: "Both Assign Task steps (manager, finance-manager) resolve to the administrators/admin group"
+          category: workflow
+          level: e2e
+          target: "Assign Task — Manager Approval, Assign Task — Finance Manager Approval"
+          preconditions: "workflow model deployed per the user's confirmed decision"
+          steps: ["submit a valid form", "inspect the participant assigned to the Manager Approval task", "advance to the Finance Manager Approval task and inspect its assigned participant"]
+          expected: >
+            Both tasks resolve to the administrators group (or admin user) — NOT the legacy hardcoded
+            EmployeeId<=10 -> named-person literal. ACCEPTED PRE-PRODUCTION FOLLOW-UPS (not failures of
+            this test): (a) a real manager-lookup replacing the administrators-group placeholder, and
+            (b) splitting the finance-manager step into a genuinely distinct finance-approver
+            participant — both are recorded open questions in plan/planwright.md, confirmed accepted by
+            the user for this build.
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.2
+          also_traces_to_ac: AC-08.3
+
+        - id: TC-014
+          title: "FinanceComments is readOnly whenever CurrentStatus is not 'ManagerApproved'"
+          category: business_rule
+          level: functional
+          target: "FinanceComments, CurrentStatus"
+          preconditions: "CurrentStatus in {Submitted, DeptHeadApproved, FinanceApproved, Completed, Rejected}"
+          steps: ["set/observe CurrentStatus at each non-'ManagerApproved' value", "attempt to edit FinanceComments"]
+          expected: "FinanceComments remains readOnly at every non-'ManagerApproved' status"
+          executes_with: sentinel
+          traces_to_story: US-07
+          traces_to_ac: AC-07.1
+
+        - id: TC-015
+          title: "FinanceComments becomes editable exactly when CurrentStatus == 'ManagerApproved'"
+          category: business_rule
+          level: functional
+          target: "FinanceComments, CurrentStatus"
+          preconditions: "workflow instance has advanced past manager approval"
+          steps: ["with CurrentStatus == 'ManagerApproved', attempt to edit FinanceComments"]
+          expected: "FinanceComments is editable and accepts input"
+          executes_with: sentinel
+          traces_to_story: US-07
+          traces_to_ac: AC-07.1
+
+        - id: TC-016
+          title: "Finance-manager approval triggers Document of Record generation + 'Employee Request Approved' email with PDF attached"
+          category: workflow
+          level: e2e
+          target: "Generate Document of Record step, Send Email (Approved) step"
+          preconditions: "workflow instance at the Finance Manager Approval task"
+          steps: ["complete the finance-manager task with outcome=Approve"]
+          expected: >
+            The Generate Document of Record step produces one merged PDF (employee-training-request-dor
+            content — see TC-026); the Send Email (Approved) step executes with subject 'Employee
+            Request Approved', body referencing RequestId, and the DoR PDF attached as 'Submitted Form
+            with approval'. Delivery itself is subject to the SMTP-no-op acceptance (TC-032).
+          executes_with: sentinel
+          traces_to_story: US-08
+          traces_to_ac: AC-08.1
+
+        - id: TC-017
+          title: "Finance-manager rejection sends 'Request Rejected' email and generates NO Document of Record"
+          category: workflow
+          level: e2e
+          target: "Send Email (Rejected) step from the Finance Manager Approval route"
+          preconditions: "workflow instance at the Finance Manager Approval task"
+          steps: ["complete the finance-manager task with outcome=Reject and comments"]
+          expected: "a 'Request Rejected' email step executes referencing RequestId + the rejection reason; the Generate Document of Record step is NOT invoked (no PDF produced)"
+          executes_with: sentinel
+          traces_to_story: US-08
+          traces_to_ac: AC-08.2
+
+        - id: TC-018
+          title: "Submit is blocked until AcceptedTerms is checked"
+          category: business_rule
+          level: e2e
+          target: "AcceptedTerms"
+          preconditions: "all other required fields valid; AcceptedTerms unchecked"
+          steps: ["complete every other required field", "leave AcceptedTerms unchecked", "click Submit"]
+          expected: "submit is blocked; AcceptedTerms shows a required-checkbox error; no workflow invoked"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.1
+
+        - id: TC-019
+          title: "AcceptedTerms checked + SubmissionDate is system-set on submit"
+          category: business_rule
+          level: functional
+          target: "AcceptedTerms, SubmissionDate"
+          preconditions: "all required fields valid; AcceptedTerms checked"
+          steps: ["check AcceptedTerms", "click Submit", "inspect the submitted payload's SubmissionDate value"]
+          expected: "submit proceeds; SubmissionDate is populated by the set-value rule with the current date/time (picture date{YYYY-MM-DD}'T'time{KK:MM:SS}), not a user-typed value — SubmissionDate remains display-only/readOnly throughout"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.1
+
+        - id: TC-020
+          title: "SUBMIT IS GATED ON VALIDATION — invalid form blocks submit and produces NO workflow/PDF; valid form submits and eventually produces the DoR PDF"
+          category: submit
+          level: e2e
+          target: "guideContainer submit + downstream Generate Document of Record step"
+          preconditions: "form loaded"
+          steps:
+            - "Invalid pass: leave a required field empty, AND leave AcceptedTerms unchecked, AND set EndDate <= StartDate; click Submit"
+            - "Confirm: submission is blocked, inline errors shown on every invalid/empty field, no workflow instance is created, no PDF exists"
+            - "Valid pass: correct every field (fill required fields, check AcceptedTerms, set EndDate after StartDate); click Submit"
+            - "Confirm: submission succeeds, the workflow starts, and (after driving both approvals to Approve) the Generate Document of Record step produces the merged PDF"
+          expected: "invalid form: 0 workflow instances, 0 PDFs, errors visible; valid form: 1 workflow instance created immediately, 1 PDF produced only after both approvals succeed"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+          also_traces_to: ["US-05/AC-05.1", "US-09/AC-09.1"]
+          note: "Mandatory case per project rule 3b (submit-gated-on-validation)."
+
+        - id: TC-021
+          title: "Approval Information panel hidden when EmployeeId is empty"
+          category: business_rule
+          level: functional
+          target: "Approval Information panel, EmployeeId"
+          preconditions: "form freshly loaded, EmployeeId empty"
+          steps: ["load the form without entering EmployeeId"]
+          expected: "Approval Information panel presence = hidden"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+
+        - id: TC-022
+          title: "Approval Information panel visible when EmployeeId is non-empty and CurrentStatus != 'FinanceApproved'"
+          category: business_rule
+          level: functional
+          target: "Approval Information panel, EmployeeId, CurrentStatus"
+          preconditions: "EmployeeId entered; CurrentStatus in {Submitted, ManagerApproved, DeptHeadApproved}"
+          steps: ["enter EmployeeId", "observe the Approval Information panel at each non-'FinanceApproved' status"]
+          expected: "Approval Information panel presence = visible at every listed status"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+
+        - id: TC-023
+          title: "Approval Information panel hides again once CurrentStatus == 'FinanceApproved'"
+          category: business_rule
+          level: functional
+          target: "Approval Information panel, CurrentStatus"
+          preconditions: "EmployeeId non-empty; CurrentStatus transitions to 'FinanceApproved'"
+          steps: ["drive the workflow instance's CurrentStatus to 'FinanceApproved'", "reload/observe the Approval Information panel"]
+          expected: "Approval Information panel presence = hidden once fully approved"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+
+        - id: TC-024
+          title: "Rendered employee-training-request matches DocRoute.xdp's legacy visual design (structural parity)"
+          category: ui_parity
+          level: ui-visual
+          target: "whole form"
+          preconditions: "form deployed at its Sites-embedded URL"
+          steps:
+            - "capture the live rendered form via test-form-ui"
+            - "compare against C:\\tmp-inner-pkg\\...\\Forms\\DocRoute.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg"
+          expected: >
+            Structural parity (not pixel-perfect, this is a migration): matching section header band
+            colour (RGB 196,219,251) + maroon 20pt bold caption (RGB 128,64,64) per panel, matching panel
+            body colour (RGB 225,242,219), Myriad Pro (or its web fallback) font family, 3-column field
+            grid with the same field order and labels per panel, Declaration panel with no header
+            band/caption (bare green body), Approval Information panel hidden by default. Zero Critical
+            structural findings (missing/extra fields, wrong field order, wrong panel colours).
+          executes_with: test-form-ui
+          traces_to_story: US-10
+          traces_to_ac: AC-10.1
+
+        - id: TC-025
+          title: "Document of Record template matches EmployeeTrainingRequest.xdp + ApprovalInfo.xdp (structural parity)"
+          category: ui_parity
+          level: functional
+          target: "employee-training-request-dor merged template"
+          preconditions: "a workflow instance has reached Generate Document of Record"
+          steps:
+            - "render/generate the DoR PDF"
+            - "structurally compare its request-data section against EmployeeTrainingRequest.xdp's DAM preview and its approval section against ApprovalInfo.xdp's DAM preview"
+          expected: >
+            Same panel structure/colours/fonts/3-column layout as the interactive form's design spec;
+            NOT a live-page pixel diff (it is a generated PDF, not a rendered AF page) — structural
+            comparison only, per solution-architecture.yaml.
+          executes_with: sentinel
+          traces_to_story: US-11
+          traces_to_ac: AC-11.1
+
+        - id: TC-026
+          title: "DoR PDF contains both the full request-data section and the Approval Information section"
+          category: workflow
+          level: e2e
+          target: "employee-training-request-dor merged PDF content"
+          preconditions: "workflow instance has completed both approvals"
+          steps: ["generate the DoR PDF", "inspect its content"]
+          expected: >
+            The PDF contains the complete request-data section (Employee Details via the
+            employee-identity fragment / Training Request Details / Justification / Declaration via the
+            declaration-consent fragment) AND the Approval Information section (Current Status, Manager
+            Comments, Department Head Comments, Finance Comments) in one merged document.
+          executes_with: sentinel
+          traces_to_story: US-11
+          traces_to_ac: AC-11.1
+
+        - id: TC-027
+          title: "aria-label present and correct on every one of the 30 fields, including the two distinctly-labelled 'Location' fields"
+          category: accessibility
+          level: functional
+          target: "all 30 fields across both fragments and all 6 panels"
+          preconditions: "form deployed"
+          steps:
+            - "inspect the rendered DOM for aria-label on a representative field from each panel/fragment: EmployeeId, ManagerId (employee-identity fragment); RequestType, EndDate, Currency (Training Request Details); TrainingCategory (Justification); VendorQuotation (Attachments); AcceptedTerms, SubmissionDate (declaration-consent fragment); FinanceComments (Approval Information)"
+            - "specifically verify EmployeeDetails.Location has aria-label 'Employee Location' and TrainingRequest.Location has aria-label 'Training Location' (same visible caption, distinct aria-label)"
+            - "tab through the form with keyboard only; verify all fields are reachable and focus is visible"
+          expected: "every field has a non-empty, correct aria-label matching the spec in design/component-design-spec.yaml; the two same-captioned Location fields are distinguishable to assistive tech; full keyboard operability; WCAG 2.1 AA focus visibility"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+          note: "Cross-cutting NFR case (accessibility) — anchored to US-01 as the story covering the full field set; applies to every story's fields equally."
+
+        - id: TC-028
+          title: "employee-identity fragment: edit-once-reflects-both regression (interactive form + DoR template)"
+          category: fragment_reuse
+          level: e2e
+          target: "employee-identity fragment"
+          preconditions: "fragment embedded in both employee-training-request and the employee-training-request-dor template"
+          steps: ["author a change to the employee-identity fragment (e.g. a caption tweak)", "re-render employee-training-request", "re-render/re-generate the DoR template"]
+          expected: "the change appears identically in both consumers without touching either consumer's own content — proves single-source-of-truth fragment reuse"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+
+        - id: TC-029
+          title: "declaration-consent fragment: edit-once-reflects-both regression (interactive form + DoR template)"
+          category: fragment_reuse
+          level: e2e
+          target: "declaration-consent fragment"
+          preconditions: "fragment embedded in both employee-training-request and the employee-training-request-dor template"
+          steps: ["author a change to the declaration-consent fragment", "re-render employee-training-request", "re-render/re-generate the DoR template"]
+          expected: "the change appears identically in both consumers"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.1
+
+        - id: TC-030
+          title: "Submit action unit/integration test — 'Invoke an AEM Workflow' starts the correct model with the correct payload"
+          category: submit
+          level: integration
+          target: "custom submit-action OSGi service wiring the workflow trigger"
+          preconditions: "submit action deployed"
+          steps: ["invoke the submit action programmatically with a mock valid form data map", "assert on the WorkflowSession/launcher call"]
+          expected: "the employee-training-request-approval model is started exactly once with the form data present as the initial payload"
+          executes_with: create-form-tests
+          traces_to_story: US-01
+          traces_to_ac: AC-01.2
+
+        - id: TC-031
+          title: "Prefill service unit test — manager lookup resolves for EmployeeId<=10 and safely no-ops otherwise"
+          category: prefill
+          level: unit
+          target: "prefill service Java class (Groundsmith build)"
+          preconditions: "prefill service deployed"
+          steps: ["call the service with EmployeeId=7", "call the service with EmployeeId=42"]
+          expected: "EmployeeId=7 returns a ManagerId/ManagerName pair from the configured lookup source (not a hardcoded 'venuga5' literal in the service); EmployeeId=42 returns no auto-populated value / leaves the fields untouched, without throwing"
+          executes_with: create-form-tests
+          traces_to_story: US-02
+          traces_to_ac: AC-02.1
+
+        - id: TC-032
+          title: "Send Email workflow steps complete without throwing when SMTP is unconfigured (local SDK accepted condition)"
+          category: workflow
+          level: e2e
+          target: "all 4 Send Email steps (manager task notification, finance-manager task notification, approved email, rejected email)"
+          preconditions: "local AEM SDK author instance with no Day CQ Mail Service SMTP host configured"
+          steps: ["drive a workflow instance through each Send Email step in turn (task notifications, approved path, rejected path)"]
+          expected: >
+            ACCEPTED/EXPECTED CONDITION — each Send Email step's process/service execution completes
+            (the workflow does not fail, hang, or throw an unhandled exception) even though no message is
+            actually delivered because no SMTP host is configured on localhost. This is NOT treated as a
+            test failure; it is the expected behaviour on an unconfigured local environment. Real delivery
+            verification is deferred to an environment with Day CQ Mail Service configured (pre-production
+            follow-up, per the user's confirmed decision #3).
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+
+        - id: TC-033
+          title: "Dropdown fields render their exact option sets"
+          category: field_validation
+          level: functional
+          target: "RequestType, TrainingMode, Currency, TrainingCategory, CurrentStatus"
+          preconditions: "form loaded"
+          steps: ["open each dropdown", "read its option list"]
+          expected: >
+            RequestType = [Certification, Training, Conference]; TrainingMode = [Online, Classroom,
+            Hybrid]; Currency = [USD, EUR, GBP, INR]; TrainingCategory = [Mandatory, Optional];
+            CurrentStatus = [Submitted, ManagerApproved, DeptHeadApproved, FinanceApproved, Completed,
+            Rejected] — exact match, via enum/enumNames, no extra/missing options
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+
+        - id: TC-034
+          title: "Optional file-attachment fields accept upload or remain empty without blocking submit"
+          category: field_validation
+          level: functional
+          target: "VendorQuotation, CourseBrochure, ManagerRecommendation"
+          preconditions: "all other required fields valid"
+          steps: ["submit with all 3 attachments empty", "(separately) submit with 1-3 attachments populated"]
+          expected: "both submissions succeed (Attachments are optional per the field inventory); when populated, the uploaded file is present in the submitted payload"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+
+coverage:
+  user_stories_total: 11
+  user_stories_with_cases: 11
+  acceptance_criteria_total: 17
+  acceptance_criteria_with_cases: 17
+  uncovered_stories: []
+  uncovered_acceptance_criteria: []
+  per_story:
+    US-01: { acs: [AC-01.1, AC-01.2], cases: [TC-001, TC-002, TC-020, TC-027, TC-028, TC-030, TC-033, TC-034] }
+    US-02: { acs: [AC-02.1, AC-02.2], cases: [TC-003, TC-004, TC-031] }
+    US-03: { acs: [AC-03.1], cases: [TC-005, TC-006] }
+    US-04: { acs: [AC-04.1], cases: [TC-007, TC-008] }
+    US-05: { acs: [AC-05.1], cases: [TC-009, TC-010, TC-020] }
+    US-06: { acs: [AC-06.1, AC-06.2], cases: [TC-011, TC-012, TC-013, TC-021, TC-022, TC-023, TC-032] }
+    US-07: { acs: [AC-07.1], cases: [TC-014, TC-015] }
+    US-08: { acs: [AC-08.1, AC-08.2, AC-08.3], cases: [TC-016, TC-017, TC-013] }
+    US-09: { acs: [AC-09.1], cases: [TC-018, TC-019, TC-020, TC-029] }
+    US-10: { acs: [AC-10.1], cases: [TC-024] }
+    US-11: { acs: [AC-11.1], cases: [TC-025, TC-026] }
+
+executes_with_summary:
+  create-form-tests: [TC-030, TC-031]
+  test-form-ui: [TC-024]
+  sentinel: [TC-001, TC-002, TC-003, TC-004, TC-005, TC-006, TC-007, TC-008, TC-009, TC-010, TC-011, TC-012, TC-013, TC-014, TC-015, TC-016, TC-017, TC-018, TC-019, TC-020, TC-021, TC-022, TC-023, TC-025, TC-026, TC-027, TC-028, TC-029, TC-032, TC-033, TC-034]
+
+total_cases: 34

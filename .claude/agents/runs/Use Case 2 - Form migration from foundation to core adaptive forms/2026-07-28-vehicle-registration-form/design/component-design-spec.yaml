@@ -1,0 +1,553 @@
+component_inventory_and_specs:
+  brief: "Vehicle Registration Form — Component inventory and design specifications"
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      subtitle: "Please provide the details below to complete your registration."
+      template: "blank-af-v2 (reuse, do not create new)"
+      theme_base: "aem-adaptive-forms-agents-wknd (reuse, override tokens via form clientlib)"
+
+      display_content:
+        - type: "title"
+          text: "VEHICLE REGISTRATION FORM"
+          styling: "centered, bold, dark navy/charcoal (#1a1a1a), ~32px"
+          rendered_by: "form header text (template header region or static text component)"
+        - type: "subtitle"
+          text: "Please provide the details below to complete your registration."
+          styling: "gray (#666666), centered, regular weight, ~14px"
+          rendered_by: "static text component below title"
+
+      sections:
+        - section_key: "owner_details"
+          section_title: "1. OWNER DETAILS"
+          description: "3-column layout for owner personal information. Form-specific field set (name/DoB/gender/contacts) — NOT a generically reusable block across other project forms (unlike address/declaration), so fields are authored INLINE, not as a fragment."
+          layout_type: "3-column responsive grid (12-col; width=4 per field on desktop, width=12 on mobile)"
+          fields:
+            - name: "ownerFullName"
+              label: "Owner Full Name"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 100, pattern: "", multiline: false, placeholder: "" }
+              aria_label: "Owner Full Name"
+              data_ref: "$.ownerFullName"
+              validation_rule: "R01"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "dateOfBirth"
+              label: "Date of Birth"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/datepicker"
+              field_type: "date-input"
+              required: true
+              properties: { displayFormat: "date|DD/MM/YYYY", editFormat: "date|DD/MM/YYYY", placeholderText: "DD / MM / YYYY", maxDate: "today" }
+              aria_label: "Date of Birth (DD/MM/YYYY format)"
+              data_ref: "$.dateOfBirth"
+              validation_rule: "R02"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "gender"
+              label: "Gender"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              field_type: "drop-down"
+              required: true
+              properties:
+                enum: ["male", "female", "other"]
+                enumNames: ["Male", "Female", "Other"]
+                placeholder: "Select"
+              aria_label: "Gender selection"
+              data_ref: "$.gender"
+              validation_rule: "R03"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "contactNumber"
+              label: "Contact Number"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/telephoneinput"
+              field_type: "tel-input"
+              required: true
+              properties: { pattern: "^[0-9]{10}$", maxLength: 10, minLength: 10, placeholder: "" }
+              aria_label: "Contact Number (10 digits)"
+              data_ref: "$.contactNumber"
+              validation_rule: "R04"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "emailAddress"
+              label: "Email Address"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/emailinput"
+              field_type: "email-input"
+              required: true
+              properties: { pattern: "RFC 5322 standard email pattern", placeholder: "" }
+              aria_label: "Email Address"
+              data_ref: "$.emailAddress"
+              validation_rule: "R05"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "emergencyContactNo"
+              label: "Emergency Contact No."
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/telephoneinput"
+              field_type: "tel-input"
+              required: true
+              properties: { pattern: "^[0-9]{10}$", maxLength: 10, minLength: 10, placeholder: "" }
+              aria_label: "Emergency Contact Number (10 digits)"
+              data_ref: "$.emergencyContactNo"
+              validation_rule: "R06"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+        - section_key: "vehicle_details"
+          section_title: "2. VEHICLE DETAILS"
+          description: "3-column layout for vehicle info (5 fields, 2 rows: 3-col + 2-col). Form-specific — not reused elsewhere; fields authored INLINE."
+          layout_type: "3-column responsive grid (12-col; width=4 per field on desktop, width=12 on mobile)"
+          fields:
+            - name: "vehicleType"
+              label: "Vehicle Type"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              field_type: "drop-down"
+              required: true
+              properties:
+                enum: ["two_wheeler", "four_wheeler", "commercial_vehicle", "electric_vehicle"]
+                enumNames: ["Two Wheeler", "Four Wheeler", "Commercial Vehicle", "Electric Vehicle"]
+                defaultValue: "electric_vehicle"
+                placeholder: "Select"
+              aria_label: "Vehicle Type selection"
+              data_ref: "$.vehicleType"
+              validation_rule: "R07"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "makeModel"
+              label: "Make & Model"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 100, placeholder: "" }
+              aria_label: "Vehicle Make and Model"
+              data_ref: "$.makeModel"
+              validation_rule: "R08"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "registrationYear"
+              label: "Registration Year"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/numberinput"
+              field_type: "number-input"
+              required: true
+              properties: { pattern: "^[0-9]{4}$", minValue: 1900, maxValue: "current_year (set via create-form-rules calculate/validate against today's year)", placeholder: "" }
+              aria_label: "Vehicle Registration Year (4-digit, past year only)"
+              data_ref: "$.registrationYear"
+              validation_rule: "R09"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "chassisNumber"
+              label: "Chassis Number"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 50, placeholder: "" }
+              aria_label: "Vehicle Chassis Number"
+              data_ref: "$.chassisNumber"
+              validation_rule: "R10"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "fuelType"
+              label: "Fuel Type"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              field_type: "drop-down"
+              required: true
+              properties:
+                enum: ["petrol", "diesel", "cng", "electric", "hybrid"]
+                enumNames: ["Petrol", "Diesel", "CNG", "Electric", "Hybrid"]
+                placeholder: "Select"
+              aria_label: "Fuel Type selection"
+              data_ref: "$.fuelType"
+              validation_rule: "R11"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+        - section_key: "address_details"
+          section_title: "3. ADDRESS DETAILS"
+          description: |
+            Full-width address line, then 3-column city/state/pincode. This is a GENERIC, REUSABLE
+            section (address block pattern used across many forms in this project) — per mandatory
+            rule 3c, specced as an ADAPTIVE FORM FRAGMENT, not inline fields.
+          source: "fragment"
+          fragment_decision: "REUSE existing project fragment (no new fragment needed)"
+          fragment_ref:
+            fragment_key: "address-details-fragment"
+            content_path: "/content/forms/af/aem-adaptive-form-agents/address-details-fragment"
+            dam_asset: "/content/dam/formsanddocuments/aem-adaptive-form-agents/address-details-fragment"
+            embed_via: "Adaptive Form Fragment component, fragmentPath → content_path above"
+          canonical_data_shape:
+            addressLine: "$.address.addressLine"
+            city: "$.address.city"
+            state: "$.address.state"
+            pincode: "$.address.pincode"
+          layout_type: "Fragment's internal responsiveGrid: addressLine width=12 (full-width, newline); city/state/pincode each width=4 (3-column, newline on city)"
+          fields_in_fragment:
+            - name: "addressLine"
+              label: "Address Line"
+              field_type: "text-input"
+              required: true
+              properties_in_fragment: { maxLength: 250 }
+              requirement_max: 200
+              note: "Fragment's maxLength (250) is a superset of the requirement's 200-char cap — looser constraint accepted, no functional gap (form still rejects nothing the requirement would accept)."
+              validation_rule: "R12"
+              col_width_desktop: 12
+              col_width_mobile: 12
+
+            - name: "city"
+              label: "City"
+              field_type: "text-input"
+              required: true
+              properties_in_fragment: { maxLength: 80 }
+              requirement_max: 50
+              note: "Fragment's maxLength (80) is a superset of the requirement's 50-char cap — accepted."
+              validation_rule: "R13"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "state"
+              label: "State"
+              field_type: "text-input"
+              required: true
+              properties_in_fragment: { maxLength: 80 }
+              requirement_max: 50
+              note: "Fragment's maxLength (80) is a superset of the requirement's 50-char cap — accepted."
+              validation_rule: "R14"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "pincode"
+              label: "Pincode / ZIP Code"
+              field_type: "text-input"
+              required: true
+              properties_in_fragment: { maxLength: 12, pattern: "^[0-9]+$" }
+              requirement_pattern: "^[0-9]{6}$ (exactly 6 digits)"
+              note: |
+                GAP: the shared fragment's pincode pattern is intentionally generic (numeric, up to
+                12 digits, to support non-Indian postal formats reused by other forms) and does NOT
+                enforce this form's exact-6-digit rule (R15). This form MUST layer a supplemental
+                field-level validation rule on the embedded fragment's field ($.address.pincode) via
+                create-form-rules (Phase 4) to enforce "^[0-9]{6}$" for THIS form, without modifying
+                the shared fragment (which stays generic for other consuming forms).
+              validation_rule: "R15"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+        - section_key: "document_insurance_details"
+          section_title: "4. DOCUMENT & INSURANCE DETAILS"
+          description: "3-column layout for document numbers. Form-specific (vehicle document IDs) — not a generic reusable pattern; fields authored INLINE."
+          layout_type: "3-column responsive grid (12-col; width=4 per field on desktop, width=12 on mobile)"
+          fields:
+            - name: "rcBookNumber"
+              label: "RC Book Number"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 50, placeholder: "" }
+              aria_label: "Registration Certificate Book Number"
+              data_ref: "$.rcBookNumber"
+              validation_rule: "R16"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "insurancePolicyNumber"
+              label: "Insurance Policy Number"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 50, placeholder: "" }
+              aria_label: "Insurance Policy Number"
+              data_ref: "$.insurancePolicyNumber"
+              validation_rule: "R17"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+            - name: "pucCertificateNumber"
+              label: "PUC Certificate Number"
+              source: "core_component"
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              field_type: "text-input"
+              required: true
+              properties: { maxLength: 50, placeholder: "" }
+              aria_label: "PUC Certificate Number"
+              data_ref: "$.pucCertificateNumber"
+              validation_rule: "R18"
+              col_width_desktop: 4
+              col_width_mobile: 12
+
+        - section_key: "declaration"
+          section_title: "5. DECLARATION"
+          description: |
+            Static declaration text + 2-column submitted-by/date. The FIELDS (submittedBy, date) are
+            a GENERIC, REUSABLE "declaration/signature block" pattern used across many forms in this
+            project — per mandatory rule 3c, specced as an ADAPTIVE FORM FRAGMENT. The static legal
+            text itself is FORM-SPECIFIC content (wording varies per form) and is authored INLINE in
+            the consuming form, immediately above the embedded fragment reference — it is not part of
+            the reusable fragment.
+          static_content:
+            - type: "paragraph"
+              text: "I confirm that the above information is accurate."
+              styling: "regular text, dark color (#1a1a1a)"
+              rendered_by: "static text / plain-text component authored inline in the consuming form (NOT in the fragment), placed directly above the fragment embed"
+          source: "fragment (fields) + inline (static text)"
+          fragment_decision: "REUSE existing project fragment (no new fragment needed)"
+          fragment_ref:
+            fragment_key: "declaration-fragment"
+            content_path: "/content/forms/af/aem-adaptive-form-agents/declaration-fragment"
+            dam_asset: "/content/dam/formsanddocuments/aem-adaptive-form-agents/declaration-fragment"
+            embed_via: "Adaptive Form Fragment component, fragmentPath → content_path above"
+          canonical_data_shape:
+            submittedBy: "$.declaration.submittedBy"
+            declarationDate: "$.declaration.date"
+          layout_type: "Fragment's internal responsiveGrid: submittedBy width=6 (newline), declarationDate width=6 (2-column)"
+          fields_in_fragment:
+            - name: "submittedBy"
+              label: "Submitted By"
+              field_type: "text-input"
+              required: true
+              properties_in_fragment: { maxLength: 100 }
+              requirement_max: 100
+              note: "Matches requirement exactly — no gap."
+              validation_rule: "R19"
+              col_width_desktop: 6
+              col_width_mobile: 12
+
+            - name: "declarationDate"
+              label: "Date"
+              field_type: "date-input"
+              required: true
+              properties_in_fragment: { displayFormat: "date|DD/MM/YYYY", editFormat: "date|DD/MM/YYYY", placeholderText: "DD / MM / YYYY" }
+              note: |
+                GAP: the shared fragment does not hardcode a default value or a max-date=today
+                constraint (a default that suits every consuming form can't live in a generic
+                fragment). This form's R20 ("defaults to today", "cannot be after today") MUST be
+                added as a supplemental create-form-rules (Phase 4) calculate + validate rule on
+                the embedded fragment field ($.declaration.date), scoped to THIS form only.
+              validation_rule: "R20"
+              col_width_desktop: 6
+              col_width_mobile: 12
+
+      buttons:
+        - name: "submit"
+          label: "Submit Form"
+          type: "submit"
+          source: "core_component"
+          resource_type: "core/fd/components/form/button/v1/button"
+          properties: { buttonType: "submit", enabled: true }
+          styling: "solid green/teal background (--af-primary #228B22), white text (--af-primary-contrast)"
+          aria_label: "Submit Form"
+
+        - name: "reset"
+          label: "Reset"
+          type: "reset"
+          source: "core_component"
+          resource_type: "core/fd/components/form/button/v1/button"
+          properties: { buttonType: "reset", enabled: true }
+          styling: "outlined style, white/transparent background, green/teal (--af-primary) border and text"
+          aria_label: "Reset Form"
+
+fragments_specced: 2
+fragments_summary:
+  - fragment_key: "address-details-fragment"
+    decision: "reuse_existing"
+    section: "3. ADDRESS DETAILS"
+    reason: "An address-block fragment already exists in the project (content_path /content/forms/af/aem-adaptive-form-agents/address-details-fragment, DAM asset present, uses blank-af-v2 template per the project convention that fragments must use blank-af-v2 not the -fragment template variant). Its canonical shape ($.address.addressLine/city/state/pincode) fits this form's Address Details section directly. No new fragment authored."
+  - fragment_key: "declaration-fragment"
+    decision: "reuse_existing"
+    section: "5. DECLARATION"
+    reason: "A declaration-block fragment already exists (content_path /content/forms/af/aem-adaptive-form-agents/declaration-fragment) with submittedBy + date fields bound to $.declaration.submittedBy / $.declaration.date. Fits this form's Submitted By / Date fields directly. Static legal text is form-specific and stays inline (not part of the fragment). No new fragment authored."
+
+design_specifications:
+  theme:
+    decision: "token_override_only (Option A, not a new full theme)"
+    base_theme_reuse: "/apps/fd/af/themes/aem-adaptive-forms-agents-wknd"
+    base_theme_rationale: "Existing project theme with standard element styling + --af-* token defaults, owned by the shared base clientlib (aem-adaptive-forms-agents.forms.base). Form theme is a THIN :root override only."
+    token_overrides:
+      "--af-primary": "#228B22"
+      "--af-primary-contrast": "#ffffff"
+      "--af-bg": "#ffffff"
+      "--af-section-heading": "#228B22"
+      "--af-field-border": "#cccccc"
+      "--af-radius": "4px"
+      "--af-required-asterisk": "#d32f2f"
+      "--af-error": "#d32f2f"
+      "--af-label-color": "#333333"
+      "--af-font": "Arial, sans-serif"
+      "--af-font-size-base": "14px"
+      "--af-heading-weight": "bold"
+      "--af-gap": "16px"
+      "--af-column-gap": "16px"
+      "--af-label-margin-bottom": "8px"
+      "--af-section-padding": "24px"
+      "--af-section-margin-bottom": "24px"
+      "--af-section-rule": "1px solid #e0e0e0"
+      "--af-button-padding": "12px 24px"
+      "--af-button-font-size": "14px"
+      "--af-button-radius": "4px"
+    new_theme_justification: "N/A — not building a new full theme. Base theme (wknd) + thin token overrides only, per mandatory rule 'Theme as token override (Option A)'."
+
+  layout:
+    type: "single_page"
+    structure: |
+      - Header: Title + Subtitle (centered, static text)
+      - Panel 1 OWNER DETAILS (inline fields, 3-col, 2 rows of 3)
+      - Panel 2 VEHICLE DETAILS (inline fields, 3-col: row1 3 fields, row2 2 fields)
+      - Panel 3 ADDRESS DETAILS (embedded address-details-fragment: full-width + 3-col)
+      - Panel 4 DOCUMENT & INSURANCE DETAILS (inline fields, 3-col, 1 row)
+      - Panel 5 DECLARATION (inline static text + embedded declaration-fragment: 2-col)
+      - Footer: Submit Form + Reset buttons
+    grid_system: "AEM Forms 12-column responsive grid (cq:responsive), width=4 for 3-col, width=6 for 2-col, width=12 for full-width"
+
+  responsive:
+    breakpoints:
+      - name: "mobile"
+        media_query: "max-width: 767px"
+        behaviour: "All multi-column rows (3-col, 2-col, fragment internals) collapse to width=12 single column; buttons may stack vertically"
+      - name: "desktop"
+        media_query: "768px and above"
+        behaviour: "3-column, 2-column, and full-width rows render exactly as specced"
+
+  accessibility:
+    wcag_target: "WCAG 2.1 AA"
+    requirements:
+      - "aria-label on every field (injected at runtime via form clientlib for both inline fields and fragment-embedded fields, since Core Components drops aria-label when a visible label exists)"
+      - "Keyboard navigable (AF Core Components default)"
+      - "Color contrast: #228B22 on white and #1a1a1a on white both meet AA"
+      - "Visible focus indicator on all interactive elements"
+      - "Required asterisk (red #d32f2f) present in every required field's label"
+
+  visual_elements:
+    title: { text: "VEHICLE REGISTRATION FORM", styling: "centered, bold, #1a1a1a, ~32px" }
+    subtitle: { text: "Please provide the details below to complete your registration.", styling: "centered, #666666, ~14px, regular" }
+    section_headers:
+      format: "1. OWNER DETAILS / 2. VEHICLE DETAILS / 3. ADDRESS DETAILS / 4. DOCUMENT & INSURANCE DETAILS / 5. DECLARATION"
+      styling: "Numbered, ALL CAPS, color --af-section-heading (#228B22), bold, ~16px"
+      divider: "1px solid #e0e0e0 border-bottom immediately below each numbered header, spanning full form width, drawn in form clientlib CSS on the real served section-panel classes (both the 3 inline panels and the 2 fragment-hosting panels)"
+    required_asterisks: { styling: "red #d32f2f (--af-required-asterisk)", placement: "inline after label text" }
+    separators_dividers:
+      rule_below_section_headers: "1px solid #e0e0e0, 16px margin above/below, one under EVERY numbered section including the 2 fragment sections"
+      rule_below_title_subtitle: "optional thin rule below header block, per screenshot proportions"
+      rendered_by: "form clientlib CSS border-bottom on section-panel + header container classes (no CSS background-image tricks)"
+    buttons:
+      submit_form: { background: "#228B22", text: "#ffffff", padding: "12px 24px", radius: "4px", font_weight: "semi-bold", font_size: "14px" }
+      reset: { background: "transparent/white", border: "2px solid #228B22", text: "#228B22", padding: "12px 24px", radius: "4px", font_weight: "semi-bold", font_size: "14px" }
+      layout: "centered group, 16px gap between buttons"
+    form_container_styling: "white background, optional 1px solid #e0e0e0 card border, 24px padding, 4px radius — via form clientlib CSS on guideContainer class"
+    icon_assets: []
+    icon_assets_note: "No icons/logos/images present in the reference screenshot — N/A for this form."
+
+authoring_guideline:
+  template:
+    decision: "reuse"
+    reference: "/conf/aem-adaptive-forms-agents/settings/wcm/templates/blank-af-v2"
+    reason_for_reuse: "Generic single-page form template; fits multi-section layout. No distinct governance/structure needed per-form."
+    fragment_template_note: "Per project convention (recorded lesson: 'fragment template breaks editor'), both address-details-fragment and declaration-fragment correctly use blank-af-v2 (NOT blank-af-v2-fragment) — reuse them as-is; do not re-template."
+
+  fragments:
+    decision_rule_applied: |
+      Mandatory rule 3c: generic/reusable sections default to Adaptive Form Fragments. Applied here:
+      - "3. ADDRESS DETAILS" → REUSE existing address-details-fragment ($.address.*)
+      - "5. DECLARATION" fields (submittedBy/date) → REUSE existing declaration-fragment ($.declaration.*)
+      - "1. OWNER DETAILS", "2. VEHICLE DETAILS", "4. DOCUMENT & INSURANCE DETAILS" → NOT genericized;
+        these are vehicle-registration-specific field sets (owner PII combos, vehicle attributes,
+        vehicle document IDs) with no cross-form reuse precedent in this project, so they are authored
+        INLINE as ordinary panel fields, per reuse-first but not force-fragmenting everything.
+    schema_addendum: |
+      IMPORTANT build note for generate-schema (Phase 1) and create-adaptive-form (Phase 3): because
+      Address Details and Declaration are fragment-embedded, the form's JSON Schema must nest those
+      properties as "address": { addressLine, city, state, pincode } and "declaration": {
+      submittedBy, date } to match the fragments' canonical dataRef paths ($.address.*, $.declaration.*)
+      — NOT flat top-level properties as a naive 1:1 field-name mapping would suggest. All other 16
+      fields (owner/vehicle/document sections) remain flat top-level schema properties.
+
+  content_policies: "Lock: header/footer regions. Unlock: guideContainer (form container). Allowed components: textinput, emailinput, telephoneinput, numberinput, datepicker, dropdown, panelcontainer, Adaptive Form Fragment component, button. Disallowed: custom Java components (none needed), legacy Foundation types."
+
+  dos_and_donts:
+    do:
+      - "Use enum/enumNames for dropdown options (gender, vehicleType, fuelType) — not <items> XML"
+      - "Set aria-label on every field, inline and fragment-embedded"
+      - "Use the Rule Editor / create-form-rules for R01-R20 validations — not inline JS"
+      - "Embed address-details-fragment and declaration-fragment by reference (fragmentPath) — do not copy/duplicate their fields inline"
+      - "Layer the two fragment-specific gap rules (pincode exact-6-digit; declaration date default+no-future) via create-form-rules scoped to this form, without editing the shared fragments"
+      - "Apply --af-* theme tokens for all colors/spacing — no hardcoded CSS values"
+    dont:
+      - "Do NOT use legacy Foundation form component types (fd/af/components/...)"
+      - "Do NOT author a new address or declaration fragment — reuse the existing ones"
+      - "Do NOT modify the shared address-details-fragment/declaration-fragment to tighten validation for this form only — use form-scoped rules instead"
+      - "Do NOT hardcode colors/spacing inline — use theme tokens"
+      - "Do NOT skip aria-labels"
+      - "Do NOT create a per-form template — reuse blank-af-v2"
+
+traceability:
+  requirement_to_component_mapping:
+    - { requirement: "Owner Full Name (text, max 100, required)", component: "ownerFullName (inline text-input)", validation_rule: "R01", user_story: "US-01" }
+    - { requirement: "Date of Birth (date, no future)", component: "dateOfBirth (inline date-input)", validation_rule: "R02", user_story: "US-01" }
+    - { requirement: "Gender (dropdown)", component: "gender (inline dropdown)", validation_rule: "R03", user_story: "US-01" }
+    - { requirement: "Contact Number (10-digit)", component: "contactNumber (inline tel-input)", validation_rule: "R04", user_story: "US-02" }
+    - { requirement: "Email Address (RFC 5322)", component: "emailAddress (inline email-input)", validation_rule: "R05", user_story: "US-02" }
+    - { requirement: "Emergency Contact No. (10-digit)", component: "emergencyContactNo (inline tel-input)", validation_rule: "R06", user_story: "US-02" }
+    - { requirement: "Vehicle Type (dropdown, default Electric Vehicle)", component: "vehicleType (inline dropdown)", validation_rule: "R07", user_story: "US-03" }
+    - { requirement: "Make & Model (text, max 100)", component: "makeModel (inline text-input)", validation_rule: "R08", user_story: "US-03" }
+    - { requirement: "Registration Year (4-digit, past)", component: "registrationYear (inline number-input)", validation_rule: "R09", user_story: "US-03" }
+    - { requirement: "Chassis Number (text, max 50)", component: "chassisNumber (inline text-input)", validation_rule: "R10", user_story: "US-03" }
+    - { requirement: "Fuel Type (dropdown)", component: "fuelType (inline dropdown)", validation_rule: "R11", user_story: "US-04" }
+    - { requirement: "Address Line (text, full-width, max 200)", component: "addressLine (address-details-fragment field, $.address.addressLine)", validation_rule: "R12", user_story: "US-05" }
+    - { requirement: "City (text, max 50)", component: "city (address-details-fragment field, $.address.city)", validation_rule: "R13", user_story: "US-05" }
+    - { requirement: "State (text, max 50)", component: "state (address-details-fragment field, $.address.state)", validation_rule: "R14", user_story: "US-05" }
+    - { requirement: "Pincode (6-digit numeric)", component: "pincode (address-details-fragment field, $.address.pincode + supplemental form-scoped rule)", validation_rule: "R15", user_story: "US-05" }
+    - { requirement: "RC Book Number (text, max 50)", component: "rcBookNumber (inline text-input)", validation_rule: "R16", user_story: "US-06" }
+    - { requirement: "Insurance Policy Number (text, max 50)", component: "insurancePolicyNumber (inline text-input)", validation_rule: "R17", user_story: "US-06" }
+    - { requirement: "PUC Certificate Number (text, max 50)", component: "pucCertificateNumber (inline text-input)", validation_rule: "R18", user_story: "US-06" }
+    - { requirement: "Static declaration text", component: "inline static paragraph above declaration-fragment embed", validation_rule: "—", user_story: "US-07" }
+    - { requirement: "Submitted By (text, max 100)", component: "submittedBy (declaration-fragment field, $.declaration.submittedBy)", validation_rule: "R19", user_story: "US-07" }
+    - { requirement: "Declaration Date (date, default today, no future)", component: "declarationDate (declaration-fragment field, $.declaration.date + supplemental form-scoped rule)", validation_rule: "R20", user_story: "US-07" }
+    - { requirement: "Submit Form button", component: "submit (button, Core Components)", validation_rule: "—", user_story: "US-08" }
+    - { requirement: "Reset button", component: "reset (button, Core Components)", validation_rule: "—", user_story: "US-09" }
+    - { requirement: "Exact visual replica — layout/colors/typography/spacing/dividers", component: "whole form (theme tokens + clientlib grid + section dividers)", validation_rule: "—", user_story: "US-10" }
+
+maps_to_build_skills:
+  - { artifact: "schema (with nested address/declaration objects for fragment binding)", skill: "generate-schema", phase: 1 }
+  - { artifact: "form fields + layout + 2 fragment embeds", skill: "create-adaptive-form", phase: 3 }
+  - { artifact: "20 field-level validation rules incl. 2 fragment-scoped supplemental rules (pincode exact-6, declaration date default+no-future)", skill: "create-form-rules", phase: 4 }
+  - { artifact: "custom submit action (PDF/DoR + workflow trigger)", skill: "create-submit-action", phase: 6 }
+  - { artifact: "form clientlib (grid, section dividers, aria-label injection, token overrides)", skill: "create-form-clientlib", phase: 9 }
+  - { artifact: "form tests", skill: "create-form-tests", phase: 10 }
+  - { artifact: "shared workflow model (assign-task-to-admin)", skill: "create-workflow", phase: 12 }
+  - { artifact: "UI parity test", skill: "test-form-ui", phase: 13 }
+  - { artifact: "form embed on Test Adaptive Form page", skill: "composer", phase: 14 }
+
+custom_components_assessment: "None. All 20 fields covered by Core Components (text, email, tel, date, dropdown, number) — 4 fields consumed via 2 reused fragments, 16 authored inline."
+
+gaps:
+  - id: "GAP-01"
+    description: "Schema must nest address/declaration fields as $.address.* / $.declaration.* objects (not flat) to match the reused fragments' canonical dataRef paths — differs from the flat-schema assumption in the PLAN's solution-architecture.yaml fields_coverage list."
+    owner_phase: "generate-schema (Phase 1) + create-adaptive-form (Phase 3)"
+  - id: "GAP-02"
+    description: "address-details-fragment's pincode pattern (^[0-9]+$, maxLength 12) does not enforce this form's exact-6-digit R15 rule; a supplemental form-scoped validation rule must be layered on top via create-form-rules without editing the shared fragment."
+    owner_phase: "create-form-rules (Phase 4)"
+  - id: "GAP-03"
+    description: "declaration-fragment's date field has no built-in default value or max-date-today constraint; this form's R20 (defaults to today, no future date) must be added as a supplemental form-scoped rule via create-form-rules without editing the shared fragment."
+    owner_phase: "create-form-rules (Phase 4)"
+  - id: "GAP-04"
+    description: "declaration-fragment does not include the static legal text; it must be authored inline in the consuming form directly above the fragment embed (fragment carries fields only, not form-specific copy)."
+    owner_phase: "create-adaptive-form (Phase 3)"

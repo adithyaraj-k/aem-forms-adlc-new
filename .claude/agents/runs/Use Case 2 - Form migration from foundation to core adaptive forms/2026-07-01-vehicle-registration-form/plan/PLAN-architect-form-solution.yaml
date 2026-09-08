@@ -1,0 +1,306 @@
+solution_architecture:
+  program: "Vehicle Registration Form"
+  delivery_type: new_single_form
+  project_tokens:
+    project: aem-adaptive-forms-agents
+    appFolder: aem-adaptive-form-agents          # DIFFERENT from project; used in DAM + /content/forms/af roots
+    package: com.aem.forms.agents
+    aemVersion: cloud
+    formType: coreComponents
+    fdmEnabled: true                              # enabled project-wide, but THIS form does NOT use FDM (see data_backing)
+    formsContentRoot: /content/forms/af
+    damContentRoot: /content/dam/formsanddocuments/aem-adaptive-form-agents
+    schemaContentRoot: /content/dam/formsanddocuments/schema
+    defaultTheme: /apps/fd/af/themes/aem-adaptive-forms-agents-wknd
+
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      audience: public
+      channels: [web, mobile]
+      locales: [en]
+      layout: single_page                          # 3-column responsive grid, 5 numbered panels
+
+      # ---- Step 1: data backing decision (decide by INPUT TYPE first) ----
+      data_backing: schema
+      data_input_type: "screenshot / image (Vehicle Reg.jpg)"
+      data_reason: >
+        Input is a SCREENSHOT ONLY — it conveys fields, labels, order and layout but carries NO
+        integration contract (no system of record, no endpoint, no auth, no process). Per the
+        input-type rule, default to JSON Schema via generate-schema; do NOT plan create-fdm or
+        create-workflow. FDM is enabled project-wide but is deliberately not used here.
+      schema:
+        representation: json_schema
+        path: "/content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json"
+        note: >
+          generate-schema (Phase 1) emits the dam:Asset FileVault structure + FDM-ready fd:formDataRef
+          bindings so create-adaptive-form binds each field. ~26 typed properties across 5 objects
+          (owner, vehicle, insurance, documents, declaration).
+      fdm: null                                    # NOT used — screenshot input, no data source
+      future_enhancement: >
+        If the registering authority later supplies an integration contract (REST/Swagger system of
+        record + auth + approval process), FDM (create-fdm, OAuth2) and an approval workflow
+        (create-workflow) can be added as a v2 — flagged as future, NOT v1.
+
+      # ---- Step 2: component / field-to-CoreComponent mapping (coverage check) ----
+      custom_components: []                        # NONE — every field maps to a Core Component
+      custom_components_reason: >
+        All 26 fields + the static declaration map to AEM Forms Core Components out of the box.
+        create-form-component (Phase 5) is NOT needed.
+      field_mapping:
+        section_1_owner_details:
+          - { field: fullName,        label: "Full Name",            core_component: "core/fd/components/form/textinput/v1/textinput",   type: text,          required: true }
+          - { field: dateOfBirth,     label: "Date of Birth",        core_component: "core/fd/components/form/datepicker/v1/datepicker",  type: date,          required: true,  format: "DD/MM/YYYY", extra: "not in the future" }
+          - { field: gender,          label: "Gender",               core_component: "core/fd/components/form/radiobutton/v1/radiobutton", type: radio-group,  required: true,  options: ["Male","Female","Other"] }
+          - { field: mobileNumber,    label: "Mobile Number",        core_component: "core/fd/components/form/telephoneinput/v1/telephoneinput", type: tel,     required: true,  validation: "exactly 10 digits" }
+          - { field: emailAddress,    label: "Email Address",        core_component: "core/fd/components/form/emailinput/v1/emailinput",  type: email,         required: false, validation: "valid email when provided" }
+          - { field: address,         label: "Address",              core_component: "core/fd/components/form/textinput/v1/textinput (multiline)", type: textarea, required: true }
+          - { field: city,            label: "City",                 core_component: "core/fd/components/form/textinput/v1/textinput",   type: text,          required: true }
+          - { field: state,           label: "State",                core_component: "core/fd/components/form/dropdown/v1/dropdown",      type: dropdown,      required: true,  placeholder: "Select", options: "enum via enum/enumNames (Indian states/UTs — finalized at design)" }
+          - { field: pinCode,         label: "PIN Code",             core_component: "core/fd/components/form/numberinput/v1/numberinput", type: number,       required: true,  validation: "exactly 6 digits" }
+        section_2_vehicle_details:
+          - { field: vehicleType,        label: "Vehicle Type",        core_component: "core/fd/components/form/dropdown/v1/dropdown",   type: dropdown, required: true, placeholder: "Select", options: "enum (finalized at design)" }
+          - { field: manufacturer,       label: "Manufacturer",        core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: model,              label: "Model",               core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: registrationNumber, label: "Registration Number", core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: chassisNumber,      label: "Chassis Number",      core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: engineNumber,       label: "Engine Number",       core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: fuelType,           label: "Fuel Type",           core_component: "core/fd/components/form/dropdown/v1/dropdown",   type: dropdown, required: true, placeholder: "Select", options: "enum (finalized at design)" }
+          - { field: color,              label: "Color",               core_component: "core/fd/components/form/textinput/v1/textinput", type: text,     required: true }
+          - { field: manufacturingYear,  label: "Manufacturing Year",  core_component: "core/fd/components/form/dropdown/v1/dropdown",   type: dropdown, required: true, placeholder: "Select", options: "enum descending year range (finalized at design)" }
+        section_3_insurance_details:
+          - { field: insuranceCompany, label: "Insurance Company", core_component: "core/fd/components/form/textinput/v1/textinput",  type: text, required: true }
+          - { field: policyNumber,     label: "Policy Number",     core_component: "core/fd/components/form/textinput/v1/textinput",  type: text, required: true }
+          - { field: policyValidTill,  label: "Policy Valid Till", core_component: "core/fd/components/form/datepicker/v1/datepicker", type: date, required: true, format: "DD/MM/YYYY" }
+        section_4_document_checklist:
+          - { field: documentChecklist, label: "Document Checklist", core_component: "core/fd/components/form/checkboxgroup/v1/checkboxgroup", type: checkbox-group, required: false, multi_select: true, options: ["Proof of Identity","Proof of Address","Vehicle Insurance","Pollution Under Control (PUC) Certificate","Road Tax Receipt","Others (if any)"], note: "options via enum/enumNames — NOT <items> child nodes" }
+        section_5_declaration:
+          - { field: declarationText,    label: "Declaration",           core_component: "core/fd/components/form/text/v1/text (plain-text / display)", type: display_text, required: false, value: "I hereby declare that the above information is true and correct to the best of my knowledge." }
+          - { field: place,             label: "Place",                  core_component: "core/fd/components/form/textinput/v1/textinput",  type: text, required: true }
+          - { field: declarationDate,   label: "Date",                   core_component: "core/fd/components/form/datepicker/v1/datepicker", type: date, required: true, format: "DD/MM/YYYY" }
+          - { field: signatureFullName, label: "Signature / Full Name",  core_component: "core/fd/components/form/textinput/v1/textinput",  type: text, required: true }
+      layout_containers:
+        - "guideContainer (core/fd/components/form/container/v2/container) — form root"
+        - "5 x panel (core/fd/components/form/panelcontainer/v1/panelcontainer) — one per numbered section, 3-column grid"
+        - "footer: Submit (submit type) + Reset (reset type) buttons"
+
+      # ---- Template decision (reuse vs build) ----
+      template:
+        decision: reuse-builtin
+        reason: >
+          Single one-off public form. Use create-adaptive-form's built-in af-page-v2 page/template
+          wiring; do NOT scaffold a separate governed editable template. create-editable-template
+          (Phase 2) is OPTIONAL/skipped — only build a dedicated template if a governed reusable
+          template is explicitly requested later.
+        path: "/content/forms/af/vehicle-registration-form (page); conf context under /conf/aem-adaptive-forms-agents"
+
+      # ---- Theme decision (reuse vs build) ----
+      theme:
+        decision: build
+        reason: >
+          Screenshot palette (navy headings ~#1a2b5e, light-blue page background, red required
+          asterisks, navy filled Submit, outlined Reset, 3-column grid) is distinct from all stock
+          themes (easel, fsi, healthcare, manufacturing, public, wknd). Build a dedicated theme via
+          create-form-theme for UI parity against Vehicle Reg.jpg.
+        new_theme_name: "aem-adaptive-forms-agents-vehicle-registration"
+        new_theme_paths:
+          apps_theme_zip: "/apps/fd/af/themes/aem-adaptive-forms-agents-vehicle-registration/theme.zip"
+          dam_theme_json: "/content/dam/formsanddocuments/aem-adaptive-form-agents/themes/aem-adaptive-forms-agents-vehicle-registration"
+        tokens:
+          heading_navy: "#1a2b5e"
+          page_background: "light-blue"
+          required_asterisk: "red"
+          submit_button: "navy filled"
+          reset_button: "outlined"
+          grid: "3-column responsive"
+
+      # ---- Submit decision ----
+      submit:
+        approach: "shared generic Custom-Submit-GeneratePDF (Document-of-Record PDF), REUSED not scaffolded per-form"
+        skill: create-submit-action
+        reason: >
+          On submit, generate a PDF of the submitted data (Document of Record) and deliver it to the
+          owner using the ONE shared Custom-Submit-GeneratePDF action (single action + single
+          GeneratePDFServlet + single clientlib, created once and reused by every form). Phase 6
+          ENSURES the shared action exists and WIRES the form's guideContainer to it — it does NOT
+          create a per-form PDF action. No REST write-back, no email, no FDM, no workflow.
+        satisfies: "record_copy NFR (Document of Record)"
+
+      # ---- Prefill decision ----
+      prefill:
+        needed: false
+        reason: "Anonymous public form with no source of truth. create-prefill-service (Phase 7) NOT needed."
+
+      # ---- Workflow decision ----
+      workflow:
+        needed: false
+        reason: "No approval/review/routing/e-signature. Plain PDF-on-submit only. create-workflow (Phase 12) NOT needed."
+
+      # ---- Fragment decision ----
+      fragments:
+        needed: false
+        reason: "Single form; no shared reuse identified across forms. create-AdaptiveFormFragment NOT needed."
+
+      # ---- Rules ----
+      rules:
+        skill: create-form-rules
+        items:
+          - { type: validate, target: mobileNumber,      rule: "exactly 10 digits (digits only)" }
+          - { type: validate, target: pinCode,           rule: "exactly 6 digits (digits only)" }
+          - { type: validate, target: emailAddress,      rule: "valid email format WHEN provided (optional field)" }
+          - { type: validate, target: dateOfBirth,       rule: "valid date, DD/MM/YYYY, not in the future" }
+          - { type: validate, target: policyValidTill,   rule: "valid date, DD/MM/YYYY" }
+          - { type: validate, target: declarationDate,   rule: "valid date, DD/MM/YYYY" }
+          - { type: validate, target: "all required",    rule: "required fields block submission when empty (23 mandatory fields)" }
+        no_show_hide_calculate_cascade: "No conditional visibility, calculation, set-value, or cascade rules required."
+        note: >
+          Field validations are backed by custom functions in the per-form validation clientlib
+          (Phase 9) and applied as fd:rules AST attributes on the field nodes (never improvised
+          <validate> child nodes).
+
+      # ---- Client library (validation functions + Rule-Editor custom functions) ----
+      clientlib:
+        skill: create-form-clientlib
+        name: "vehicle-registration-form-clientlib"
+        path: "/apps/clientlibs/vehicle-registration-form-clientlib"
+        functions:
+          - "validateMobile10Digits"
+          - "validatePin6Digits"
+          - "validateEmailWhenPresent"
+          - "validateDateDDMMYYYY"
+          - "validateDobNotFuture"
+        note: >
+          Global-scope, empty-safe functions (no IIFE) so they are visible in the Rule Editor; must
+          ship a js.txt manifest or functions.js is ignored and rule functions throw ReferenceError.
+
+  jcr_paths:
+    form_page:        "/content/forms/af/vehicle-registration-form"
+    dam_guide_asset:  "/content/dam/formsanddocuments/aem-adaptive-form-agents/vehicle-registration-form"
+    conf_context:     "/conf/aem-adaptive-forms-agents"
+    schema_asset:     "/content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json"
+    theme_apps:       "/apps/fd/af/themes/aem-adaptive-forms-agents-vehicle-registration/theme.zip"
+    theme_dam:        "/content/dam/formsanddocuments/aem-adaptive-form-agents/themes/aem-adaptive-forms-agents-vehicle-registration"
+    clientlib:        "/apps/clientlibs/vehicle-registration-form-clientlib"
+    submit_action:    "/apps/aem-adaptive-forms-agents/fd/af/submitactions/Custom-Submit-GeneratePDF (SHARED — reused)"
+
+integration_nfr_strategy:
+  data_sources: "NONE — JSON Schema-bound, no external system, no data source, no auth (screenshot-only input)."
+  accessibility: >
+    WCAG 2.1 AA target. aria-label on EVERY field (enforced by create-adaptive-form), including the
+    radio group, all four dropdowns, the checkbox group, and all three date fields. Keyboard
+    navigable; sufficient colour contrast enforced in the theme (navy-on-light-blue verified in the
+    UI parity check, Phase 13). Covers US-13 (AC-13.1, AC-13.2).
+  localization: >
+    en at launch, i18n-ready. Externalize labels and validation messages so additional locales can
+    be added later without re-authoring. No translation dictionary needed at v1.
+  performance: >
+    Dispatcher-cache the static theme + clientlib assets. Keep the clientlib lightweight (only the
+    5 validation functions). Public government-style volume assumed moderate/steady; no hard SLA
+    given. Single-page form, no heavy client logic.
+  security_pii: >
+    Owner PII collected (Full Name, DOB, Mobile, Email, Address + vehicle identifiers). Transmit over
+    HTTPS; NO PII in logs; restrict access to submitted data and the generated Document-of-Record
+    PDFs; retention policy TBD by business. No secrets required (no external integration); if any
+    credential were ever introduced, use $[secret:] (not applicable at v1).
+  captcha: >
+    RECOMMENDED. This is a public/anonymous-facing registration form; add CAPTCHA (reCAPTCHA v3 /
+    Cloudflare Turnstile / hCaptcha) for bot protection. Not confirmed by business — recorded as an
+    architect recommendation and an open decision; if approved it is added to the form via the Core
+    Components CAPTCHA field during create-adaptive-form (no new phase required).
+  record_copy: >
+    Document of Record satisfied by PDF-on-submit via the SHARED Custom-Submit-GeneratePDF action
+    (Phase 6). No per-form PDF action; no workflow Generate-DoR step (no workflow in v1).
+  environments: >
+    AEM as a Cloud Service author + publish + dispatcher. Static assets (theme.zip, clientlib) cached
+    at dispatcher. No per-environment secrets (no external integration).
+
+adlc_execution_plan:
+  ordered_phases:
+    - phase: 0
+      skill: ensure-forms-agents-md
+      produces: "AGENTS.md / CLAUDE.md / .aem-forms-config.yaml"
+      covers: "project bootstrap"
+      status: done
+      note: "Config already present (.aem-forms-config.yaml exists) — VERIFY only, do not regenerate."
+    - phase: 1
+      skill: generate-schema
+      produces: "JSON Schema dam:Asset (vehicle-registration-form.schema.json) + FDM-ready fd:formDataRef bindings"
+      covers: "data backing for all 26 fields; US-01..US-09 field structure"
+      status: needed
+    - phase: 3
+      skill: create-adaptive-form
+      produces: "form page + DAM guide asset + per-form conf context + filter entry + validation clientlib scaffold; 5 panels, 3-column grid, Submit/Reset, aria-labels, title/subtitle/section headings, static declaration text; (CAPTCHA field if approved)"
+      covers: "US-01..US-09, US-11, US-12, US-13"
+      status: needed
+      depends_on: [1]
+    - phase: 4
+      skill: create-form-rules
+      produces: "fd:rules validation AST on fields (mobile 10-digit, PIN 6-digit, email-when-present, DOB not-future, date DD/MM/YYYY, required-blocks-submit)"
+      covers: "US-01 (AC-01.2), US-02 (AC-02.1/2), US-03 (AC-03.4), US-07 (AC-07.3), US-09 (AC-09.3), US-10 (AC-10.1)"
+      status: needed
+      depends_on: [3]
+    - phase: 6
+      skill: create-submit-action
+      produces: "ENSURE shared Custom-Submit-GeneratePDF action exists (single OSGi service + GeneratePDFServlet + clientlib) and WIRE the form guideContainer to it"
+      covers: "US-10 (AC-10.2) — Document of Record PDF on submit"
+      status: needed
+      depends_on: [3]
+      note: "REUSE the shared DoR action — do NOT scaffold a per-form submit action."
+    - phase: 8
+      skill: create-form-theme
+      produces: "dedicated theme (apps theme.zip + DAM theme-json): navy headings, light-blue background, red asterisks, navy Submit / outlined Reset, 3-column grid"
+      covers: "US-12 (AC-12.3), US-13 (AC-13.2 contrast), branding NFR"
+      status: needed
+      depends_on: [3]
+    - phase: 9
+      skill: create-form-clientlib
+      produces: "vehicle-registration-form-clientlib: 5 validation functions + Rule-Editor custom functions (with js.txt manifest)"
+      covers: "backs the Phase 4 validations (US-02, US-03, US-01/07/09 date checks)"
+      status: needed
+      depends_on: [3]
+      note: "Wired via clientLibRef on the guideContainer."
+    - phase: 10
+      skill: create-form-tests
+      produces: "JUnit 5 unit tests for the shared submit action / PDF servlet + Sling Models"
+      covers: "US-10; downstream test coverage of services"
+      status: needed
+      depends_on: [6]
+    - phase: 13
+      skill: test-form-ui
+      produces: "pixel diff + vision comparison report vs reference screenshot"
+      covers: "US-12, overall UI parity acceptance criterion"
+      status: needed
+      depends_on: [3, 8, 9]
+      reference: "c:\\Users\\330073\\Downloads\\Vehicle Reg.jpg"
+  parallelizable:
+    - "4, 6, 8, 9 can run in parallel after Phase 3 (independent artifacts)"
+    - "10 after 6; 13 after 3+8+9"
+  phases_skipped:
+    - { phase: 2,  skill: create-editable-template,  reason: "Single one-off form — use create-adaptive-form's built-in af-page-v2 wiring; no governed reusable template requested. Optional." }
+    - { phase: 5,  skill: create-form-component,      reason: "Every field maps to a Core Component; no custom field type (star rating / OTP / signature pad) needed." }
+    - { phase: 7,  skill: create-prefill-service,     reason: "Anonymous public form, no source of truth — nothing to prefill." }
+    - { phase: 11, skill: migrate-form,               reason: "New build, not a migration of a legacy/Foundation form." }
+    - { phase: 12, skill: create-workflow,            reason: "No approval/review/routing/e-signature; plain PDF-on-submit only." }
+    - { step: fragment, skill: create-AdaptiveFormFragment, reason: "No shared reusable section across forms." }
+  data_phase_note: "create-fdm (data phase) SKIPPED — screenshot-only input, no data source; JSON Schema used instead."
+
+gaps: 0
+gaps_detail: []      # every requirement / user story maps to a real catalog skill; no unmappable requirement
+risks:
+  - "State / Vehicle Type / Fuel Type / Manufacturing Year enum lists not enumerated in the screenshot — finalize domain lists at design time (design-form-components) before Phase 3; use enum/enumNames (NOT <items> child nodes)."
+  - "CAPTCHA recommended for a public form but not confirmed by business — resolve before Phase 3 so it can be included in the form build if approved."
+  - "PII handling + retention policy for submissions and generated PDFs is TBD by business — confirm access-restriction + retention before go-live."
+  - "Date format DD/MM/YYYY must be enforced in both the date-picker display and the validation clientlib; verify parity in Phase 13 to avoid a locale/format mismatch."
+
+handoff:
+  agent: architect-form-solution
+  team: strategist
+  status: PASSED
+  data_backing: { "vehicle-registration-form": schema }
+  phases_planned: [0, 1, 3, 4, 6, 8, 9, 10, 13]
+  phases_skipped: [2, 5, 7, 11, 12, "fragment", "data/create-fdm"]
+  custom_components_needed: 0
+  gaps: 0
+  risks: 4
+  output: [solution_architecture, integration_nfr_strategy, adlc_execution_plan]
+  gate_result: PASS

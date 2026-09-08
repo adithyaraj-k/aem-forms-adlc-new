@@ -1,0 +1,496 @@
+component_inventory_and_specs:
+  forms:
+    - key: "employee-training-request"
+      role: "PRIMARY interactive Adaptive Form (from DocRoute.xdp) — single page, 6 panels, 30 fields total"
+      panels:
+        - name: "Employee Details"
+          source: fragment                      # generic "requester identity / contact-personal-details" pattern per project rule 3c
+          fragment_name: "employee-identity"
+          fragment_reason: >
+            EmployeeId/EmployeeName/Email/Department/ManagerId/ManagerName/Location/BusinessUnit is a
+            generic "employee contact & identity" block matching the project's explicit fragment-reuse
+            list ("contact / personal details"). No existing project fragment covers it (checked
+            ui.apps/ui.content — no Adaptive Form Fragment content instances exist yet in this project),
+            so this is a NEW fragment. It is reusable by future internal HR-style forms in this project
+            (leave request, expense claim, onboarding, etc.) that need the same employee-identity block.
+            The EmployeeId<=10 auto-lock rule and its future real-lookup prefill are layered on top by
+            the CONSUMING form's rule set (Rule Editor rules target the fragment's field paths) — this
+            does not disqualify the fields themselves from being fragmented; only the rule/prefill
+            wiring is form-specific and stays in employee-training-request.
+          canonical_data_shape: "$.employee.* (id, name, email, department, managerId, managerName, location, businessUnit)"
+          binding_note: >
+            The fragment's own reusable default binding uses the canonical $.employee.* shape above.
+            When embedded into employee-training-request specifically, each fragment field's
+            fd:formDataRef is REMAPPED at embed time to this form's generated schema paths
+            ($.EmployeeDetails.EmployeeId, .EmployeeName, .Email, .Department, .ManagerId,
+            .ManagerName, .Location, .BusinessUnit) so the legacy employeeTrainingRequest.xsd node
+            names are preserved for downstream workflow/DoR compatibility (Main.process /
+            AssembleManagerConformation.process reference these exact node names). Field layout/
+            validation/accessibility is authored once in the fragment; only the dataRef mapping differs
+            per consuming form — this is standard Adaptive Form Fragment embedding.
+          layout: "3-column field grid; header band + panel body colour block (see design_specifications.theme)"
+          fields:
+            - name: EmployeeId
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Employee Id"
+              data_ref: "$.employee.id -> $.EmployeeDetails.EmployeeId"
+              rule_hooks: ["drives ManagerId/ManagerName auto-set+lock rule (build-time, form-specific — see rules_plan)"]
+            - name: EmployeeName
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Employee Name"
+              data_ref: "$.employee.name -> $.EmployeeDetails.EmployeeName"
+            - name: Email
+              source: core_component
+              resource_type: "core/fd/components/form/emailinput/v1/emailinput"
+              field_type: email-input
+              properties: { required: true, pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$" }
+              aria_label: "Email"
+              data_ref: "$.employee.email -> $.EmployeeDetails.Email"
+              rule_hooks: ["validate on exit; alert + refocus on invalid (create-form-rules, build-time)"]
+            - name: Department
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Department"
+              data_ref: "$.employee.department -> $.EmployeeDetails.Department"
+            - name: ManagerId
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true, readOnly_conditional: true }
+              aria_label: "Manager Id"
+              data_ref: "$.employee.managerId -> $.EmployeeDetails.ManagerId"
+              rule_hooks: ["auto-set + locked readOnly when EmployeeId<=10 (value from prefill lookup, NOT a rule-editor literal — see gaps)"]
+            - name: ManagerName
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true, readOnly_conditional: true }
+              aria_label: "Manager Name"
+              data_ref: "$.employee.managerName -> $.EmployeeDetails.ManagerName"
+              rule_hooks: ["auto-set + locked readOnly when EmployeeId<=10 (same as ManagerId)"]
+            - name: Location
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Employee Location"
+              data_ref: "$.employee.location -> $.EmployeeDetails.Location"
+            - name: BusinessUnit
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false }
+              aria_label: "Business Unit"
+              data_ref: "$.employee.businessUnit -> $.EmployeeDetails.BusinessUnit"
+
+        - name: "Training Request Details"
+          source: form
+          form_reason: "Training-domain fields specific to this form's subject matter; not a generic cross-form pattern."
+          layout: "3-column field grid; header band + panel body colour block"
+          fields:
+            - name: RequestId
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Request Id"
+              data_ref: "$.TrainingRequest.RequestId"
+              rule_hooks: ["drives RequestType lock/unlock rule"]
+            - name: RequestType
+              source: core_component
+              resource_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: dropdown
+              properties:
+                required: true
+                readOnly_conditional: true
+                enum: ["Certification", "Training", "Conference"]
+                enumNames: ["Certification", "Training", "Conference"]
+              aria_label: "Request Type"
+              data_ref: "$.TrainingRequest.RequestType"
+              rule_hooks: ["readOnly until RequestId non-empty, then unlocked"]
+            - name: ProviderName
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Provider Name"
+              data_ref: "$.TrainingRequest.ProviderName"
+            - name: CourseName
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Course Name"
+              data_ref: "$.TrainingRequest.CourseName"
+            - name: StartDate
+              source: core_component
+              resource_type: "core/fd/components/form/datepicker/v2/datepicker"
+              field_type: date-input
+              properties: { required: true }
+              aria_label: "Start Date"
+              data_ref: "$.TrainingRequest.StartDate"
+              note: "datepicker needs .cmp-adaptiveform-datepicker{position:relative} in the theme/clientlib or the calendar icon flies to the page top-right (known project gotcha)"
+            - name: EndDate
+              source: core_component
+              resource_type: "core/fd/components/form/datepicker/v2/datepicker"
+              field_type: date-input
+              properties: { required: true }
+              aria_label: "End Date"
+              data_ref: "$.TrainingRequest.EndDate"
+              rule_hooks: ["cross-field validate: must be strictly after StartDate; block submit otherwise (ACTIVE — DocRoute.xdp is the form of record, unlike the commented-out check in EmployeeTrainingRequest.xdp)"]
+            - name: TrainingMode
+              source: core_component
+              resource_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: dropdown
+              properties:
+                required: true
+                enum: ["Online", "Classroom", "Hybrid"]
+                enumNames: ["Online", "Classroom", "Hybrid"]
+              aria_label: "Training Mode"
+              data_ref: "$.TrainingRequest.TrainingMode"
+            - name: TrainingLocation
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false }
+              aria_label: "Training Location"
+              data_ref: "$.TrainingRequest.Location"
+              note: "distinct data node from EmployeeDetails.Location — same visible label 'Location' as the employee-identity fragment's field, different schema path; keep aria-label distinct ('Training Location') to disambiguate for assistive tech even though the on-screen caption text matches the source XDP's plain 'Location' label"
+            - name: Amount
+              source: core_component
+              resource_type: "core/fd/components/form/numberinput/v1/numberinput"
+              field_type: number-input
+              properties: { required: true, type: decimal }
+              aria_label: "Amount"
+              data_ref: "$.TrainingRequest.Amount"
+            - name: Currency
+              source: core_component
+              resource_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: dropdown
+              properties:
+                required: true
+                enum: ["USD", "EUR", "GBP", "INR"]
+                enumNames: ["USD", "EUR", "GBP", "INR"]
+              aria_label: "Currency"
+              data_ref: "$.TrainingRequest.Currency"
+
+        - name: "Justification"
+          source: form
+          form_reason: "Domain-specific narrative fields tied to this training-request use case only."
+          layout: "3-column field grid; header band + panel body colour block"
+          fields:
+            - name: BusinessNeed
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Business Need"
+              data_ref: "$.Justification.BusinessNeed"
+            - name: BenefitsToProject
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: true }
+              aria_label: "Benefits To Project"
+              data_ref: "$.Justification.BenefitsToProject"
+            - name: TrainingCategory
+              source: core_component
+              resource_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: dropdown
+              properties:
+                required: true
+                enum: ["Mandatory", "Optional"]
+                enumNames: ["Mandatory", "Optional"]
+              aria_label: "Training Category"
+              data_ref: "$.Justification.TrainingCategory"
+
+        - name: "Attachments"
+          source: form
+          form_reason: "File slots specific to this request's supporting documents; no reuse pattern evidenced elsewhere."
+          layout: "single column list (no boxed 3-column grid needed for file inputs; matches source which has no Attachments panel rendered in the static preview — evidenced by schema/rules only, not a DAM screenshot panel)"
+          fields:
+            - name: VendorQuotation
+              source: core_component
+              resource_type: "core/fd/components/form/fileinput/v3/fileinput"
+              field_type: file-attachment
+              properties: { required: false }
+              aria_label: "Vendor Quotation attachment"
+              data_ref: "$.Attachments.VendorQuotation"
+            - name: CourseBrochure
+              source: core_component
+              resource_type: "core/fd/components/form/fileinput/v3/fileinput"
+              field_type: file-attachment
+              properties: { required: false }
+              aria_label: "Course Brochure attachment"
+              data_ref: "$.Attachments.CourseBrochure"
+            - name: ManagerRecommendation
+              source: core_component
+              resource_type: "core/fd/components/form/fileinput/v3/fileinput"
+              field_type: file-attachment
+              properties: { required: false }
+              aria_label: "Manager Recommendation attachment"
+              data_ref: "$.Attachments.ManagerRecommendation"
+
+        - name: "Declaration"
+          source: fragment
+          fragment_name: "declaration-consent"
+          fragment_reason: >
+            AcceptedTerms (terms checkbox) + SubmissionDate (system-set timestamp) is the canonical
+            "declaration / consent" pattern the project's fragment rule explicitly names as
+            fragment-worthy. No existing project fragment covers it — NEW fragment. Reusable verbatim
+            by any other internal form in this project that needs a terms-acceptance + submission-
+            timestamp block (expense claims, leave requests, etc.).
+          canonical_data_shape: "$.declaration.* (acceptedTerms, submissionDate)"
+          binding_note: >
+            Canonical fragment fields remap to $.Declaration.AcceptedTerms / $.Declaration.SubmissionDate
+            when embedded in employee-training-request, for the same legacy-schema-compatibility
+            reason as the employee-identity fragment.
+          layout: "single flat panel band, no section header caption in the source (checkbox + submission date sit directly on the green panel body with no blue header band above them — confirmed in DAM preview JPEG)"
+          fields:
+            - name: AcceptedTerms
+              source: core_component
+              resource_type: "core/fd/components/form/checkbox/v1/checkbox"
+              field_type: checkbox
+              properties: { required: true }
+              aria_label: "I accept the terms"
+              data_ref: "$.declaration.acceptedTerms -> $.Declaration.AcceptedTerms"
+              rule_hooks: ["must be checked before submit is allowed (validate/required rule, build-time)"]
+            - name: SubmissionDate
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false, readOnly: true, display_only: true }
+              aria_label: "Submission Date"
+              data_ref: "$.declaration.submissionDate -> $.Declaration.SubmissionDate"
+              rule_hooks: ["system-set at submit time via set-value rule, not user-entered; picture date{YYYY-MM-DD}'T'time{KK:MM:SS} preserved from source XDP"]
+
+        - name: "Approval Information"
+          source: form
+          form_reason: >
+            Considered for fragment status (rule 3c mentions "approval" in some enterprise patterns) and
+            REJECTED: this panel is tightly coupled to THIS workflow's specific state machine
+            (CurrentStatus enum values Submitted/ManagerApproved/DeptHeadApproved/FinanceApproved/
+            Completed/Rejected are unique to this training-request approval flow) plus two
+            workflow-state-driven client rules (panel show/hide keyed on EmployeeId+CurrentStatus;
+            FinanceComments lock keyed on CurrentStatus=="ManagerApproved") that only make sense against
+            this exact status vocabulary. A future form's approval flow would have different status
+            values/rules, so fragmenting this panel would force an artificial shared vocabulary across
+            unrelated workflows. Kept as source: form.
+          conditional_visibility: "panel presence = visible only when EmployeeId is non-empty AND CurrentStatus != 'FinanceApproved' (create-form-rules, show-hide)"
+          layout: "3-column field grid (Current Status / Manager Comments / Department Head Comments on row 1, Finance Comments row 2); header band + panel body colour block — same visual treatment as the other panels"
+          fields:
+            - name: CurrentStatus
+              source: core_component
+              resource_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: dropdown
+              properties:
+                required: false
+                enum: ["Submitted", "ManagerApproved", "DeptHeadApproved", "FinanceApproved", "Completed", "Rejected"]
+                enumNames: ["Submitted", "Manager Approved", "Dept Head Approved", "Finance Approved", "Completed", "Rejected"]
+                readOnly: true
+                note: "system/workflow-driven — not directly user-editable on the employee's own submission view; value transitions are driven by the workflow's Assign Task outcomes, not by the employee typing into this field"
+              aria_label: "Current Status"
+              data_ref: "$.ApprovalInfo.CurrentStatus"
+              rule_hooks: ["drives ApprovalInfo panel show/hide + FinanceComments lock/unlock rules"]
+            - name: ManagerComments
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false, multiLine: true }
+              aria_label: "Manager Comments"
+              data_ref: "$.ApprovalInfo.ManagerComments"
+              note: "editable by the manager approver only — enforced by workflow task participant context, not a form-level access rule"
+            - name: DepartmentHeadComments
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false, multiLine: true }
+              aria_label: "Department Head Comments"
+              data_ref: "$.ApprovalInfo.DepartmentHeadComments"
+            - name: FinanceComments
+              source: core_component
+              resource_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              properties: { required: false, multiLine: true, readOnly_conditional: true }
+              aria_label: "Finance Comments"
+              data_ref: "$.ApprovalInfo.FinanceComments"
+              rule_hooks: ["readOnly unless CurrentStatus=='ManagerApproved', else editable"]
+
+    - key: "employee-training-request-dor"
+      role: >
+        Document-of-Record TEMPLATE content — NOT built via create-adaptive-form. Authored as the
+        content behind the cloud Workflow's "Generate Document of Record" step (single merged template,
+        per solution-architecture.yaml dor_template_decision), replacing the legacy DDX/Assembler merge
+        of EmployeeTrainingRequest.xdp (request-data) + ApprovalInfo.xdp (approval-decision).
+      reuses_fragments: ["employee-identity", "declaration-consent"]
+      reuse_reason: >
+        The DoR template is visually and structurally identical to the interactive form's panels
+        (confirmed: EmployeeTrainingRequest.xdp's DAM preview renders identically to DocRoute.xdp's).
+        AEM Forms' Document of Record template is itself an Adaptive-Form-shaped structure, so the SAME
+        employee-identity and declaration-consent fragments used in employee-training-request are
+        reused here — a single source of truth for those two blocks across BOTH the interactive form
+        and its DoR output, doubling the fragments' reuse value per the project's reuse-first rule.
+      panels:
+        - name: "Employee Details"
+          source: fragment
+          fragment_name: "employee-identity"
+          note: "same fragment embed as employee-training-request; all fields rendered read-only/display-only in the DoR (it is a point-in-time record snapshot, not an editable form)"
+        - name: "Training Request Details"
+          source: form
+          note: "duplicated field set (RequestId..Currency) matching employee-training-request's Training Request Details panel, all display-only — no independent component spec beyond marking every field readOnly/display for DoR rendering"
+        - name: "Justification"
+          source: form
+          note: "duplicated field set (BusinessNeed, BenefitsToProject, TrainingCategory), all display-only"
+        - name: "Declaration"
+          source: fragment
+          fragment_name: "declaration-consent"
+          note: "same fragment embed as employee-training-request, display-only"
+        - name: "Approval Information"
+          source: form
+          note: >
+            From ApprovalInfo.xdp (the approval-decision DDX source) — CurrentStatus, ManagerComments,
+            DepartmentHeadComments, FinanceComments, ALL display-only and ALWAYS visible in the DoR
+            (unlike the interactive form, the DoR is generated only after final approval, so no
+            show/hide or lock/unlock scripting is needed or ported — it is a static snapshot of
+            whatever values exist in the workflow payload at Generate-Document-of-Record time).
+      no_attachments_panel: "Attachments (file fields) are NOT reproduced in the DoR PDF — the legacy DDX merge (EmployeeTrainingForm + ApprovalInfo sources) never included the Attachments subform; carried forward as-is (not a gap, matches source scope exactly)."
+
+design_specifications:
+  theme:
+    decision: build
+    ref: "/apps/fd/af/themes/aem-adaptive-forms-agents-training-request (NEW)"
+    build_justification: >
+      Confirmed against all 6 existing project themes (easel/fsi/healthcare/manufacturing/public/wknd):
+      none encodes the legacy XDP's RGB-precise header/panel palette + Myriad Pro + 3-column boxed
+      layout. A stock theme substitution is a parity FAIL for this migration's UI-parity gate
+      (test-form-ui vs the 3 DAM preview JPEGs). Standard element styling (base spacing scale, focus
+      states, error styling) is still assumed from the shared base clientlib
+      ({project}.forms.base) — this new theme is a token-override layer over that base (Option A),
+      not a full re-authored stylesheet.
+    token_overrides:
+      "--af-font": "'Myriad Pro', Arial, sans-serif"     # confirmed <font typeface="Myriad Pro"/> throughout DocRoute.xdp; web fallback to Arial since Myriad Pro is a licensed Adobe font not guaranteed present client-side
+      "--af-heading-size": "20pt"                         # confirmed <font size="20pt" .../> on every section caption
+      "--af-heading-weight": "bold"                       # confirmed weight="bold"
+      "--af-section-heading": "rgb(128,64,64)"            # confirmed <color value="128,64,64"/> maroon caption text
+      "--af-section-heading-bg": "rgb(196,219,251)"       # confirmed <color value="196,219,251"/> light-blue header band fill
+      "--af-bg": "rgb(225,242,219)"                       # confirmed <color value="225,242,219"/> light-green panel body fill
+      "--af-field-border": "1px solid #8c8c8c inset"       # approximates XDP <edge stroke="lowered"/> (3D inset bevel) not directly RGB-specified in source; nearest honest web equivalent — flagged as an extrapolation, not a captured value
+      "--af-radius": "0px"                                # source panels/fields are square-cornered, no rounded corners visible in DAM preview
+      "--af-field-height": "34px"                          # ~9mm field height converted at 96dpi (9mm = 0.3543in x 96 = ~34px)
+      "--af-gap": "38px"                                   # ~9-11mm row pitch converted (~10mm = 0.3937in x 96 = ~38px)
+      "--af-primary": "rgb(128,64,64)"                     # Submit button accent — extrapolated from the maroon caption colour since no button existed in the static XDP (LC Workspace supplied that chrome); recorded as an extrapolation per user-stories.yaml assumptions, not a captured value
+      "--af-primary-contrast": "#ffffff"
+      "--af-error": "#b3261e"                              # not specified in source (no error states visible in a static preview) — using base clientlib's default error red, not overridden
+      "--af-required-asterisk": "rgb(128,64,64)"           # match section heading maroon for visual consistency
+    separators_and_bands: >
+      NO additional hairline border-bottom is specced under section headers — the DAM preview JPEGs
+      show the header-band-colour-to-panel-body-colour transition itself as the only visual boundary
+      (no extra rule line beneath it), and sections are NOT numbered in the source (plain titled bands:
+      "Employee Details", "Training Request Details", etc., no "1./2./3." prefixes). Panel-to-panel
+      separation is a plain white/transparent gap (~16-20px) between stacked panel blocks — confirmed
+      in the DAM preview JPEGs (visible whitespace between the Employee Details, Training Request
+      Details, and Justification panel blocks). Declaration panel (AcceptedTerms + SubmissionDate) has
+      NO header band/caption at all — it sits as a bare green panel body directly below Justification's
+      gap, per the DAM preview. This is an intentional deviation from the generic "spec a border-bottom
+      divider" default — the source genuinely has no hairline dividers, only colour-block boundaries.
+    icon_assets: []
+    icon_assets_note: >
+      No logos, icons, or images appear anywhere in any of the 3 DAM preview JPEGs (DocRoute,
+      EmployeeTrainingRequest, ApprovalInfo) — this is a plain enterprise data-entry form with text
+      panels only. icon_assets is empty by evidence, not by omission.
+  layout:
+    employee-training-request:
+      type: single_page
+      panels_order: ["Employee Details", "Training Request Details", "Justification", "Attachments", "Declaration", "Approval Information (conditional)"]
+      grid: "12-col cq:responsive; 3 fields per row => each field spans 4 of 12 columns on desktop (matches the source's 3-column boxed grid, ~62mm field width, label left of boxed input)"
+      attachments_panel_grid: "single column (12 of 12) — file-attachment components are not laid out 3-per-row in the source design intent (no Attachments panel appears in the static preview since it captures the top-of-form render before scroll; schema+rules confirm its existence, so it is placed after Justification per user-stories.yaml field_order)"
+    employee-training-request-dor:
+      type: pdf_template
+      panels_order: ["Employee Details", "Training Request Details", "Justification", "Declaration", "Approval Information"]
+      grid: "same 12-col / 3-per-row grid as employee-training-request, all fields display-only"
+  responsive:
+    breakpoints: ["mobile <768px: all fields collapse to single column (12 of 12)", "tablet 768-1023px: 2 fields per row (6 of 12)", "desktop >=1024px: 3 fields per row (4 of 12), matching the exact-replica reference"]
+  accessibility:
+    target: "WCAG 2.1 AA"
+    rule: "aria-label MANDATORY on every one of the 30 fields (enumerated above with exact aria_label text) — enforced by create-adaptive-form; the 3-column boxed layout must preserve programmatic label/input association (each field's visible caption + aria-label match) so screen readers announce the same label sighted users see, even where two fields share a display label ('Location' appears twice — EmployeeDetails.Location vs TrainingRequest.Location — disambiguated via distinct aria-label text 'Employee Location' vs 'Training Location')"
+    contrast_check: "maroon-on-blue-band (RGB 128,64,64 text on RGB 196,219,251 bg) and black-on-green-panel body text both need a contrast pass at build time against WCAG AA 4.5:1 — flagged for forgemaster/sentinel to verify with the actual rendered clientlib, since exact body text colour was not captured as an explicit XDP <fill> (default black assumed)"
+
+authoring_guideline:
+  template:
+    decision: reuse
+    ref: "/conf/aem-adaptive-forms-agents/settings/wcm/templates/blank-af-v2"
+    reason: "af-page-v2 template-type, fully flexible 'Blank Form', no pre-incorporated components/locked structure — fits a single-page form with 6 stacked panels and a per-panel colour treatment handled entirely by the new theme, not the template. create-editable-template is SKIPPED per solution-architecture.yaml."
+  allowed_components: ["textinput", "emailinput", "numberinput", "dropdown", "checkbox", "datepicker", "fileinput", "panelcontainer", "fragment", "fragmentcontainer", "button (submit action)", "title/text (panel captions if not using panelcontainer's own heading)"]
+  disallowed_for_this_form: ["hcaptcha", "recaptcha", "turnstile (no CAPTCHA — internal authenticated form per NFR)", "wizard/accordion/tabs (source is a single flat scrolling page, not a stepped/tabbed layout)"]
+  content_policies: "Lock page header/footer structure (inherited from blank-af-v2's site chrome); leave the guideContainer/form body fully unlocked for panel/field authoring, consistent with blank-af-v2's flexible design intent."
+  fragments:
+    - name: "employee-identity"
+      contains: ["EmployeeId", "EmployeeName", "Email", "Department", "ManagerId", "ManagerName", "Location", "BusinessUnit"]
+      reused_by: ["employee-training-request", "employee-training-request-dor"]
+      build_skill: "create-AdaptiveFormFragment (NEW — no existing project fragment fits)"
+    - name: "declaration-consent"
+      contains: ["AcceptedTerms", "SubmissionDate"]
+      reused_by: ["employee-training-request", "employee-training-request-dor"]
+      build_skill: "create-AdaptiveFormFragment (NEW — no existing project fragment fits)"
+  dor_template_authoring_approach: >
+    The 2 non-interactive XDPs (EmployeeTrainingRequest.xdp, ApprovalInfo.xdp) are NOT built via
+    create-adaptive-form. They are authored as the single merged Document-of-Record template content
+    inside create-workflow's "Generate Document of Record" step configuration (phase 12, groundsmith),
+    reusing the employee-identity and declaration-consent fragments plus form-specific
+    Training-Request-Details/Justification/Approval-Information content, all rendered display-only, and
+    themed with the SAME new theme built for employee-training-request (no second theme build) so the
+    generated PDF visually matches the interactive form exactly, per the DAM preview JPEG evidence that
+    EmployeeTrainingRequest.xdp and DocRoute.xdp render identically.
+  dos_donts:
+    - "DO use enum/enumNames for every dropdown's options (RequestType, TrainingMode, Currency, TrainingCategory, CurrentStatus) — never <items>-style hardcoded markup"
+    - "DO set aria-label on every field, including the two same-labelled 'Location' fields, using the distinct aria_label text specced above"
+    - "DO implement all 8 business rules via the Rule Editor (create-form-rules) — never inline JS/clientlib, except the OPTIONAL clientlib fallback already flagged in solution-architecture.yaml if Rule Editor can't reproduce the legacy alert-dialog UX for email validation"
+    - "DO NOT hardcode the manager lookup value ('venuga5'/'Arjun Venugopal') as a rule-editor literal — the ManagerId/ManagerName auto-set rule applies the LOCK behaviour only; the VALUE must come from Groundsmith's prefill-service lookup (open question, business must confirm the real roster source first)"
+    - "DO NOT build the 2 DoR XDPs as separate Adaptive Forms via create-adaptive-form — they are DoR template content only (see dor_template_authoring_approach)"
+    - "DO NOT invent a separator/divider line under section headers — the source has none (see design_specifications.theme.separators_and_bands); the header/body colour-block transition IS the separator"
+    - "DO NOT add CAPTCHA — internal authenticated form, no bot-protection requirement"
+    - "DO reuse the employee-identity and declaration-consent fragments in BOTH the interactive form and the DoR template — do not duplicate their fields inline in either place"
+
+traceability:
+  - { requirement: "US-01 AC-01.1/AC-01.2 — all required fields + workflow submit", components: ["employee-identity fragment (8 fields)", "Training Request Details (10 fields)", "Justification (3 fields)", "Attachments (3 fields)", "declaration-consent fragment.AcceptedTerms"] }
+  - { requirement: "US-02 — manager auto-assign+lock", components: ["EmployeeId", "ManagerId", "ManagerName"] }
+  - { requirement: "US-03 — email format validation", components: ["Email"] }
+  - { requirement: "US-04 — RequestType locked until RequestId entered", components: ["RequestId", "RequestType"] }
+  - { requirement: "US-05 — EndDate after StartDate", components: ["StartDate", "EndDate"] }
+  - { requirement: "US-06 — manager approve/reject routing", components: ["ManagerComments", "CurrentStatus", "Approval Information panel show/hide"] }
+  - { requirement: "US-07 — FinanceComments unlock only post manager-approval", components: ["FinanceComments", "CurrentStatus"] }
+  - { requirement: "US-08 — finance approval triggers DoR + email", components: ["FinanceComments", "CurrentStatus", "employee-training-request-dor (whole template)"] }
+  - { requirement: "US-09 — AcceptedTerms required before submit", components: ["declaration-consent fragment.AcceptedTerms", "declaration-consent fragment.SubmissionDate"] }
+  - { requirement: "US-10 — exact visual parity", components: ["design_specifications.theme (all token_overrides)", "design_specifications.layout"] }
+  - { requirement: "US-11 — DoR merges request-data + approval-decision", components: ["employee-training-request-dor.panels (all 5)"] }
+
+maps_to_build_skills:
+  - { artifact: "employee-identity fragment", skill: create-AdaptiveFormFragment, phase: "pre-3 (new artifact, not in original phase table — formwright build order)", note: "build before create-adaptive-form so the form can embed it" }
+  - { artifact: "declaration-consent fragment", skill: create-AdaptiveFormFragment, phase: "pre-3", note: "build before create-adaptive-form so the form can embed it" }
+  - { artifact: "schema", skill: generate-schema, phase: 1, note: "from employeeTrainingRequest.xsd" }
+  - { artifact: "template", skill: create-editable-template, phase: 2, note: "SKIP — reuse blank-af-v2" }
+  - { artifact: "employee-training-request form (6 panels, embeds both fragments)", skill: create-adaptive-form, phase: 3 }
+  - { artifact: "8 business rules", skill: create-form-rules, phase: 4 }
+  - { artifact: "custom component", skill: create-form-component, phase: 5, note: "SKIP — no gap" }
+  - { artifact: "submit action (Invoke an AEM Workflow)", skill: create-submit-action, phase: 6 }
+  - { artifact: "prefill service (manager lookup)", skill: create-prefill-service, phase: 7, note: "ask-then-build in Groundsmith" }
+  - { artifact: "theme (new, exact-replica tokens)", skill: create-form-theme, phase: 8 }
+  - { artifact: "clientlib", skill: create-form-clientlib, phase: 9, note: "SKIP by default" }
+  - { artifact: "workflow model + DoR template (reusing both fragments)", skill: create-workflow, phase: 12 }
+  - { artifact: "unit tests", skill: create-form-tests, phase: 10 }
+  - { artifact: "UI parity test", skill: test-form-ui, phase: 13 }
+
+gaps: []
+gaps_reason: >
+  Every field/panel/rule maps to a real Core Component, a new fragment, or the new theme's token
+  overrides — no unmappable design element. Business-decision gaps (manager lookup source,
+  finance-approver participant, sender address) are carried forward from PLAN as open questions for
+  Groundsmith/business sign-off, not design gaps (recorded in the Authoring Guideline dos_donts).

@@ -1,0 +1,510 @@
+structured_requirements:
+  delivery_type: migration
+  business_objective: >
+    Migrate the "TestMigration" Employee Training Request application from AEM Forms on J2EE /
+    LiveCycle 6.4.22 (.LCA export) to AEM as a Cloud Service (Core Components). The application lets
+    an employee request training/certification/conference funding, routes it through a manager then
+    a finance-manager approval, generates a merged Document-of-Record PDF on final approval, and
+    emails the outcome to the employee. Functional and visual parity with the legacy XDP/Workspace
+    behaviour must be preserved.
+  source_inputs:
+    - "TestMigrationApp.lca (LiveCycle Archive, exported from AEM Forms on J2EE 6.4.22)"
+    - "Forms/EmployeeTrainingRequest.xdp (~101KB), Forms/ApprovalInfo.xdp (~15KB), Forms/DocRoute.xdp (~106KB)"
+    - "Data/employeeTrainingRequest.xsd (shared schema)"
+    - "Process/Main.process (~46KB, orchestrating workflow) + Process/AssembleManagerConformation.process (~12KB, DoR assembly sub-process)"
+    - "Inner AEM content package TestMigration-1.0-2026-07-21-1600.zip — DAM guide assets + cq5dam.web.1280.1280.jpeg preview renditions (UI-parity reference, no live 6.4.22 Workspace available to screenshot)"
+
+  forms:
+    - key: "employee-training-request"
+      title: "Employee Training Request"
+      audience: authenticated               # internal employee/manager/finance-manager form, no CAPTCHA
+      channels: [web]
+      locales: [en_US]                      # source XDPs are locale="en_US" only; flag as single-locale
+      layout: single_page
+      role_decision: >
+        PRIMARY INTERACTIVE ADAPTIVE FORM. Source artifact = Forms/DocRoute.xdp (~106KB), NOT
+        EmployeeTrainingRequest.xdp as the naive name would suggest. Evidence: DocRoute.xdp is the
+        ONLY xdp wired as `tloPath` at all three LC Workspace touchpoints in Main.process (the
+        "Start Test Migration workflow" TaskManager start point, the assignToManager AssignTask, and
+        the assignToFinanceManager AssignTask). It alone carries workflow-state-driven logic: (a) the
+        EmployeeId field's docReady script shows/hides the ApprovalInfo panel based on
+        `CurrentStatus != "FinanceApproved"`; (b) the CurrentStatus field's script unlocks
+        FinanceComments (access="open") only when CurrentStatus=="ManagerApproved", else locks it
+        readOnly. This proves DocRoute.xdp is rendered live to the employee AND to both approvers
+        during the routed workflow — it is the single form migrated via create-adaptive-form.
+      data:
+        binding_intent: schema
+        source_of_truth: "none (no external system/API referenced anywhere in the source; pure workflow-routed internal form)"
+        api_spec: "none"
+        api_auth: unknown
+        prefill: "ManagerId/ManagerName auto-set when EmployeeId <= 10 (currently hardcoded to 'venuga5'/'Arjun Venugopal' in XFA script — migrate to a proper prefill-service lookup, not a hardcoded constant; see rules + gaps)"
+        submit: [workflow]
+      sections:
+        - name: "Employee Details"
+          fields:
+            - name: EmployeeId
+              label: "Employee Id"
+              type: text
+              required: true
+              validations: ["drives ManagerId/ManagerName auto-set+lock rule when <= 10"]
+              aria_label: "Employee Id"
+            - name: EmployeeName
+              label: "Employee Name"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Employee Name"
+            - name: Email
+              label: "Email"
+              type: email
+              required: true
+              validations: ["regex ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$, alert + refocus on invalid"]
+              aria_label: "Email"
+            - name: Department
+              label: "Department"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Department"
+            - name: ManagerId
+              label: "Manager Id"
+              type: text
+              required: true
+              validations: ["auto-set + locked readOnly when EmployeeId <= 10 (currently hardcoded value — flagged gap)"]
+              aria_label: "Manager Id"
+            - name: ManagerName
+              label: "Manager Name"
+              type: text
+              required: true
+              validations: ["auto-set + locked readOnly when EmployeeId <= 10 (currently hardcoded value — flagged gap)"]
+              aria_label: "Manager Name"
+            - name: Location
+              label: "Location"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Employee Location"
+            - name: BusinessUnit
+              label: "Business Unit"
+              type: text
+              required: false
+              validations: []
+              aria_label: "Business Unit"
+        - name: "Training Request Details"
+          fields:
+            - name: RequestId
+              label: "Request Id"
+              type: text
+              required: true
+              validations: ["drives RequestType lock/unlock rule"]
+              aria_label: "Request Id"
+            - name: RequestType
+              label: "Request Type"
+              type: dropdown
+              required: true
+              validations: ["options: Certification, Training, Conference", "readOnly until RequestId is non-null, then unlocked"]
+              aria_label: "Request Type"
+            - name: ProviderName
+              label: "Provider Name"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Provider Name"
+            - name: CourseName
+              label: "Course Name"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Course Name"
+            - name: StartDate
+              label: "Start Date"
+              type: date
+              required: true
+              validations: []
+              aria_label: "Start Date"
+            - name: EndDate
+              label: "End Date"
+              type: date
+              required: true
+              validations: ["must be strictly after StartDate (active rule in DocRoute.xdp; same check is present but commented out in EmployeeTrainingRequest.xdp — migrate as an ACTIVE validate rule since DocRoute is the form of record)"]
+              aria_label: "End Date"
+            - name: TrainingMode
+              label: "Training Mode"
+              type: dropdown
+              required: true
+              validations: ["options: Online, Classroom, Hybrid"]
+              aria_label: "Training Mode"
+            - name: TrainingLocation
+              label: "Location"
+              type: text
+              required: false
+              validations: ["distinct field from EmployeeDetails.Location — same label, different data node"]
+              aria_label: "Training Location"
+            - name: Amount
+              label: "Amount"
+              type: number
+              required: true
+              validations: ["decimal"]
+              aria_label: "Amount"
+            - name: Currency
+              label: "Currency"
+              type: dropdown
+              required: true
+              validations: ["options: USD, EUR, GBP, INR"]
+              aria_label: "Currency"
+        - name: "Justification"
+          fields:
+            - name: BusinessNeed
+              label: "Business Need"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Business Need"
+            - name: BenefitsToProject
+              label: "Benefits To Project"
+              type: text
+              required: true
+              validations: []
+              aria_label: "Benefits To Project"
+            - name: TrainingCategory
+              label: "Training Category"
+              type: dropdown
+              required: true
+              validations: ["options: Mandatory, Optional"]
+              aria_label: "Training Category"
+        - name: "Attachments"
+          fields:
+            - name: VendorQuotation
+              label: "Vendor Quotation"
+              type: file
+              required: false
+              validations: []
+              aria_label: "Vendor Quotation attachment"
+            - name: CourseBrochure
+              label: "Course Brochure"
+              type: file
+              required: false
+              validations: []
+              aria_label: "Course Brochure attachment"
+            - name: ManagerRecommendation
+              label: "Manager Recommendation"
+              type: file
+              required: false
+              validations: []
+              aria_label: "Manager Recommendation attachment"
+        - name: "Declaration"
+          fields:
+            - name: AcceptedTerms
+              label: "Accepted Terms"
+              type: checkbox
+              required: true
+              validations: ["must be checked to submit"]
+              aria_label: "I accept the terms"
+            - name: SubmissionDate
+              label: "Submission Date"
+              type: display_text
+              required: false
+              validations: ["system-set on submit, not user-entered"]
+              aria_label: "Submission Date"
+        - name: "Approval Information"
+          fields:
+            - name: CurrentStatus
+              label: "Current Status"
+              type: dropdown
+              required: false
+              validations: ["options: Submitted, ManagerApproved, DeptHeadApproved, FinanceApproved, Completed, Rejected", "system/workflow-driven, not user-editable on the employee's own submission", "drives ApprovalInfo panel visibility + FinanceComments lock rules"]
+              aria_label: "Current Status"
+            - name: ManagerComments
+              label: "Manager Comments"
+              type: textarea
+              required: false
+              validations: ["editable by the manager approver only"]
+              aria_label: "Manager Comments"
+            - name: DepartmentHeadComments
+              label: "Department Head Comments"
+              type: textarea
+              required: false
+              validations: []
+              aria_label: "Department Head Comments"
+            - name: FinanceComments
+              label: "Finance Comments"
+              type: textarea
+              required: false
+              validations: ["locked readOnly unless CurrentStatus == 'ManagerApproved'"]
+              aria_label: "Finance Comments"
+      rules:
+        - "auto-set ManagerId/ManagerName and lock them readOnly when EmployeeId <= 10 (GAP: hardcoded to 'venuga5'/'Arjun Venugopal' in source XFA — migrate as a lookup/prefill-service rule, not a literal constant)"
+        - "validate Email against regex ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$ on exit; show alert + refocus if invalid"
+        - "lock RequestType readOnly until RequestId is non-null; unlock once RequestId is entered"
+        - "validate EndDate is strictly after StartDate; block submit otherwise"
+        - "show ApprovalInfo panel only when EmployeeId is non-empty AND CurrentStatus != 'FinanceApproved' (hide once fully approved)"
+        - "unlock FinanceComments (editable) only when CurrentStatus == 'ManagerApproved'; readOnly otherwise"
+        - "AcceptedTerms checkbox must be checked before submit is allowed"
+        - "SubmissionDate is system-set at submit time, not user-entered"
+      style_spec:
+        source_url: "n/a — legacy XDP export, not a live webpage; reference is the DAM preview JPEGs listed below"
+        layout: "single-page, stacked panels (Employee Details / Training Request Details / Justification / Declaration / Approval Information), each panel a 3-column field grid (label left-aligned, boxed input right of label)"
+        field_order: "Employee Details -> Training Request Details -> Justification -> Declaration -> Approval Information (conditionally visible)"
+        fonts: "Myriad Pro throughout (body + headers)"
+        colours: "section header band background RGB(196,219,251) light blue; header caption text 20pt bold RGB(128,64,64) dark maroon/brown; panel body background RGB(225,242,219) light green; field borders thin lowered-stroke"
+        borders: "thin lowered-stroke border on every input box"
+        card: "no card/shadow styling in source — flat panel bands with solid background fills as above"
+        spacing: "fields ~62mm wide x ~9mm tall, 3 fields per row, ~9-11mm row pitch"
+        button: "not present in the static XDP design (submit/approve-reject buttons were LC Workspace task-action chrome, not XDP-authored buttons) — cloud form needs an explicit Submit button styled to match the header/panel palette (maroon/blue accent) since Workspace's chrome will not exist on AEMaaCS"
+        js_behaviour:
+          - "show/hide ApprovalInfo panel based on EmployeeId + CurrentStatus (see rules)"
+          - "lock/unlock FinanceComments based on CurrentStatus (see rules)"
+          - "lock/unlock RequestType based on RequestId (see rules)"
+          - "email format validation with alert dialog (see rules)"
+        reference_images:
+          - "C:\\tmp-inner-pkg\\jcr_root\\content\\dam\\formsanddocuments\\TestMigration\\1.0\\Forms\\DocRoute.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg"
+          - "C:\\tmp-inner-pkg\\jcr_root\\content\\dam\\formsanddocuments\\TestMigration\\1.0\\Forms\\EmployeeTrainingRequest.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg (visually identical layout — corroborates the shared style spec; used as the Document-of-Record parity reference, not the AF parity reference)"
+          - "C:\\tmp-inner-pkg\\jcr_root\\content\\dam\\formsanddocuments\\TestMigration\\1.0\\Forms\\ApprovalInfo.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg (Approval Information panel only — DoR fragment parity reference)"
+
+    - key: "employee-training-request-dor"
+      title: "Employee Training Request — Document of Record templates"
+      audience: n/a (system-generated, not user-facing)
+      channels: [pdf]
+      locales: [en_US]
+      layout: n/a
+      role_decision: >
+        DOCUMENT-OF-RECORD TEMPLATES, not separate interactive forms — DO NOT build via
+        create-adaptive-form. Two source XDPs feed the legacy DDX/Assembler merge and must become the
+        DoR template(s) behind the cloud Workflow's "Generate Document of Record" step:
+        (1) Forms/EmployeeTrainingRequest.xdp (~101KB) — same field layout/schema as DocRoute.xdp
+        (Employee Details / Training Request Details / Justification / Declaration / Approval
+        Information) but WITHOUT the workflow-state-driven access-control scripts (its CurrentStatus
+        field carries no script) — referenced only as a static `document` variable
+        (EmployeeRequestForm/employerRequest) fed into AssembleManagerConformation.process's DDX merge
+        ("EmployeeTrainingForm" source). It is the "request data" half of the merged PDF.
+        (2) Forms/ApprovalInfo.xdp (~15KB) — contains ONLY the Approval Information section
+        (CurrentStatus, ManagerComments, DepartmentHeadComments, FinanceComments; no employee/
+        training/justification fields at all), fed as the `approvalInfo` document variable into the
+        same DDX merge ("ApprovalInfo" source) — the "approval decision" half of the merged PDF.
+        Preview-image confirmation: the DAM preview JPEGs for EmployeeTrainingRequest.xdp and
+        DocRoute.xdp render visually identically (both show the same 5 panels, with the Approval
+        Information panel hidden because EmployeeId is empty in the static preview — matching the
+        show/hide script); ApprovalInfo.xdp's preview shows only the small Approval Information panel
+        — confirming its fragment role.
+      data:
+        binding_intent: schema
+        source_of_truth: "same employeeTrainingRequest.xsd schema as the interactive form"
+        api_spec: "none"
+        api_auth: unknown
+        prefill: "none — populated from the workflow's in-flight form data at DoR-generation time"
+        submit: [dor_pdf]
+      sections: []   # no independent field inventory beyond the interactive form's schema — see employee-training-request
+      rules: []
+      style_spec:
+        source_url: "n/a"
+        layout: "identical panel structure/style to employee-training-request (see that entry's style_spec) for EmployeeTrainingRequest.xdp; ApprovalInfo.xdp is the single Approval Information panel only"
+        field_order: "n/a"
+        fonts: "Myriad Pro"
+        colours: "same header/panel palette as employee-training-request"
+        borders: "same as employee-training-request"
+        card: "n/a"
+        spacing: "n/a"
+        button: "n/a (non-interactive, PDF output only)"
+        js_behaviour: []
+        reference_images:
+          - "C:\\tmp-inner-pkg\\jcr_root\\content\\dam\\formsanddocuments\\TestMigration\\1.0\\Forms\\EmployeeTrainingRequest.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg"
+          - "C:\\tmp-inner-pkg\\jcr_root\\content\\dam\\formsanddocuments\\TestMigration\\1.0\\Forms\\ApprovalInfo.xdp\\_jcr_content\\renditions\\cq5dam.web.1280.1280.jpeg"
+
+  workflow:
+    needed: true
+    summary: >
+      Two-step sequential approval (manager -> finance manager) with a reject-shortcut-to-email at
+      either stage, and a Document-of-Record generation + approved-email step on final approval.
+      Source: Main.process ("Main", asynchronous/synchronous main-branch) +
+      AssembleManagerConformation.process ("TestAssembler", transient DoR-assembly sub-process).
+    steps:
+      - "Start endpoint 'Start Test Migration workflow' (TaskManager, instructions 'Fill the form and submit it. You would get status of it in email', tloPath=DocRoute.xdp) — cloud replacement: Adaptive Form submit action = 'Invoke an AEM Workflow', passing form data as the workflow's initial payload"
+      - "FetchManagerId (SetValue): managerId = formData EmployeeDetails/ManagerId"
+      - "assignToManager (AssignTask, dynamic group-assign via managerId xpath, taskDisplayName 'Migration-Manager Flow', email notification 'Review the request form as a manager' to ManagerName); routes: Approve -> assignToFinanceManager, Reject -> sendWithDocument4 (rejection email)"
+      - "assignToFinanceManager (AssignTask, dynamic assign via the SAME managerId xpath as the manager step — GAP: no distinct finance-approver participant resolution exists in the source; flagged as an open question); routes: Approve -> AssembleManagerConformation, Reject -> sendWithDocument4 (rejection email)"
+      - "AssembleManagerConformation sub-process invoke: AssemblerService.invokeDDX merges EmployeeTrainingForm (EmployeeTrainingRequest.xdp rendering) + ApprovalInfo (ApprovalInfo.xdp rendering) into one PDF (pdfComplete) -> SetValue finalPdf -> OutputService.generatePDFOutput2 (PDF/A conformance A, revision 1) produces the final merged PDF (outDoc) — maps to the cloud Workflow's out-of-box 'Generate Document of Record' step, replacing the custom DDX/Assembler/OutputService steps"
+      - "Copy(1) of sendWithDocument4 (EmailService.sendWithDocument): subject 'Employee Request Approved', body references RequestId, attaches outDoc as 'Submitted Form with approval', to = EmployeeDetails/Email"
+      - "sendWithDocument4 (EmailService.sendWithDocument), reject path from either approval step: subject 'Request Rejected', body references RequestId + ApprovalInfo/ManagerComments as the rejection reason, to = EmployeeDetails/Email, no attachment"
+    participants: ["employee (initiator)", "manager (dynamic group-assign via ManagerId)", "finance manager (GAP: same participant resolution as manager in source — needs a real rule)"]
+    notifications: ["manager task-assignment email", "finance-manager task-assignment email", "approved outcome email with DoR PDF attached", "rejected outcome email with rejection reason"]
+    document_of_record: true
+
+  nfrs:
+    accessibility: "aria-label on every field; the 3-column boxed layout must preserve label/input association for screen readers"
+    localization: "source is single-locale (en_US only); flag as current scope, i18n/multi-locale out of scope unless requested"
+    volume: "not specified in source — assume low/internal-employee volume; revisit if stated otherwise"
+    security_pii: "Email, EmployeeId, ManagerId, Amount/Currency are PII/financial data; this is an internal authenticated employee form (not public) — no CAPTCHA required"
+    compliance: "none specified in source"
+    branding: "exact-replica of the legacy XDP style spec (Myriad Pro, maroon/blue/green palette) — see style_spec; a stock/default AEM theme is a FAIL for this migration"
+    record_copy: "Document of Record PDF required on final (finance-manager) approval — this is the core legacy behaviour being preserved, merging the request + approval-decision sections"
+    bot_protection: "not required (authenticated internal form)"
+    environments: "author + publish; local AEM SDK + AEMaaCS"
+
+  user_stories:
+    - id: US-01
+      form: "employee-training-request"
+      title: "Employee submits a training request"
+      as_a: "employee"
+      i_want: "to fill in my details, the training request, and my justification, and submit the form"
+      so_that: "my manager can review and approve funding for my training/certification/conference"
+      acceptance_criteria:
+        - id: AC-01.1
+          criterion: "All required fields (EmployeeId, EmployeeName, Email, Department, ManagerId, ManagerName, Location, RequestId, RequestType, ProviderName, CourseName, StartDate, EndDate, TrainingMode, Amount, Currency, BusinessNeed, BenefitsToProject, TrainingCategory, AcceptedTerms) must be completed before submit succeeds"
+        - id: AC-01.2
+          criterion: "Submitting the form invokes the AEM cloud workflow (equivalent of the legacy TaskManager start point), passing the form data as the initial workflow payload"
+      covers_fields: [EmployeeId, EmployeeName, Email, Department, ManagerId, ManagerName, Location, BusinessUnit, RequestId, RequestType, ProviderName, CourseName, StartDate, EndDate, TrainingMode, TrainingLocation, Amount, Currency, BusinessNeed, BenefitsToProject, TrainingCategory, AcceptedTerms, SubmissionDate]
+      covers_rules: []
+
+    - id: US-02
+      form: "employee-training-request"
+      title: "Manager auto-assignment for low-numbered employees"
+      as_a: "system"
+      i_want: "to auto-populate and lock ManagerId/ManagerName when EmployeeId is 10 or less"
+      so_that: "known test/seed employees always route to the correct manager without manual entry"
+      acceptance_criteria:
+        - id: AC-02.1
+          criterion: "When EmployeeId <= 10, ManagerId and ManagerName are auto-populated and become readOnly"
+        - id: AC-02.2
+          criterion: "GAP: the legacy rule hardcodes a single manager ('venuga5'/'Arjun Venugopal') for ALL EmployeeId <= 10 — this must be replaced by a real lookup (prefill service or FDM) before go-live; tracked as an open question, not silently carried forward as a hardcoded constant"
+      covers_fields: [EmployeeId, ManagerId, ManagerName]
+      covers_rules: ["auto-set ManagerId/ManagerName and lock them readOnly when EmployeeId <= 10"]
+
+    - id: US-03
+      form: "employee-training-request"
+      title: "Email format is validated on entry"
+      as_a: "employee"
+      i_want: "to be warned immediately if I type an invalid email address"
+      so_that: "I correct it before submitting and the approval/outcome emails reach me"
+      acceptance_criteria:
+        - id: AC-03.1
+          criterion: "On exiting the Email field, an invalid format (not matching a standard email pattern) shows a validation alert and returns focus to the field"
+      covers_fields: [Email]
+      covers_rules: ["validate Email against regex on exit; show alert + refocus if invalid"]
+
+    - id: US-04
+      form: "employee-training-request"
+      title: "Request type is locked until a request ID exists"
+      as_a: "employee"
+      i_want: "the Request Type dropdown to stay locked until I've entered a Request Id"
+      so_that: "a request is never categorized before it has an identifying number"
+      acceptance_criteria:
+        - id: AC-04.1
+          criterion: "RequestType is readOnly while RequestId is empty, and becomes editable once RequestId is entered"
+      covers_fields: [RequestId, RequestType]
+      covers_rules: ["lock RequestType readOnly until RequestId is non-null; unlock once RequestId is entered"]
+
+    - id: US-05
+      form: "employee-training-request"
+      title: "Training end date must be after the start date"
+      as_a: "employee"
+      i_want: "to be prevented from submitting an End Date on or before the Start Date"
+      so_that: "the training duration recorded is always valid"
+      acceptance_criteria:
+        - id: AC-05.1
+          criterion: "If EndDate <= StartDate, the field is marked invalid and submit is blocked until corrected"
+      covers_fields: [StartDate, EndDate]
+      covers_rules: ["validate EndDate is strictly after StartDate; block submit otherwise"]
+
+    - id: US-06
+      form: "employee-training-request"
+      title: "Manager reviews and approves or rejects the request"
+      as_a: "manager"
+      i_want: "to receive a task for my direct report's request, review it, and approve or reject it with comments"
+      so_that: "only justified training requests proceed to finance review"
+      acceptance_criteria:
+        - id: AC-06.1
+          criterion: "The manager (resolved dynamically from ManagerId) receives a task-assignment email titled 'Review the request form as a manager' referencing the employee by name"
+        - id: AC-06.2
+          criterion: "Choosing Approve routes the request to the finance-manager approval step; choosing Reject sends the employee a 'Request Rejected' email including the RequestId and the manager's comments as the reason"
+      covers_fields: [ManagerComments, CurrentStatus]
+      covers_rules: ["show ApprovalInfo panel only when EmployeeId is non-empty AND CurrentStatus != 'FinanceApproved'"]
+
+    - id: US-07
+      form: "employee-training-request"
+      title: "Finance comments unlock only after manager approval"
+      as_a: "finance manager"
+      i_want: "the Finance Comments field to be editable only once the manager has approved the request"
+      so_that: "finance input is never recorded before the manager's sign-off exists"
+      acceptance_criteria:
+        - id: AC-07.1
+          criterion: "FinanceComments is readOnly whenever CurrentStatus is not 'ManagerApproved', and becomes editable exactly when CurrentStatus == 'ManagerApproved'"
+      covers_fields: [FinanceComments, CurrentStatus]
+      covers_rules: ["unlock FinanceComments only when CurrentStatus == 'ManagerApproved'; readOnly otherwise"]
+
+    - id: US-08
+      form: "employee-training-request"
+      title: "Finance manager gives final approval and triggers the Document of Record"
+      as_a: "finance manager"
+      i_want: "to approve or reject the manager-approved request"
+      so_that: "approved requests get a generated record document and the employee is notified with proof of approval"
+      acceptance_criteria:
+        - id: AC-08.1
+          criterion: "Approving as finance manager triggers Document-of-Record generation (merging the request-data DoR template and the approval-decision DoR fragment into one PDF) and sends the employee an 'Employee Request Approved' email with the PDF attached as 'Submitted Form with approval'"
+        - id: AC-08.2
+          criterion: "Rejecting sends the employee a 'Request Rejected' email with the RequestId and rejection reason, and no Document of Record is generated"
+        - id: AC-08.3
+          criterion: "GAP: the source resolves the finance-manager participant using the SAME ManagerId xpath as the manager step (no distinct finance-approver lookup exists) — this must be resolved with the business before build; tracked as an open question"
+      covers_fields: [FinanceComments, CurrentStatus]
+      covers_rules: []
+
+    - id: US-09
+      form: "employee-training-request"
+      title: "Employee must accept terms before submitting"
+      as_a: "employee"
+      i_want: "to be required to check the Accepted Terms box"
+      so_that: "no request is submitted without acknowledgement of the declaration"
+      acceptance_criteria:
+        - id: AC-09.1
+          criterion: "Submit is blocked until AcceptedTerms is checked"
+      covers_fields: [AcceptedTerms, SubmissionDate]
+      covers_rules: ["AcceptedTerms checkbox must be checked before submit is allowed", "SubmissionDate is system-set at submit time"]
+
+    - id: US-10
+      form: "employee-training-request"
+      title: "Form matches the legacy visual design exactly"
+      as_a: "employee/manager/finance manager"
+      i_want: "the migrated Adaptive Form to look exactly like the legacy XDP (same panel colours, header styling, font, 3-column layout)"
+      so_that: "the migration is a true parity replacement, not a redesign, and users recognize the familiar form"
+      acceptance_criteria:
+        - id: AC-10.1
+          criterion: "test-form-ui comparison against the DAM preview JPEGs (DocRoute.xdp and EmployeeTrainingRequest.xdp renditions) shows matching section header colours (RGB 196,219,251 band / RGB 128,64,64 maroon bold caption), panel body colour (RGB 225,242,219), Myriad Pro font, and 3-column field layout"
+      covers_fields: []
+      covers_rules: []
+
+    - id: US-11
+      form: "employee-training-request-dor"
+      title: "Document of Record merges request data and approval decision"
+      as_a: "system"
+      i_want: "to render the request-data template and the approval-decision fragment and merge them into a single PDF"
+      so_that: "the final approved packet is a complete, self-contained record of what was requested and how it was approved"
+      acceptance_criteria:
+        - id: AC-11.1
+          criterion: "The generated PDF contains both the full request-data section (Employee Details/Training Request Details/Justification/Declaration, styled per employee-training-request-dor's style_spec) and the Approval Information section (Current Status/Manager Comments/Department Head Comments/Finance Comments)"
+      covers_fields: []
+      covers_rules: []
+
+  reference_for_ui_check: >
+    C:\tmp-inner-pkg\jcr_root\content\dam\formsanddocuments\TestMigration\1.0\Forms\DocRoute.xdp\_jcr_content\renditions\cq5dam.web.1280.1280.jpeg
+    (primary AF parity reference), plus EmployeeTrainingRequest.xdp's and ApprovalInfo.xdp's
+    equivalent renditions as the Document-of-Record template parity references. No live 6.4.22
+    Workspace instance is reachable to screenshot directly.
+
+  assumptions:
+    - "No external system of record exists for this app (no API/CRM/FDM referenced anywhere in the .process or .xdp sources) — schema-only data binding is correct, FDM is not needed."
+    - "Single locale (en_US) carried forward as-is; multi-locale/i18n is out of scope unless the business requests it."
+    - "No CAPTCHA — this is an internal authenticated employee/manager/finance-manager form, not a public form."
+    - "The Submit button's visual styling (not present in the static XDP, since Workspace supplied that chrome) will use the same maroon/blue/green palette as the panels, as a sensible extrapolation for parity."
+
+  open_questions:
+    - "GAP — Manager auto-assign hardcodes a single manager ('venuga5'/'Arjun Venugopal') for every EmployeeId <= 10. Confirm the real lookup source (HR system, fixed roster, or prefill service) before build; do not carry the hardcoded constant into the cloud form/workflow."
+    - "GAP — The finance-manager approval step resolves its participant using the SAME ManagerId xpath as the manager step (no distinct finance-approver group/attribute exists in the source). Confirm the correct finance-approver participant resolution rule with the business before the workflow is built."
+    - "The 'from' address on all outcome emails is a legacy internal address (rs.gbseforms@medtronic.com). Confirm the cloud project's sender identity/mail service configuration to use instead."
+    - "No explicit volume/SLA figures were present in the source — confirm expected submission volume if it affects workflow/queue sizing."
+
+  acceptance_criteria:
+    - "All 3 legacy XDPs are accounted for with an explicit, evidence-based role (interactive AF vs DoR template/fragment) and that decision is recorded and traceable."
+    - "Every field in employeeTrainingRequest.xsd appears in the field inventory with type/required/validation."
+    - "Every XFA JavaScript rule found in DocRoute.xdp is captured as a business rule and covered by >=1 user story."
+    - "The full Main.process + AssembleManagerConformation.process workflow (steps, routes, participants, notifications, DoR generation) is captured and mapped to a cloud workflow design."
+    - "Every user story has >=1 acceptance criterion; every field/rule/submit behaviour is covered by >=1 story."
+    - "Style spec captured in enough detail (fonts/colours/layout) to build an exact-replica theme, not a stock theme."

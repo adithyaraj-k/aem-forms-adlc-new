@@ -1,0 +1,210 @@
+solution_architecture:
+  forms:
+    - key: "employee-training-request"
+      source_role: "PRIMARY interactive Adaptive Form — migrated from Forms/DocRoute.xdp (see user-stories.yaml role_decision for evidence)"
+      data_backing: schema
+      data_reason: >
+        Input type is an existing legacy form export (XDP + XSD), not a requirement document
+        describing a live system of record. No API/Swagger/CRM is referenced anywhere in the
+        .process or .xdp sources — this is a pure workflow-routed internal form. generate-schema
+        from employeeTrainingRequest.xsd is the correct binding; create-fdm is not warranted for v1.
+      template: 'reuse:"/conf/aem-adaptive-forms-agents/settings/wcm/templates/blank-af-v2" (skip create-editable-template)'
+      template_reason: >
+        Enumerated the project's ~20 existing templates under
+        /conf/aem-adaptive-forms-agents/settings/wcm/templates/. blank-af-v2 is built on the
+        af-page-v2 template-type (confirmed via its .content.xml: cq:templateType =
+        .../template-types/af-page-v2), is described as a fully flexible "Blank Form" with no
+        pre-incorporated components and no locked structure — it fits a single-page form with 5
+        stacked panels and an unusual per-panel colour treatment. Per-form branding (the exact-replica
+        maroon/blue/green legacy palette) is handled by the form's OWN theme + clientlib + conf
+        context, not the template, so it does not disqualify reuse. No new template is created.
+      theme: 'build (create-form-theme) — no existing project theme matches; see theme_reason'
+      theme_reason: >
+        Existing themes ({project}-easel, -fsi, -healthcare, -manufacturing, -public, -wknd) are all
+        generic brand kits; none encodes the legacy XDP's exact palette (header band RGB(196,219,251),
+        maroon 20pt bold caption RGB(128,64,64), panel body RGB(225,242,219), Myriad Pro, 3-column
+        boxed field rows, thin lowered-stroke borders). A migration's UI-parity bar (test-form-ui
+        against the DAM preview JPEGs) requires an EXACT-replica theme — reusing a stock theme here
+        would be a FAIL. create-form-theme builds a new theme dedicated to this form using the
+        style_spec captured in user-stories.yaml.
+      custom_components: []
+      custom_components_reason: >
+        Every field in the inventory maps to a stock Core Components AF field type: text, email,
+        date, number, dropdown (single-select choice), checkbox, textarea, display-text (read-only),
+        and file-attachment (VendorQuotation/CourseBrochure/ManagerRecommendation — plain Core
+        Components "File Attachment" field, no custom widget needed). create-form-component is NOT
+        required for this form.
+      submit: 'workflow — "Invoke an AEM Workflow" submit action (create-submit-action), passing form data as the workflow payload; replaces the legacy LC Workspace TaskManager start point. NOT the generic Custom-Submit-GeneratePDF (this form does not complete with a direct PDF download — the PDF-of-record is produced mid-workflow, by the Generate Document of Record step, only on final approval).'
+      prefill: >
+        Ask-then-build in the Groundsmith integration phase (never pre-decided here). Candidate
+        source: the legacy hardcoded "EmployeeId<=10 -> manager X" rule is a prefill/lookup candidate
+        (Excel/CSV static prefill mapping EmployeeId -> ManagerId/ManagerName) rather than a rule-editor
+        literal — Groundsmith shows the field list and asks the user Excel/CSV vs none, per its
+        mandatory flow. Flagged open question carried from discovery: confirm the real roster/lookup
+        source before this is finalized.
+      workflow: >
+        2-step sequential approval (manager -> finance manager) via create-workflow, with reject
+        routes to Send Email at either stage and a Generate Document of Record step + approved Send
+        Email step on final approval. See workflow_design below and integration_nfr_strategy.record_copy.
+      rules_plan:                              # create-form-rules items (Phase 4)
+        - rule: "auto-set ManagerId/ManagerName + lock readOnly when EmployeeId <= 10"
+          type: set-value + enable-disable
+          note: "GAP inherited from discovery — do not hardcode 'venuga5'/Arjun Venugopal as a rule-editor literal; pair with the prefill-service lookup Groundsmith builds. The rule itself only performs the lock/unlock + apply-prefilled-value behavior; the VALUE comes from prefill, not a baked-in constant."
+        - rule: "validate Email against standard email pattern on exit; show validation message"
+          type: validate
+        - rule: "lock RequestType readOnly until RequestId is non-empty; unlock once entered"
+          type: enable-disable
+        - rule: "validate EndDate is strictly after StartDate; block submit otherwise"
+          type: validate (cross-field)
+        - rule: "show ApprovalInfo panel only when EmployeeId is non-empty AND CurrentStatus != 'FinanceApproved'"
+          type: show-hide
+        - rule: "unlock FinanceComments only when CurrentStatus == 'ManagerApproved'; readOnly otherwise"
+          type: enable-disable
+        - rule: "AcceptedTerms must be checked before submit is allowed"
+          type: validate (required)
+        - rule: "SubmissionDate is system-set at submit time (not user-entered)"
+          type: set-value
+      clientlib_plan: >
+        create-form-clientlib is OPTIONAL here — the email-regex validation and its user-facing
+        message are both expressible as a native Rule Editor `validate` rule + field-level error
+        message (Core Components supports this without custom JS). Plan create-form-clientlib only
+        if, during build, the Rule Editor cannot reproduce the exact alert-dialog UX the legacy
+        xfa.host.messageBox gave; default is Rule-Editor-only, no clientlib.
+      tests_plan: "create-form-tests for the workflow-trigger submit action + any Java prefill service Groundsmith builds; test-form-ui as the UI-parity gate (see below)."
+      ui_parity_reference: >
+        C:\tmp-inner-pkg\jcr_root\content\dam\formsanddocuments\TestMigration\1.0\Forms\DocRoute.xdp\_jcr_content\renditions\cq5dam.web.1280.1280.jpeg
+        (primary reference — this is the interactive form's source XDP rendition)
+
+    - key: "employee-training-request-dor"
+      source_role: "Document-of-Record templates — Forms/EmployeeTrainingRequest.xdp (request-data section) + Forms/ApprovalInfo.xdp (approval-decision section), legacy-merged via DDX/AssemblerService into one PDF"
+      data_backing: schema
+      data_reason: "Same employeeTrainingRequest.xsd schema as the interactive form — the DoR is a rendering of the same data, not a separate data contract."
+      template: "n/a — not an Adaptive Form page; authored as the Document of Record template inside the create-workflow 'Generate Document of Record' step configuration"
+      theme: "reuse the same theme built for employee-training-request (create-form-theme output) so the DoR PDF matches the interactive form's palette (Myriad Pro, header/panel colours) — no separate theme build"
+      custom_components: []
+      submit: "n/a (system-generated PDF, not user-submitted)"
+      prefill: "n/a (populated from in-flight workflow form data at DoR-generation time, not a separate prefill source)"
+      workflow: "authored as part of the single AEM cloud Workflow model (see workflow_design) — NOT a second create-workflow invocation"
+      dor_template_decision: >
+        ONE merged Document of Record template is planned, not two separate ones — mirroring the
+        legacy behaviour where DDX merged "EmployeeTrainingForm" + "ApprovalInfo" into a single
+        pdfComplete result before OutputService rendered the final PDF. The cloud Workflow's built-in
+        "Generate Document of Record" step is configured against a single DoR template that includes
+        both the request-data panels (from EmployeeTrainingRequest.xdp's layout) and the Approval
+        Information panel (from ApprovalInfo.xdp's layout) in one document, produced by
+        formwright/groundsmith as part of the create-workflow build — this REPLACES the legacy
+        AssemblerService.invokeDDX + OutputService.generatePDFOutput2 custom step chain entirely; no
+        custom OSGi/DDX code is migrated (see dsc_scope_note below).
+      ui_parity_reference: >
+        C:\tmp-inner-pkg\jcr_root\content\dam\formsanddocuments\TestMigration\1.0\Forms\EmployeeTrainingRequest.xdp\_jcr_content\renditions\cq5dam.web.1280.1280.jpeg
+        and
+        C:\tmp-inner-pkg\jcr_root\content\dam\formsanddocuments\TestMigration\1.0\Forms\ApprovalInfo.xdp\_jcr_content\renditions\cq5dam.web.1280.1280.jpeg
+        (DoR template parity references — compared structurally, not via the live-form test-form-ui
+        pixel gate, since this artifact is a generated PDF, not a rendered AF page)
+
+  workflow_design:
+    name: "employee-training-request-approval (single AEM cloud Workflow model)"
+    replaces: "Main.process + AssembleManagerConformation.process (LC Workspace)"
+    steps:
+      - step: "Assign Task — Manager Approval"
+        participant: "dynamic, resolved from the submitted form's ManagerId (mirrors legacy assignToManager dynamic group-assign)"
+        routes: ["Approve -> Assign Task — Finance Manager Approval", "Reject -> Send Email (Rejected)"]
+      - step: "Assign Task — Finance Manager Approval"
+        participant: "OPEN QUESTION (inherited from discovery) — the legacy source resolves this participant via the SAME ManagerId xpath as the manager step, i.e. no distinct finance-approver rule exists. Architecture does NOT invent a resolution; this must be confirmed with the business (e.g. a Finance-Approvers group, a department-head lookup, or a distinct FDM/HR attribute) before create-workflow builds this step for real."
+        routes: ["Approve -> Generate Document of Record", "Reject -> Send Email (Rejected)"]
+      - step: "Generate Document of Record"
+        detail: "produces the single merged DoR PDF per employee-training-request-dor.dor_template_decision"
+        routes: ["-> Send Email (Approved)"]
+      - step: "Send Email (Approved)"
+        to: "EmployeeDetails/Email"
+        subject: "Employee Request Approved"
+        body: "references RequestId"
+        attachment: "the Generate-Document-of-Record PDF (legacy: 'Submitted Form with approval')"
+      - step: "Send Email (Rejected)"
+        to: "EmployeeDetails/Email"
+        subject: "Request Rejected"
+        body: "references RequestId + the rejecting approver's comments as the reason"
+        attachment: "none"
+    submit_wiring: >
+      The Adaptive Form's submit action = "Invoke an AEM Workflow" (create-submit-action), starting
+      this workflow model with the submitted form data as its payload — this is the direct cloud
+      replacement for the legacy TaskManager start point ("Start Test Migration workflow").
+    mail_service: "Day CQ Mail Service config required (create-workflow provisions this) — legacy 'from' address rs.gbseforms@medtronic.com is a placeholder; OPEN QUESTION to confirm the cloud project's real sender identity before go-live."
+
+  dsc_scope_note: >
+    The source .LCA contains no DSC (Document Security Component / custom Java) artifacts and no
+    accompanying .jar — confirmed at Path-B step detection before this architecture began. Therefore
+    NO DSC->OSGi migration step exists in this delivery: create-form-component is out of scope for
+    custom-code migration (it is separately evaluated above purely for field-type coverage, where the
+    answer is "none needed"). Downstream leads (formwright/groundsmith) should not look for a DSC/jar
+    conversion task on this run.
+
+integration_nfr_strategy:
+  data_sources: "None — schema-only (employeeTrainingRequest.xsd via generate-schema). No FDM data source is provisioned for v1; revisit only if the business supplies a real system-of-record for manager/finance-approver lookup (see open questions)."
+  accessibility: "WCAG 2.1 AA target; aria-label on every field is enforced by create-adaptive-form — critical here because the legacy 3-column boxed layout must not lose label/input association when themed."
+  localization: "Single locale (en_US) carried forward as-is, matching the source XDPs' locale=\"en_US\". No dictionary/translation work planned for v1."
+  security_pii: "Email, EmployeeId, ManagerId, Amount/Currency are PII/financial fields. This is an internal AUTHENTICATED form (employee/manager/finance-manager), not public — no CAPTCHA required. No secrets are hardcoded; if a prefill/lookup service is later backed by a real HR system, its credentials go through $[secret:] + a repoinit service user, never a literal in a rule."
+  record_copy: "Document of Record is MANDATORY and is the core legacy behaviour being preserved — implemented as the Workflow's Generate Document of Record step producing one merged PDF (request data + approval decision), replacing the legacy DDX/AssemblerService/OutputService chain."
+  performance: "No stated volume; assume low/internal throughput. Dispatcher caching applies to the form's theme/clientlib assets as standard; no unusual performance NFR identified."
+  environments: "Author + publish; local AEM SDK (per project memory, C:/aem-sdk/author) and AEMaaCS. No per-environment secrets required for v1 since there is no external data source."
+
+adlc_execution_plan:
+  - phase: 0
+    skill: ensure-forms-agents-md
+    note: "config already present (.aem-forms-config.yaml exists) — verify only, no changes"
+  - phase: 1
+    skill: generate-schema
+    note: "employee-training-request — generate JSON Schema from employeeTrainingRequest.xsd with FDM-ready bindings (fd:formDataRef), even though FDM itself is not used, per generate-schema's standard output contract"
+  - phase: 2
+    skill: create-editable-template
+    note: 'SKIP — reuse blank-af-v2 (af-page-v2 template-type, generic/unlocked "Blank Form"); see template_reason above'
+    skip: true
+  - phase: 3
+    skill: create-adaptive-form
+    note: "employee-training-request — single-page, 5 panels (Employee Details / Training Request Details / Justification / Declaration / Approval Information [conditional]), built on blank-af-v2, schema-bound, includes file-attachment fields for the 3 Attachments"
+  - phase: 4
+    skill: create-form-rules
+    note: "8 rules per rules_plan above (manager auto-lock, email validate, RequestType lock/unlock, EndDate>StartDate, ApprovalInfo show/hide, FinanceComments lock/unlock, AcceptedTerms required, SubmissionDate set-value)"
+  - phase: 5
+    skill: create-form-component
+    note: "SKIP — no field type outside Core Components coverage; file-attachment fields use the stock Core Components component. Also confirmed no DSC/custom-code migration applies (see dsc_scope_note)."
+    skip: true
+  - phase: 6
+    skill: create-submit-action
+    note: "wire 'Invoke an AEM Workflow' submit action on employee-training-request, targeting the employee-training-request-approval workflow model built in phase 12"
+  - phase: 7
+    skill: create-prefill-service
+    note: "ASK-THEN-BUILD in Groundsmith integration phase (never pre-skipped) — candidate: Excel/CSV static prefill for the EmployeeId -> ManagerId/ManagerName lookup that today is a hardcoded XFA constant (open question: confirm real roster source with the business first)"
+  - phase: 8
+    skill: create-form-theme
+    note: "BUILD (not reuse) — exact-replica theme per theme_reason: Myriad Pro, header band RGB(196,219,251)/caption RGB(128,64,64) 20pt bold, panel body RGB(225,242,219), 3-column boxed rows, thin lowered-stroke borders. Reused (not rebuilt) for the Document of Record PDF in phase 12."
+  - phase: 9
+    skill: create-form-clientlib
+    note: "OPTIONAL — only if the Rule Editor's native validate+message cannot reproduce the legacy alert-dialog UX for email validation; default plan has no clientlib build (see clientlib_plan)"
+    skip: true
+  - phase: 12
+    skill: create-workflow
+    note: "employee-training-request-approval model per workflow_design: 2x Assign Task (manager, finance-manager [participant OPEN QUESTION]), 2x reject->Send Email routes, 1x Generate Document of Record (single merged DoR template per dor_template_decision), 1x approved Send Email with DoR PDF attached. Also wires the Day CQ Mail Service config (sender address is an OPEN QUESTION, legacy placeholder must be replaced)."
+  - phase: 10
+    skill: create-form-tests
+    note: "unit tests for the workflow-trigger submit action + any Java prefill-service class Groundsmith builds"
+  - phase: 13
+    skill: test-form-ui
+    note: "employee-training-request against DocRoute.xdp's DAM preview JPEG (primary AF parity gate); structural comparison of the Generate-Document-of-Record PDF against EmployeeTrainingRequest.xdp's + ApprovalInfo.xdp's DAM preview JPEGs (DoR parity, not a live-page pixel diff since it's a generated PDF, not a rendered AF page)"
+  - phase: 11
+    skill: migrate-form
+    note: "not a separate phase — migrate-form Path B IS this delivery's implementation spine, executed by formwright across phases 1/3/4/6/8 and by groundsmith across phase 7/12. Listed here for completeness of the catalog mapping, not as an additional standalone run."
+  parallelizable: ["8 with 4", "7 with 6 (both depend on the form built in phase 3, but are otherwise independent workstreams: submit/workflow wiring vs prefill lookup)", "10 with 13 (both depend on the phase-12 deploy, independent of each other)"]
+
+gaps: []
+gaps_reason: "Every requirement maps to an existing catalog skill; no unmappable requirement identified. (Open questions below are business decisions, not missing skills.)"
+
+risks:
+  - risk: "Hardcoded manager auto-assign (EmployeeId<=10 -> 'venuga5'/Arjun Venugopal) if carried forward literally would silently misroute every future employee with EmployeeId<=10 to the same fixed manager."
+    mitigation: "Do not encode the manager name as a rule-editor literal; resolve via Groundsmith's ask-then-build prefill flow against a real roster/lookup source. Tracked as an open question — build should not proceed on the hardcoded value without business confirmation."
+  - risk: "Finance-manager approval step has no distinct participant-resolution rule in the source (reuses the manager's ManagerId) — building the workflow as-is would let the SAME person approve at both stages, defeating the two-tier control."
+    mitigation: "Flagged as an open question for create-workflow; do not invent a resolution (e.g. do not assume 'department head' or a fixed group without confirmation) — confirm with the business before the finance-approval Assign Task step is finalized."
+  - risk: "Legacy email sender address (rs.gbseforms@medtronic.com) is an internal address from the source environment and likely invalid/undesired for the new cloud project."
+    mitigation: "Confirm the correct sender identity for the Day CQ Mail Service config before go-live; do not deploy with the legacy address unconfirmed."
+  - risk: "Exact-replica theme requirement (RGB-precise colours, Myriad Pro font, 3-column boxed layout) is more constrained than the project's existing generic themes — a stock theme substitution would fail the test-form-ui parity gate."
+    mitigation: "create-form-theme builds a dedicated theme from the captured style_spec; test-form-ui phase 13 is the enforcement gate against the DAM preview JPEGs."

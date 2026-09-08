@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 2559" width="900" height="2559" font-family="Segoe UI, Arial, sans-serif">
+<defs>
+<marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#333333"/></marker>
+<marker id="ahd" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 z" fill="#b06a2c"/></marker>
+</defs>
+<rect x="0" y="0" width="900" height="2559" fill="#ffffff"/>
+<text x="30" y="34" font-size="20" font-weight="700" fill="#0b3d5c">AEM Forms Program Agent — Execution Flow</text>
+<line x1="440" y1="73" x2="440" y2="104" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="196" x2="440" y2="225" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="214.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="283" x2="440" y2="312" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="404" x2="440" y2="439" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="425.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">full delivery</text>
+<line x1="440" y1="497" x2="440" y2="526" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="618" x2="440" y2="647" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="636.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="705" x2="440" y2="757" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="815" x2="440" y2="844" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="936" x2="440" y2="971" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="957.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="1029" x2="440" y2="1058" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="1150" x2="440" y2="1185" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="1171.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="1243" x2="440" y2="1272" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="1364" x2="440" y2="1399" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="1385.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="1457" x2="440" y2="1486" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="1578" x2="440" y2="1613" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="1599.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="1671" x2="440" y2="1700" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="1792" x2="440" y2="1827" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="1813.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="1885" x2="440" y2="1914" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="2006" x2="440" y2="2035" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="2024.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="2093" x2="440" y2="2145" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="2123" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">human prompt</text>
+<line x1="440" y1="2203" x2="440" y2="2232" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="440" y1="2324" x2="440" y2="2359" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="448" y="2345.5" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">Yes</text>
+<line x1="440" y1="2417" x2="440" y2="2465" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 336 572 C 190 572, 190 468, 290 468" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="524" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 890 C 190 890, 190 786, 290 786" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="842" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 1104 C 190 1104, 190 1000, 290 1000" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="1056" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 1318 C 190 1318, 190 1214, 290 1214" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="1270" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 1532 C 190 1532, 190 1428, 290 1428" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="1484" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 1746 C 190 1746, 190 1642, 290 1642" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="1698" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 1960 C 190 1960, 190 1856, 290 1856" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="1912" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 336 2278 C 190 2278, 190 2174, 290 2174" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="178" y="2230" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#333333">No · re-assign</text>
+<path d="M 544 572 L 630 572" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 890 L 630 890" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 1104 L 630 1104" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 1318 L 630 1318" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 1532 L 630 1532" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 1746 L 630 1746" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 1960 L 630 1960" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<path d="M 544 2278 L 630 2278" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<line x1="630" y1="572" x2="630" y2="2388" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5"/>
+<path d="M 630 2388 L 656 2388" fill="none" stroke="#b06a2c" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ahd)"/>
+<text x="638" y="558" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#b06a2c">after 2 failures (any gate)</text>
+<line x1="544" y1="150" x2="580" y2="150" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="562" y="142" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">No</text>
+<path d="M 720 179 L 720 254 L 590 254" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="336" y1="358" x2="270" y2="358" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<text x="240" y="348" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#333333">atomic task</text>
+<path d="M 80 385 L 80 2388 L 290 2388" fill="none" stroke="#333333" stroke-width="2" marker-end="url(#ah)"/>
+<rect x="290" y="19" width="300" height="54" rx="27" ry="27" fill="#ffffff" stroke="#6aa84f" stroke-width="2.5"/>
+<text x="440" y="38" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">START</tspan><tspan x="440" dy="16">Forms request</tspan></text>
+<polygon points="440,104 544,150 440,196 336,150" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="142" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">.aem-forms-config</tspan><tspan x="440" dy="16">.yaml exists?</tspan></text>
+<rect x="290" y="225" width="300" height="58" rx="4" fill="#ffffff" stroke="#3d85c6" stroke-width="2.5"/>
+<text x="440" y="246" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Load tokens ·</tspan><tspan x="440" dy="16">create runs/{date}-{form}/ dirs</tspan></text>
+<polygon points="440,312 544,358 440,404 336,358" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="350" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Full delivery</tspan><tspan x="440" dy="16">or atomic task?</tspan></text>
+<rect x="290" y="439" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="439" x2="302" y2="497" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="439" x2="578" y2="497" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="460" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">planwright — PLAN</tspan><tspan x="440" dy="16">requirements + architecture</tspan></text>
+<polygon points="440,526 544,572 440,618 336,572" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="572" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate PLAN?</tspan></text>
+<polygon points="314,647 618,647 566,705 262,705" fill="#ffffff" stroke="#3d85c6" stroke-width="2.5"/>
+<text x="440" y="668" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Present ADLC plan ·</tspan><tspan x="440" dy="16">User confirms</tspan></text>
+<rect x="290" y="757" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="757" x2="302" y2="815" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="757" x2="578" y2="815" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="778" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">draftsmith — DESI</tspan><tspan x="440" dy="16">specs + test cases</tspan></text>
+<polygon points="440,844 544,890 440,936 336,890" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="890" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate DESI?</tspan></text>
+<rect x="290" y="971" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="971" x2="302" y2="1029" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="971" x2="578" y2="1029" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="992" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">formwright — IMPL build</tspan><tspan x="440" dy="16">schema/FDM·form·rules·clientlib·theme</tspan></text>
+<polygon points="440,1058 544,1104 440,1150 336,1104" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="1096" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate IMPL-B?</tspan><tspan x="440" dy="16">(zero-defect)</tspan></text>
+<rect x="290" y="1185" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="1185" x2="302" y2="1243" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="1185" x2="578" y2="1243" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="1206" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">groundsmith — IMPL integration</tspan><tspan x="440" dy="16">prefill · submit · workflow</tspan></text>
+<polygon points="440,1272 544,1318 440,1364 336,1318" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="1318" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate IMPL-I?</tspan></text>
+<rect x="290" y="1399" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="1399" x2="302" y2="1457" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="1399" x2="578" y2="1457" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="1420" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">assembler — ASSEMBLY (after IMPL)</tspan><tspan x="440" dy="16">embed in Test Adaptive Form page</tspan></text>
+<polygon points="440,1486 544,1532 440,1578 336,1532" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="1516" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate ASSEMBLY?</tspan><tspan x="440" dy="16">(1 container,</tspan><tspan x="440" dy="16">prior replaced)</tspan></text>
+<rect x="290" y="1613" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="1613" x2="302" y2="1671" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="1613" x2="578" y2="1671" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="1634" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">forgemaster — DEPLOY</tspan><tspan x="440" dy="16">mvn build + deploy · LOCAL SDK</tspan></text>
+<polygon points="440,1700 544,1746 440,1792 336,1746" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="1738" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate DEPLOY?</tspan><tspan x="440" dy="16">(BUILD SUCCESS)</tspan></text>
+<rect x="290" y="1827" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="1827" x2="302" y2="1885" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="1827" x2="578" y2="1885" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="1848" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">pilot — SCM (last automated phase)</tspan><tspan x="440" dy="16">commit (excl. .claude/) · push · PR → main</tspan></text>
+<polygon points="440,1914 544,1960 440,2006 336,1960" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="1944" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate SCM?</tspan><tspan x="440" dy="16">(commit + push +</tspan><tspan x="440" dy="16">PR open on main)</tspan></text>
+<polygon points="266,2035 666,2035 614,2093 214,2093" fill="#ffffff" stroke="#e69138" stroke-width="2.5"/>
+<text x="440" y="2056" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">⏸ MANUAL GATE (human) · merge PR →</tspan><tspan x="440" dy="16">Cloud Manager DEV pipeline → prompt sentinel</tspan></text>
+<rect x="290" y="2145" width="300" height="58" rx="3" fill="#ffffff" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="302" y1="2145" x2="302" y2="2203" stroke="#2a9d8f" stroke-width="2.5"/>
+<line x1="578" y1="2145" x2="578" y2="2203" stroke="#2a9d8f" stroke-width="2.5"/>
+<text x="440" y="2166" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">sentinel — TEST (cloud DEV)</tspan><tspan x="440" dy="16">tests · UI parity · functional</tspan></text>
+<polygon points="440,2232 544,2278 440,2324 336,2278" fill="#ffffff" stroke="#a64d4d" stroke-width="2.5"/>
+<text x="440" y="2262" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12.5" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Gate TEST?</tspan><tspan x="440" dy="16">(all pass,</tspan><tspan x="440" dy="16">all covered)</tspan></text>
+<rect x="290" y="2359" width="300" height="58" rx="4" fill="#ffffff" stroke="#3d85c6" stroke-width="2.5"/>
+<text x="440" y="2380" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">Write handoff/</tspan><tspan x="440" dy="16">program-summary.md</tspan></text>
+<rect x="290" y="2465" width="300" height="54" rx="27" ry="27" fill="#ffffff" stroke="#6aa84f" stroke-width="2.5"/>
+<text x="440" y="2484" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="440" dy="0">END</tspan><tspan x="440" dy="16">delivery summary + deployment_ready</tspan></text>
+<polygon points="581,121 885,121 859,179 555,179" fill="#ffffff" stroke="#3d85c6" stroke-width="2.5"/>
+<text x="720" y="142" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="720" dy="0">ensure-forms-agents-md</tspan><tspan x="720" dy="16">(bootstrap config)</tspan></text>
+<rect x="30" y="331" width="240" height="54" rx="4" fill="#ffffff" stroke="#3d85c6" stroke-width="2.5"/>
+<text x="150" y="350" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="150" dy="0">Run one Skill</tspan><tspan x="150" dy="16">directly (no leads)</tspan></text>
+<rect x="660" y="2361" width="240" height="54" rx="27" ry="27" fill="#ffffff" stroke="#e69138" stroke-width="2.5"/>
+<text x="780" y="2393" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#0b3d5c"><tspan x="780" dy="0">Escalate to User</tspan></text>
+<rect x="30" y="72" width="250" height="172" rx="6" fill="#fbfbfb" stroke="#cccccc"/>
+<text x="42" y="94" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" fill="#0b3d5c">Legend</text>
+<rect x="40" y="104" width="24" height="16" rx="8" fill="#fff" stroke="#6aa84f" stroke-width="2"/>
+<text x="74" y="116" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Terminator (start / end)</text>
+<rect x="40" y="126" width="24" height="16" fill="#fff" stroke="#3d85c6" stroke-width="2"/>
+<text x="74" y="138" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Process</text>
+<rect x="40" y="148" width="24" height="16" fill="#fff" stroke="#2a9d8f" stroke-width="2"/>
+<line x1="44" y1="148" x2="44" y2="164" stroke="#2a9d8f" stroke-width="2"/>
+<line x1="60" y1="148" x2="60" y2="164" stroke="#2a9d8f" stroke-width="2"/>
+<text x="74" y="160" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Predefined process (lead)</text>
+<polygon points="52,170 64,178 52,186 40,178" fill="#fff" stroke="#a64d4d" stroke-width="2"/>
+<text x="74" y="182" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Decision / gate</text>
+<polygon points="44,192 66,192 60,208 38,208" fill="#fff" stroke="#3d85c6" stroke-width="2"/>
+<text x="74" y="204" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Input / output</text>
+<polygon points="44,214 66,214 60,230 38,230" fill="#fff" stroke="#e69138" stroke-width="2"/>
+<text x="74" y="226" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#0b3d5c">Manual step (human)</text>
+</svg>

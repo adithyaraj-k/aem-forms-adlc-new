@@ -329,11 +329,11 @@ Do not add a redundant, narrower filter when the broader site root already cover
 
 ## Run output convention (mandatory)
 
-Write this skill's end-deliverable to the delivery's run directory under the **`assembly/`**
-SDLC-cycle subfolder (AGENTS.md → "Run output convention"), using the delivery's `{runId}`:
+Write this skill's end-deliverable to the delivery's run directory under the **`integrate/assembler/`**
+run folder (AGENTS.md → "Run output convention"), using the delivery's `{runId}`:
 
 ```
-.claude/agents/runs/{runId}/assembly/composer-embed.md
+.claude/agents/runs/{runId}/integrate/assembler/composer-embed.md
 ```
 
 Record: the page path, whether it was created or reused, the OLD `formRef` (if replaced) and the NEW

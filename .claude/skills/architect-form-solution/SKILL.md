@@ -188,7 +188,7 @@ Emit the buildable plan the Program Agent executes. Order phases by the existing
 mark parallelism, and list skipped phases with a reason. This is the artifact that drives the build.
 **Write it to the run directory** (AGENTS.md → "Run output convention") as
 `.claude/agents/runs/{YYYY-MM-DD}-{formName}/plan/solution-architecture.yaml` (the `plan/`
-SDLC-cycle subfolder; temporary/working files go to the scratchpad dir, never into `runs/`).
+run folder; temporary/working files go to the scratchpad dir, never into `runs/`).
 
 ```yaml
 solution_architecture:

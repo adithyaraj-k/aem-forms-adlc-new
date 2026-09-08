@@ -423,10 +423,10 @@ Use that to confirm e.g. a label the reference shows as "E-mail" really renders 
 
 Cypress produced the working images under `ui.tests/test-module/cypress/results/form-ui/` — those are
 intermediate working files and stay there. The **deliverable report goes in the run directory's
-`testing/` SDLC-cycle subfolder** (AGENTS.md → "Run output convention"): write ONLY
-`.claude/agents/runs/{YYYY-MM-DD}-{formName}/testing/test-form-ui-report.md`. **Do NOT copy
-`reference.png` / `actual.png` / `diff.png` (or any image) into `testing/`** — the report stays
-text-only and points to the images in the Cypress results dir. (Create the run directory + `testing/`
+`test/sentinel/` run folder** (AGENTS.md → "Run output convention"): write ONLY
+`.claude/agents/runs/{YYYY-MM-DD}-{formName}/test/sentinel/test-form-ui-report.md`. **Do NOT copy
+`reference.png` / `actual.png` / `diff.png` (or any image) into `test/sentinel/`** — the report stays
+text-only and points to the images in the Cypress results dir. (Create the run directory + `test/sentinel/`
 subfolder if they don't exist — e.g. when this skill is invoked directly rather than via the program
 agent.) Template:
 
@@ -517,8 +517,8 @@ any Critical finding stands.
 - [ ] Pixel gate evaluated against `{maxMismatchPct}` (build exit code respected — not soft-passed)
 - [ ] Vision pass done: every difference logged with a severity; labels/fields cross-checked against
       `guideContainer.model.json` (not guessed from pixels)
-- [ ] Report written to `.claude/agents/runs/{YYYY-MM-DD}-{formName}/testing/test-form-ui-report.md`
-      (text-only — NO PNGs copied into `testing/`; images stay in the Cypress results dir), with
+- [ ] Report written to `.claude/agents/runs/{YYYY-MM-DD}-{formName}/test/sentinel/test-form-ui-report.md`
+      (text-only — NO PNGs copied into `test/sentinel/`; images stay in the Cypress results dir), with
       Verdict, both result types, findings table, inventory, and a recommendation
 - [ ] Verdict reported in chat with the report path; PASS only if the gate passed AND no Critical findings
 

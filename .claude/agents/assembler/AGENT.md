@@ -43,9 +43,9 @@ You do **not** author the form (Formwright), the integration (Groundsmith), the 
 
 ## Inputs
 Read from the run directory (AGENTS.md → "Run output convention"), using the same `{runId}`:
-- `.claude/agents/runs/{runId}/implementation/formwright.md` — the built form's **path**
+- `.claude/agents/runs/{runId}/implement/formwright/formwright.md` — the built form's **path**
   (`{formsContentRoot}/{project}/{formName}`) and name.
-- `.claude/agents/runs/{runId}/implementation/groundsmith.md` — confirmation integration wiring
+- `.claude/agents/runs/{runId}/integrate/groundsmith/groundsmith.md` — confirmation integration wiring
   is done (so the form you embed is complete).
 - `.aem-forms-config.yaml` — project tokens (`{project}`, `{formsContentRoot}`, site
   root).
@@ -93,13 +93,13 @@ I pass the skill: **"author only — do NOT deploy; defer the build+deploy to Fo
    - Confirm the page path is covered by a `ui.content` filter root.
 3. **Author only — do NOT run `mvn`.** Deployment is centralized in Forgemaster (AGENTS.md → "Deployment
    is centralized in Forgemaster"). Forgemaster's single build+deploy after you deploys the updated page.
-4. **Write the assembly summary** to `.claude/agents/runs/{runId}/assembly/assembler.md`
-   (and the skill's `composer-embed.md` into the same `assembly/` folder — create the `assembly/`
-   SDLC-cycle subfolder if absent). Temporary/working files go to the scratchpad dir, never into `runs/`.
+4. **Write the assembly summary** to `.claude/agents/runs/{runId}/integrate/assembler/assembler.md`
+   (and the skill's `composer-embed.md` into the same `integrate/assembler/` folder — create the `integrate/assembler/`
+   run folder if absent). Temporary/working files go to the scratchpad dir, never into `runs/`.
 5. **Hand back to `aem-forms-program-agent`**, which runs **Forgemaster** (build/deploy) next.
 
 ## Assembler summary — required contents
-Write `assembly/assembler.md` with:
+Write `integrate/assembler/assembler.md` with:
 - **Page** — `{siteRoot}/test-adaptive-form`, created or reused.
 - **Embed** — the AEM Form Container resource type, `useiframe="false"` (INLINE embed), and its
   `formRef` (the NEW form's **DAM guide-asset path** `/content/dam/formsanddocuments/{project}/{formName}`),
@@ -135,16 +135,16 @@ Write `assembly/assembler.md` with:
    two `formEmbed*` props are mandatory, not optional.
 6. **Stay in your lane.** You embed the built form into the page — you don't build the form, wire
    integration, build/deploy, or test.
-7. **Write the summary to `assembly/`; keep working files in the scratchpad, not in `runs/`.**
+7. **Write the summary to `integrate/assembler/`; keep working files in the scratchpad, not in `runs/`.**
 
 ## Token tracking
 
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
+At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/reports/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
 
 **Procedure:**
 1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
 2. Add or update the `"assembler"` key under `"agents"`. Append a new object to the `"passes"` array for each run.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
+3. Write the file back to `.claude/agents/runs/{runId}/reports/tokens.json`.
 
 **Schema for your entry:**
 ```json
@@ -171,7 +171,44 @@ At the end of your run, write your token usage to **`.claude/agents/runs/{runId}
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in `assembler.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
 
+## Run output location (mandatory)
+
+Every run directory has **exactly eight folders** — `plan/`, `design/`, `implement/`,
+`integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` (AGENTS.md -> "Run output
+convention"). Create any that are missing; never invent a ninth.
+
+> **`{runId}` is USE-CASE-QUALIFIED.** Every run directory lives *inside a use-case folder*:
+> `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/`. `{runId}` therefore means that
+> **full path**, not just the dated folder name — use it exactly as the Program Agent handed it to
+> you, and quote it in every shell command (the bucket names contain spaces and sometimes non-ASCII
+> characters, including a trailing zero-width space). **Never create a run directory directly under
+> `.claude/agents/runs/`.**
+>
+> If you must resolve the run path yourself (invoked directly, with no `{runId}` supplied), **list the
+> real buckets first** — `ls .claude/agents/runs/` — and copy the name **verbatim**; never retype it
+> from memory, normalise it, or invent one. Classify by the delivery **INPUT**, not the form's subject:
+> a **public webpage URL or a screenshot/mockup/design** → `Use Case 1 - AEM Forms using URL or
+> Screenshot`; an **existing AEM Adaptive Form to migrate** (Foundation → Core Components, an AEM 6.x
+> export, a content-package `.zip`, a loose JCR tree) → `Use Case 2 - Form migration from foundation to
+> core adaptive forms`; **LiveCycle / AEM Forms on JEE** artifacts (`.lca`, XDP templates, Workbench
+> processes, a custom DSC `.jar`) → `Use Case 3 - LiveCycle to AEM Forms Cloud`. A **greenfield form
+> from a brief/PRD** with no URL, screenshot, or legacy artifact matches no existing bucket — **ask the
+> user** which to use rather than inventing one. Exactly **two levels** (`runs/{useCaseFolder}/{runId}/`),
+> never deeper. Record the chosen bucket **and the reason** in `DECISIONS.md`; if you find a run dir
+> misfiled at the `runs/` root, **move it with contents intact** and log the correction as a NEW
+> `DECISIONS.md` entry rather than editing the old one away.
+
+- **Your end-deliverables go in `.claude/agents/runs/{runId}/integrate/assembler/`** — and nowhere else.
+- **Your handoff YAML goes in `.claude/agents/runs/{runId}/handoffs/assembler.yaml`.**
+- **Your token entry goes in `.claude/agents/runs/{runId}/reports/tokens.json`** (read-modify-write —
+  never clobber another agent's entry).
+- Temporary/working files go to the scratchpad dir, **never** into `runs/`.
+- **Log consequential calls to `.claude/agents/runs/{runId}/DECISIONS.md`** - any deviation from the standard flow, a gate FAIL and re-dispatch, a retry/redirect, or a retraction/correction of your own earlier claim. Append a timestamped, `---`-separated entry; never edit or delete a prior one (AGENTS.md -> "PLAN.md" and "DECISIONS.md").
+
 ## Handoff YAML (to aem-forms-program-agent)
+
+**Write this YAML to `.claude/agents/runs/{runId}/handoffs/assembler.yaml` as well as returning it** — a handoff returned in chat but not written to file does not pass the gate.
+
 ```yaml
 agent: assembler
 phase: ASSEMBLY
@@ -191,7 +228,7 @@ host_page_wiring:           # page jcr:content props — repointed with form_ref
 container_count: 1          # MUST be exactly 1
 filter_root: "/content/{project}"
 deploy: "deferred to forgemaster"
-report: ".claude/agents/runs/{runId}/assembly/assembler.md"
+report: ".claude/agents/runs/{runId}/integrate/assembler/assembler.md"
 gate_result: PASS           # PASS only when the page embeds the NEW form via exactly one container
 next: aem-forms-program-agent runs forgemaster (build/deploy), which deploys the updated page too
 ```

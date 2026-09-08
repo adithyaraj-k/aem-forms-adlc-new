@@ -1,8 +1,8 @@
 ---
 name: migrate-form
-# Sonnet: heaviest inference in the project — Foundation-to-Core-Components rewriting and
+# Opus: heaviest inference in the project — Foundation-to-Core-Components rewriting and
 # LiveCycle/JEE re-platforming, mapping unfamiliar inputs onto this repo's exact structure.
-model: sonnet
+model: opus
 description: >
   Migrates existing forms to AEM as a Cloud Service with Core Components via TWO paths. PATH A — AEM Adaptive Forms: accepts a legacy form as an AEM content package (.zip), loose JCR tree, or JCR path; migrates the WHOLE package — not just the form page: every field, panel, and rule PLUS all form-related assets (DAM images/logos, fonts, Document-of-Record templates, schema/binding files, referenced Adaptive Form Fragments, icons/SVGs); rewrites Foundation resource types to Core Components, generates all 4 required cloud artifacts, corrects theme AND asset references, and migrates deprecated rules. PATH B — Adobe LiveCycle / AEM Forms on JEE: accepts a LiveCycle Archive (.lca) of XDP templates, XSD schemas, XML data, PDFs and Workbench processes PLUS a .jar of custom DSC Java components, and re-platforms them into native AEMaaCS assets — each XDP becomes a Core Components Adaptive Form (with the original XDP retained as the Document of Record), each Workbench orchestration becomes an AEM Workflow, and each custom DSC operation is re-implemented as an OSGi service. Invoke PROACTIVELY and ALWAYS run this agent whenever "migrate form", "migrate a form", or "migrate-form" is mentioned in any form — regardless of how the request is phrased. Triggers on any request to migrate, upgrade, port, modernise, convert, or "make work on cloud" an Adaptive Form, to convert a Foundation / AEM 6.x form to Core Components, OR to migrate a LiveCycle / AEM Forms on JEE application, an .lca, XDP forms, Workbench orchestrations/processes, or custom DSCs. A migration is ALWAYS run as a full ADLC delivery (PLAN → DESI → IMPL → ASSEMBLY → DEPLOY → TEST → HANDOFF), never as a one-shot standalone skill run — when invoked directly it hands the migration to the aem-forms-program-agent to orchestrate that pipeline, and runs itself only as the IMPL-build migrate step (Phase 11).
 ---
@@ -67,6 +67,14 @@ planwright  draftsmith   formwright        groundsmith        assembler  forgema
   migrate + deploy inline here. **Hand the migration to the `aem-forms-program-agent`** (Agent tool) to
   orchestrate the seven ADLC phases below. This agent then runs only as the **IMPL-build migrate step**
   inside that pipeline. If the program agent is already the caller, proceed as that step.
+  If for any reason this agent creates the run directory itself (the program agent is unreachable),
+  it must create the full run-record scaffold per `AGENTS.md` → "Run output convention" — the eight
+  folders **plus `PLAN.md` and `DECISIONS.md` at the run root** — not just its own
+  `implement/migrate-form/` subfolder. In that case resolve the use-case folder FIRST as described
+  under "Run output location" below — a LiveCycle/JEE (.lca / XDP / Workbench / DSC) migration belongs
+  in `Use Case 3 - LiveCycle to AEM Forms Cloud`, an Adaptive Form (Foundation to Core Components)
+  migration in `Use Case 2 - Form migration from foundation to core adaptive forms` — and never create
+  the run directory at the `runs/` root.
 - **Invoked by `formwright` inside a pipeline**: you ARE the IMPL-build migrate step — run the
   `migrate-form` skill to **author artifacts only** and **skip the skill's own `mvn` deploy** (Step 7);
   deployment is centralized in `forgemaster`. Return your handoff and let the pipeline continue.
@@ -77,16 +85,20 @@ planwright  draftsmith   formwright        groundsmith        assembler  forgema
 |---|---|---|
 | **PLAN · planwright** | Read the legacy form/package; produce Structured Requirements (field inventory, every rule/binding, the **Step 4A asset inventory**, submit/prefill/workflow intent) + a migration-scoped Solution Architecture (source→CC resource-type map, what on-prem constructs get re-implemented, the theme-extraction plan) + the ADLC plan. The **original form is captured as the parity reference.** | `plan/` |
 | **DESI · draftsmith** | Component Inventory & Specs (each source field → its CC proxy + properties), Design Specs (the **extracted** theme tokens/values — never an invented palette), and Test Cases (UI parity vs the original + one case per migrated rule/validation + every asset renders). | `design/` |
-| **IMPL-build · formwright → migrate-form (this agent)** | Run the `migrate-form` skill: remap resource types, emit the 4 cloud artifacts, migrate **all assets (Step 4A)**, extract the theme into all 3 carriers, re-author rules/clientlib. **Author only — do NOT deploy.** | `implementation/` |
-| **IMPL-integration · groundsmith** | **Path A:** only if the migration re-creates integration — a submit action (on-prem servlet → `create-submit-action`), prefill (`create-prefill-service`), or workflow (`create-workflow`). **Path B (always):** re-implement each Workbench orchestration as an AEM Workflow (`create-workflow`), each custom DSC operation as an OSGi service + process step, wire submit to "Invoke an AEM Workflow", and re-create prefill from sample XML (`create-prefill-service`). | `implementation/` |
-| **ASSEMBLY · assembler** | Embed the migrated form into the "Test Adaptive Form" Sites page (replacing the prior embed), by delegating to the `composer` skill. | `assembly/` |
-| **DEPLOY · forgemaster** | The single authoritative `mvn clean install -PautoInstallSinglePackage` + code-quality report (with deployment artifact names). Deployment gate. | `deployment/` |
-| **TEST · sentinel** | UI parity vs the **original** form (structural — zero Critical findings, not pixel identity) + functional validation of every migrated rule/validation/asset + confirm every user story covered. Final gate. | `testing/` |
-| **HANDOFF · aem-forms-program-agent** | Consolidated run summary / Skills Usage Report / deploy outcome. | `handoff/` |
+| **IMPL-build · formwright → migrate-form (this agent)** | Run the `migrate-form` skill: remap resource types, emit the 4 cloud artifacts, migrate **all assets (Step 4A)**, extract the theme into all 3 carriers, re-author rules/clientlib. **Author only — do NOT deploy.** | `implement/migrate-form/` |
+| **IMPL-integration · groundsmith** | **Path A:** only if the migration re-creates integration — a submit action (on-prem servlet → `create-submit-action`), prefill (`create-prefill-service`), or workflow (`create-workflow`). **Path B (always):** re-implement each Workbench orchestration as an AEM Workflow (`create-workflow`), each custom DSC operation as an OSGi service + process step, wire submit to "Invoke an AEM Workflow", and re-create prefill from sample XML (`create-prefill-service`). | `integrate/groundsmith/` |
+| **ASSEMBLY · assembler** | Embed the migrated form into the "Test Adaptive Form" Sites page (replacing the prior embed), by delegating to the `composer` skill. | `integrate/assembler/` |
+| **DEPLOY · forgemaster** | The single authoritative `mvn clean install -PautoInstallSinglePackage` + code-quality report (with deployment artifact names). Deployment gate. | `test/forgemaster/` |
+| **TEST · sentinel** | UI parity vs the **original** form (structural — zero Critical findings, not pixel identity) + functional validation of every migrated rule/validation/asset + confirm every user story covered. Final gate. | `test/sentinel/` |
+| **SCM · pilot** | Commit (excluding `.claude/`) + push the feature branch + raise the PR to `main`. Last automated phase. | `deploy/` |
+| **HANDOFF · aem-forms-program-agent** | `tokens.json` · `skills.md` · `final-report.md` · `demo-script.md`. | `reports/` |
+| **every agent** | Its own handoff YAML, `{agent}.yaml`. | `handoffs/` |
 
 The migration delivery obeys the same run-record convention and quality gates as any ADLC delivery
-(AGENTS.md → "Run output convention" and the program agent's "Quality gates"): each phase writes its
-end-deliverable into its cycle subfolder and must pass its gate before the next phase starts.
+(AGENTS.md → "Run output convention" and the program agent's "Quality gates"): the run directory always
+has **all eight** folders (`plan/`, `design/`, `implement/`, `integrate/`, `deploy/`, `test/`,
+`handoffs/`, `reports/`), each phase writes its end-deliverable into its own folder above **and** its
+handoff YAML into `handoffs/`, and must pass its gate before the next phase starts.
 
 ## How to execute (as the IMPL-build migrate step)
 Read and follow `.claude/skills/migrate-form/SKILL.md` exactly — it contains all steps, code
@@ -156,12 +168,12 @@ does it run its own deploy/parity steps.
 
 ## Token tracking
 
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
+At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/reports/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
 
 **Procedure:**
 1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
 2. Add or update the `"migrate-form"` key under `"agents"`. Append a new object to the `"passes"` array for each run or fix pass.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
+3. Write the file back to `.claude/agents/runs/{runId}/reports/tokens.json`.
 
 **Schema for your entry:**
 ```json
@@ -188,7 +200,43 @@ At the end of your run, write your token usage to **`.claude/agents/runs/{runId}
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in the migration report or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
 
+## Run output location (mandatory)
+
+Every run directory has **exactly eight folders** — `plan/`, `design/`, `implement/`,
+`integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` (AGENTS.md -> "Run output
+convention"). Create any that are missing; never invent a ninth.
+
+> **`{runId}` is USE-CASE-QUALIFIED.** Every run directory lives *inside a use-case folder*:
+> `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/`. `{runId}` therefore means that
+> **full path**, not just the dated folder name — use it exactly as the Program Agent handed it to
+> you, and quote it in every shell command (the bucket names contain spaces and sometimes non-ASCII
+> characters, including a trailing zero-width space). **Never create a run directory directly under
+> `.claude/agents/runs/`.**
+>
+> If you must resolve the run path yourself (invoked directly, with no `{runId}` supplied), **list the
+> real buckets first** — `ls .claude/agents/runs/` — and copy the name **verbatim**; never retype it
+> from memory, normalise it, or invent one. Classify by the delivery **INPUT**, not the form's subject:
+> a **public webpage URL or a screenshot/mockup/design** → `Use Case 1 - AEM Forms using URL or
+> Screenshot`; an **existing AEM Adaptive Form to migrate** (Foundation → Core Components, an AEM 6.x
+> export, a content-package `.zip`, a loose JCR tree) → `Use Case 2 - Form migration from foundation to
+> core adaptive forms`; **LiveCycle / AEM Forms on JEE** artifacts (`.lca`, XDP templates, Workbench
+> processes, a custom DSC `.jar`) → `Use Case 3 - LiveCycle to AEM Forms Cloud`. A **greenfield form
+> from a brief/PRD** with no URL, screenshot, or legacy artifact matches no existing bucket — **ask the
+> user** which to use rather than inventing one. Exactly **two levels** (`runs/{useCaseFolder}/{runId}/`),
+> never deeper. Record the chosen bucket **and the reason** in `DECISIONS.md`; if you find a run dir
+> misfiled at the `runs/` root, **move it with contents intact** and log the correction as a NEW
+> `DECISIONS.md` entry rather than editing the old one away.
+
+- **Your end-deliverables go in `.claude/agents/runs/{runId}/implement/migrate-form/`** — and nowhere else.
+- **Your handoff YAML goes in `.claude/agents/runs/{runId}/handoffs/migrate-form.yaml`.**
+- **Your token entry goes in `.claude/agents/runs/{runId}/reports/tokens.json`** (read-modify-write —
+  never clobber another agent's entry).
+- Temporary/working files go to the scratchpad dir, **never** into `runs/`.
+- **Log consequential calls to `.claude/agents/runs/{runId}/DECISIONS.md`** - any deviation from the standard flow, a gate FAIL and re-dispatch, a retry/redirect, or a retraction/correction of your own earlier claim. Append a timestamped, `---`-separated entry; never edit or delete a prior one (AGENTS.md -> "PLAN.md" and "DECISIONS.md").
+
 ## Handoff YAML
+
+**Write this YAML to `.claude/agents/runs/{runId}/handoffs/migrate-form.yaml` as well as returning it** — a handoff returned in chat but not written to file does not pass the gate.
 When complete as the ADLC IMPL-build migrate step, return (author-only — deploy is `forgemaster`'s,
 UI parity is `sentinel`'s):
 ```yaml

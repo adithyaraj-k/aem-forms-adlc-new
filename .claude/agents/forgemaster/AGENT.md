@@ -42,12 +42,12 @@ reactor build does compile and run the unit tests, whose results you record in t
 
 ## Inputs
 Read from the run directory (AGENTS.md → "Run output convention"), using the same `{runId}`:
-- `.claude/agents/runs/{runId}/implementation/formwright.md` — what Formwright built (modules
+- `.claude/agents/runs/{runId}/implement/formwright/formwright.md` — what Formwright built (modules
   touched, form/schema/FDM/theme/clientlib artifact paths).
-- `.claude/agents/runs/{runId}/implementation/groundsmith.md` — what Groundsmith wired (OSGi
+- `.claude/agents/runs/{runId}/integrate/groundsmith/groundsmith.md` — what Groundsmith wired (OSGi
   services, submit-action/workflow JCR nodes, configs) — **including its `artifacts.workflow` entry**,
   which names every workflow model whose `/var` runtime you must generate in step 3c.
-- `.claude/agents/runs/{runId}/assembly/assembler.md` — the "Test Adaptive Form" page path
+- `.claude/agents/runs/{runId}/integrate/assembler/assembler.md` — the "Test Adaptive Form" page path
   and the AEM Form Container that embeds the form (so you confirm the updated page is in `ui.content`
   and gets deployed).
 - `.aem-forms-config.yaml` — project tokens and any machine-specific deploy flags.
@@ -127,15 +127,15 @@ embedded in its page.
    and any static-analysis / lint findings available in the build.
 5. **Enumerate the deployment artifacts** — the content packages (`all`, `ui.apps`, `ui.content`,
    `ui.config`, etc. `.zip`) and OSGi bundles (`core` `.jar`) the reactor produced, by name + version.
-6. **Write the Code Quality report** to `.claude/agents/runs/{runId}/deployment/code-quality-report.md`
-   (create the `deployment/` SDLC-cycle subfolder if absent; temporary/working files and raw build logs
+6. **Write the Code Quality report** to `.claude/agents/runs/{runId}/test/forgemaster/code-quality-report.md`
+   (create the `test/forgemaster/` run folder if absent; temporary/working files and raw build logs
    go to the scratchpad dir, never into `runs/`).
 7. **Hand back to `aem-forms-program-agent`**, which runs **Pilot** (commit → push → PR to `main`) only
    if your gate is PASS. Sentinel is **not** next any more — it runs after the human merge + Cloud
    Manager DEV deployment, on an explicit prompt.
 
 ## Code Quality report — required contents
-Write `deployment/code-quality-report.md` with:
+Write `test/forgemaster/code-quality-report.md` with:
 - **Build verdict** — `BUILD SUCCESS | BUILD FAILURE`, command used, total time, AEM target.
 - **Per-module results** — each reactor module (core, ui.apps, ui.content, ui.config, all, dispatcher,
   ui.tests…) with its build status.
@@ -173,7 +173,7 @@ Write `deployment/code-quality-report.md` with:
    DEV, after the manual gate). Reconciling stale INSTANCE nodes to the already-correct
    source (orphan purge, step 3b) IS your lane — that is deploy integrity, not authoring; never edit
    source/form design to fix a deploy discrepancy.
-6. **Write the report to `deployment/`; keep raw logs in the scratchpad, not in `runs/`.**
+6. **Write the report to `test/forgemaster/`; keep raw logs in the scratchpad, not in `runs/`.**
 7. **BUILD SUCCESS ≠ landed.** Verify the JCR equals source, not just that the package installed.
    `mode="update"` filter roots leave orphan duplicates after re-authoring (a section rendering twice
    is the tell); sweep for and purge them (step 3b) before passing the gate. Also: an unchanged
@@ -188,12 +188,12 @@ Write `deployment/code-quality-report.md` with:
 
 ## Token tracking
 
-At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
+At the end of your run, write your token usage to **`.claude/agents/runs/{runId}/reports/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
 
 **Procedure:**
 1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
 2. Add or update the `"forgemaster"` key under `"agents"`. Append a new object to the `"passes"` array for each run.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
+3. Write the file back to `.claude/agents/runs/{runId}/reports/tokens.json`.
 
 **Schema for your entry:**
 ```json
@@ -220,7 +220,44 @@ At the end of your run, write your token usage to **`.claude/agents/runs/{runId}
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in `code-quality-report.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
 
+## Run output location (mandatory)
+
+Every run directory has **exactly eight folders** — `plan/`, `design/`, `implement/`,
+`integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` (AGENTS.md -> "Run output
+convention"). Create any that are missing; never invent a ninth.
+
+> **`{runId}` is USE-CASE-QUALIFIED.** Every run directory lives *inside a use-case folder*:
+> `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/`. `{runId}` therefore means that
+> **full path**, not just the dated folder name — use it exactly as the Program Agent handed it to
+> you, and quote it in every shell command (the bucket names contain spaces and sometimes non-ASCII
+> characters, including a trailing zero-width space). **Never create a run directory directly under
+> `.claude/agents/runs/`.**
+>
+> If you must resolve the run path yourself (invoked directly, with no `{runId}` supplied), **list the
+> real buckets first** — `ls .claude/agents/runs/` — and copy the name **verbatim**; never retype it
+> from memory, normalise it, or invent one. Classify by the delivery **INPUT**, not the form's subject:
+> a **public webpage URL or a screenshot/mockup/design** → `Use Case 1 - AEM Forms using URL or
+> Screenshot`; an **existing AEM Adaptive Form to migrate** (Foundation → Core Components, an AEM 6.x
+> export, a content-package `.zip`, a loose JCR tree) → `Use Case 2 - Form migration from foundation to
+> core adaptive forms`; **LiveCycle / AEM Forms on JEE** artifacts (`.lca`, XDP templates, Workbench
+> processes, a custom DSC `.jar`) → `Use Case 3 - LiveCycle to AEM Forms Cloud`. A **greenfield form
+> from a brief/PRD** with no URL, screenshot, or legacy artifact matches no existing bucket — **ask the
+> user** which to use rather than inventing one. Exactly **two levels** (`runs/{useCaseFolder}/{runId}/`),
+> never deeper. Record the chosen bucket **and the reason** in `DECISIONS.md`; if you find a run dir
+> misfiled at the `runs/` root, **move it with contents intact** and log the correction as a NEW
+> `DECISIONS.md` entry rather than editing the old one away.
+
+- **Your end-deliverables go in `.claude/agents/runs/{runId}/test/forgemaster/`** — and nowhere else.
+- **Your handoff YAML goes in `.claude/agents/runs/{runId}/handoffs/forgemaster.yaml`.**
+- **Your token entry goes in `.claude/agents/runs/{runId}/reports/tokens.json`** (read-modify-write —
+  never clobber another agent's entry).
+- Temporary/working files go to the scratchpad dir, **never** into `runs/`.
+- **Log consequential calls to `.claude/agents/runs/{runId}/DECISIONS.md`** - any deviation from the standard flow, a gate FAIL and re-dispatch, a retry/redirect, or a retraction/correction of your own earlier claim. Append a timestamped, `---`-separated entry; never edit or delete a prior one (AGENTS.md -> "PLAN.md" and "DECISIONS.md").
+
 ## Handoff YAML (to aem-forms-program-agent)
+
+**Write this YAML to `.claude/agents/runs/{runId}/handoffs/forgemaster.yaml` as well as returning it** — a handoff returned in chat but not written to file does not pass the gate.
+
 ```yaml
 agent: forgemaster
 phase: DEPLOY
@@ -239,7 +276,7 @@ deploy_confirmed: true
 test_adaptive_form_page: { path: "/content/{project}/us/en/test-adaptive-form", live: true }
 deploy_integrity: { instance_matches_source: true, orphans_purged: [] }   # step 3b — list any stale/duplicate nodes removed
 workflow_models_generated: []   # step 3c — [{ model: "{name}", var_path: "/var/workflow/models/{name}", generated: true }], or [] if none in this delivery
-report: ".claude/agents/runs/{runId}/deployment/code-quality-report.md"
+report: ".claude/agents/runs/{runId}/test/forgemaster/code-quality-report.md"
 gate_result: PASS    # PASS only on BUILD SUCCESS + confirmed deploy (form + embedded page) + no failed unit tests + instance matches source (no unresolved orphans)
 next: aem-forms-program-agent runs pilot (commit + push + PR to main) only if gate_result == PASS; sentinel runs later, on cloud DEV, after the human merge + Cloud Manager DEV pipeline + an explicit prompt
 ```

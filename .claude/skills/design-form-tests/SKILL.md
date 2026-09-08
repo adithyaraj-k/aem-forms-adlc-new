@@ -6,9 +6,11 @@ description: >
   Specifications (from design-form-components), and produces the TEST CASES — a structured, traceable
   test plan covering field validation, business rules, submit/prefill, accessibility, responsive/cross
   browser, UI parity, and performance, with each case mapped to the skill that will EXECUTE it
-  (create-form-tests for unit/integration, test-form-ui for visual, Sentinel for E2E/perf). Use as the
+  (create-form-tests for unit/integration, Sentinel's Playwright suite for visual parity + E2E/perf).
+  Use as the
   second half of the Draftsmith (DESI) phase. This skill DESIGNS test cases (the plan) — it does NOT
-  write JUnit/Selenium/Cypress code; that is create-form-tests / test-form-ui during implementation/test.
+  write JUnit/Playwright code; that is create-form-tests and Sentinel's Playwright run during
+  implementation/test.
 version: 1.0.0
 ide:
   cursor: .cursor/skills/design-form-tests/
@@ -158,7 +160,7 @@ executes_with_summary:
 - [ ] Full traceability — `uncovered_stories` AND `uncovered_acceptance_criteria` are empty; every
       user story and every acceptance criterion has ≥1 case
 - [ ] Output written to `.claude/agents/runs/{runId}/design/test-cases.yaml`; test cases (plan)
-      only, no JUnit/Selenium/Cypress code
+      only, no JUnit/Playwright code
 
 ---
 

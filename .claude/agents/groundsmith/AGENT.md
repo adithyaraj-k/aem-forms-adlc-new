@@ -46,7 +46,7 @@ Read from the run directory (AGENTS.md → "Run output convention"), using the s
   underwriter/approver receives it, DoR generated, notifications sent) you must satisfy.
 - `.claude/agents/runs/{runId}/design/component-design-spec.yaml` — the form/field names and the
   `fd:formDataRef` bindings the submit/prefill must read and write.
-- `.claude/agents/runs/{runId}/implementation/formwright.md` — what Formwright built (the form
+- `.claude/agents/runs/{runId}/implement/formwright/formwright.md` — what Formwright built (the form
   path, the FDM/schema, the guideContainer) so you wire onto real artifacts.
 
 If the form or its data foundation isn't built yet, stop and have the Program Agent run Formwright first.
@@ -93,10 +93,10 @@ changes.
 3. **Wire onto the real form** Formwright built — submit action and workflow attach to the actual
    `guideContainer`; prefill binds to the real field names / `fd:formDataRef`.
 4. **Each delegated phase writes its own run file** (`phaseNN-<skill>.md`) into the
-   `.claude/agents/runs/{runId}/implementation/` subfolder and must pass its existing quality gate
+   `.claude/agents/runs/{runId}/integrate/groundsmith/` subfolder and must pass its existing quality gate
    before you proceed (temporary/working files go to the scratchpad dir, never into `runs/`). Then
    write your consolidated integration summary to
-   `.claude/agents/runs/{runId}/implementation/groundsmith.md`.
+   `.claude/agents/runs/{runId}/integrate/groundsmith/groundsmith.md`.
 5. **Run `create-form-tests` (13) as the FINAL step — ALWAYS, before handoff.** After all Java classes
    are authored (prefill service, submit action service, any custom workflow process steps), invoke
    `create-form-tests` once, passing the full list of Java classes produced in this integration phase.
@@ -299,12 +299,12 @@ changes.
 
 ## Token tracking
 
-At the end of your run (and after each fix pass), write your token usage to **`.claude/agents/runs/{runId}/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
+At the end of your run (and after each fix pass), write your token usage to **`.claude/agents/runs/{runId}/reports/tokens.json`** — the shared token ledger for this run. All agents write to the same file; read-modify-write to preserve other agents' entries.
 
 **Procedure:**
 1. If `tokens.json` exists in the run root, read it; otherwise start with `{ "agents": {} }`.
 2. Add or update the `"groundsmith"` key under `"agents"`. Append a new object to the `"passes"` array for each initial run or fix pass.
-3. Write the file back to `.claude/agents/runs/{runId}/tokens.json`.
+3. Write the file back to `.claude/agents/runs/{runId}/reports/tokens.json`.
 
 **Schema for your entry:**
 ```json
@@ -331,7 +331,44 @@ At the end of your run (and after each fix pass), write your token usage to **`.
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in `groundsmith.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
 
+## Run output location (mandatory)
+
+Every run directory has **exactly eight folders** — `plan/`, `design/`, `implement/`,
+`integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` (AGENTS.md -> "Run output
+convention"). Create any that are missing; never invent a ninth.
+
+> **`{runId}` is USE-CASE-QUALIFIED.** Every run directory lives *inside a use-case folder*:
+> `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/`. `{runId}` therefore means that
+> **full path**, not just the dated folder name — use it exactly as the Program Agent handed it to
+> you, and quote it in every shell command (the bucket names contain spaces and sometimes non-ASCII
+> characters, including a trailing zero-width space). **Never create a run directory directly under
+> `.claude/agents/runs/`.**
+>
+> If you must resolve the run path yourself (invoked directly, with no `{runId}` supplied), **list the
+> real buckets first** — `ls .claude/agents/runs/` — and copy the name **verbatim**; never retype it
+> from memory, normalise it, or invent one. Classify by the delivery **INPUT**, not the form's subject:
+> a **public webpage URL or a screenshot/mockup/design** → `Use Case 1 - AEM Forms using URL or
+> Screenshot`; an **existing AEM Adaptive Form to migrate** (Foundation → Core Components, an AEM 6.x
+> export, a content-package `.zip`, a loose JCR tree) → `Use Case 2 - Form migration from foundation to
+> core adaptive forms`; **LiveCycle / AEM Forms on JEE** artifacts (`.lca`, XDP templates, Workbench
+> processes, a custom DSC `.jar`) → `Use Case 3 - LiveCycle to AEM Forms Cloud`. A **greenfield form
+> from a brief/PRD** with no URL, screenshot, or legacy artifact matches no existing bucket — **ask the
+> user** which to use rather than inventing one. Exactly **two levels** (`runs/{useCaseFolder}/{runId}/`),
+> never deeper. Record the chosen bucket **and the reason** in `DECISIONS.md`; if you find a run dir
+> misfiled at the `runs/` root, **move it with contents intact** and log the correction as a NEW
+> `DECISIONS.md` entry rather than editing the old one away.
+
+- **Your end-deliverables go in `.claude/agents/runs/{runId}/integrate/groundsmith/`** — and nowhere else.
+- **Your handoff YAML goes in `.claude/agents/runs/{runId}/handoffs/groundsmith.yaml`.**
+- **Your token entry goes in `.claude/agents/runs/{runId}/reports/tokens.json`** (read-modify-write —
+  never clobber another agent's entry).
+- Temporary/working files go to the scratchpad dir, **never** into `runs/`.
+- **Log consequential calls to `.claude/agents/runs/{runId}/DECISIONS.md`** - any deviation from the standard flow, a gate FAIL and re-dispatch, a retry/redirect, or a retraction/correction of your own earlier claim. Append a timestamped, `---`-separated entry; never edit or delete a prior one (AGENTS.md -> "PLAN.md" and "DECISIONS.md").
+
 ## Handoff YAML (to aem-forms-program-agent)
+
+**Write this YAML to `.claude/agents/runs/{runId}/handoffs/groundsmith.yaml` as well as returning it** — a handoff returned in chat but not written to file does not pass the gate.
+
 ```yaml
 agent: groundsmith
 phase: IMPL-integration
@@ -349,7 +386,7 @@ artifacts:
   prefill: "none | core/.../forms/prefill/{Service}.java (+ cfg.json, repoinit, mapping, DAM JSON)"
   submit_action: "apps/.../fd/af/submitactions/{action} (+ OSGi service + cfg.json)"
   workflow: "none | /conf/.../workflow/models/{model} (+ /var runtime, launcher, mail cfg, submit wiring)"
-integration_summary: ".claude/agents/runs/{runId}/implementation/groundsmith.md"
+integration_summary: ".claude/agents/runs/{runId}/integrate/groundsmith/groundsmith.md"
 gate_result: PASS
 next: aem-forms-program-agent runs forgemaster (build/deploy) → sentinel (test)
 ```

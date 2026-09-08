@@ -64,19 +64,109 @@ For a single atomic task you may invoke the matching skill directly via the Skil
 > There is no separate app folder; a form's DAM guide-asset path MUST match its `/content/forms/af`
 > path. Enforce this in every agent.
 
-3. **Create the run record directory + its SDLC-cycle subfolders** for this delivery (see AGENTS.md →
-   "Run output convention"): `.claude/agents/runs/{YYYY-MM-DD}-{formName}/` with `plan/`, `design/`,
-   `implementation/`, `assembly/`, `deployment/`, `scm/`, `testing/`, `handoff/` inside it. The date is
-   today and `{formName}` is the primary form (or the brief/program name if no single form). Call the run
-   dir `{runId}`. Every phase you delegate must write its **end-deliverable** into the subfolder for its
-   cycle (PLAN→`plan/`, DESI→`design/`, build IMPL (formwright) + integration IMPL (groundsmith)→
-   `implementation/`, ASSEMBLY (assembler)→`assembly/`, build/deploy (forgemaster)→`deployment/`,
-   SCM (pilot)→`scm/`, test (sentinel)→`testing/`, the final consolidated summary→`handoff/`), named
-   `{phase}-{skill}.{ext}`. **Temporary/internal files go to the scratchpad dir, never into `runs/`.**
+3. **Identify the USE CASE and resolve the run path — BEFORE creating any directory.** Every run
+   directory lives **inside a use-case folder**, never at the `runs/` root:
+
+   ```
+   .claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/
+   ```
+
+   **Always enumerate the real buckets first — never guess, retype from memory, or invent a name:**
+
+   ```bash
+   ls .claude/agents/runs/
+   ```
+
+   The bucket names are pre-existing and human-authored: they contain **spaces and sometimes non-ASCII
+   characters** (some carry a trailing zero-width space). Copy the name from the live listing verbatim
+   and **quote the whole path** in every command. Do not normalise, truncate, or "clean up" the name.
+
+   Classify by the **delivery INPUT**, not by the form's subject matter:
+
+   | Delivery input | Use-case bucket |
+   |---|---|
+   | A **public webpage URL** whose embedded form must be replicated, or a **screenshot / mockup / design** of a form | `Use Case 1 - AEM Forms using URL or Screenshot` |
+   | An existing **AEM Adaptive Form** to migrate — Foundation → Core Components, an AEM 6.x export, a content-package `.zip`, or a loose JCR tree | `Use Case 2 - Form migration from foundation to core adaptive forms` |
+   | **Adobe LiveCycle / AEM Forms on JEE** artifacts — an `.lca`, XDP templates, Workbench processes, a custom DSC `.jar` | `Use Case 3 - LiveCycle to AEM Forms Cloud` |
+
+   - A **greenfield form from a brief / PRD / requirement doc** (no URL, no screenshot, no legacy
+     artifact) matches no existing bucket → **ask the user** which bucket to use or whether to create a
+     new one. Never silently invent one, and never fall back to the `runs/` root.
+   - If the input matches **more than one** bucket, pick the bucket for the **primary** input — the one
+     that drives the build path — and record the choice and reason in `DECISIONS.md`.
+   - Exactly **two levels**: `runs/{useCaseFolder}/{runId}/`. No sub-buckets, no per-month folders, no
+     run dir nested inside another run dir.
+   - Log the chosen bucket **and why** as the first `DECISIONS.md` entry of the run.
+   - If a run dir already exists at the wrong level, **move it with contents intact** rather than
+     recreating it, and log the correction as a NEW `DECISIONS.md` entry (never edit away the old one).
+
+   > Everywhere below, `{runId}` means the **full use-case-qualified run path**
+   > (`{useCaseFolder}/{YYYY-MM-DD}-{formName}`), not just the dated folder name. When you pass
+   > `{runId}` to a sub-agent, pass that full path so its outputs land in the right bucket.
+
+4. **Create the run record directory + its EIGHT fixed subfolders** for this delivery (see AGENTS.md →
+   "Run output convention"), at the use-case-qualified path resolved in Step 3 —
+   `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/` — containing **exactly these
+   eight** folders — `plan/`, `design/`, `implement/`, `integrate/`, `deploy/`, `test/`, `handoffs/`,
+   `reports/`. Create **all eight every run, without exception**, even when a phase is skipped (an unused
+   folder simply stays empty). Inside `implement/`, `integrate/` and `test/`, each owning agent gets its
+   **own named subfolder**:
+
+   ```
+   .claude/agents/runs/{runId}/
+     plan/                      # planwright
+     design/                    # draftsmith
+     implement/
+       formwright/              # formwright
+       migrate-form/            # migrate-form (brownfield/LiveCycle deliveries)
+     integrate/
+       groundsmith/             # groundsmith (prefill / submit / workflow)
+       assembler/               # assembler (form embedded in the "Test Adaptive Form" page)
+     deploy/                    # pilot (commit + push + PR)
+     test/
+       forgemaster/             # forgemaster (mvn build + deploy + code-quality report)
+       sentinel/                # sentinel (cloud DEV test execution + UI parity)
+     handoffs/                  # one {agent}.yaml handoff per agent — EVERY agent writes one
+     reports/                   # tokens.json · skills.md · final-report.md · demo-script.md
+   ```
+
+   The date is today and `{formName}` is the primary form (or the brief/program name if no single form).
+   Call the run dir `{runId}`. Every phase you delegate must write its **end-deliverable** into its own
+   folder above **and** its handoff YAML into `handoffs/{agent}.yaml`.
+   **Temporary/internal files go to the scratchpad dir, never into `runs/`.**
    Pass `{runId}` to each sub-agent in the handoff so outputs land in one place.
 
    > The whole `.claude/` folder — these run records included — is **never committed**: Pilot excludes it
    > from every commit by design, so the run record stays local to the machine that produced it.
+
+5. **Create `PLAN.md` and `DECISIONS.md` at the run directory's own root** (siblings of the eight
+   folders, AGENTS.md → "`PLAN.md` and `DECISIONS.md` — mandatory run-root files"):
+   - `DECISIONS.md` — create it now, empty except for a one-line header (`# DECISIONS — {runId}`), so
+     every later agent can append to it from the start.
+   - `PLAN.md` — write it **once**, right after Step 2's execution plan is confirmed with the user (not
+     at directory-creation time, since it needs the confirmed plan). It is the plan-of-record and is
+     **never rewritten** once the delivery starts. Include:
+     - **Intake summary** — what is being delivered and why, in 2-4 sentences.
+     - **Repository/project context** — pulled from `.aem-forms-config.yaml` (project, package, forms
+       type, FDM status, theme) plus anything notable found while reading the repo.
+     - **Architecture/delivery constraint (if any)** — a fixed instruction the user dictated (e.g. "use
+       an existing template, do not create a new one," "no workflow, submit action only") stated as a
+       directive passed to every lead, not a proposal any lead re-litigates.
+     - **Stage plan** — the confirmed `adlc_execution_plan` table (phase → agent → run folder → notes),
+       identical to what was shown to the user in Step 2.
+     - **Human checkpoints anticipated** — the manual gate (merge + Cloud Manager DEV pipeline + prompt
+       Sentinel) at minimum, plus any delivery-specific approval the user asked to be consulted on.
+     - **Known gaps at kickoff** — anything already known to be missing/deferred (no reference
+       screenshot yet, FDM source undecided, etc.) — not a place to record gaps discovered later; those
+       go in `DECISIONS.md` and the final report.
+   - Append every consequential event to **`DECISIONS.md`** for the rest of the run: every human
+     checkpoint/approval, every deviation from the standard ADLC flow (with the reason and its exact
+     scope, and what it does NOT authorize), every gate FAIL + re-dispatch, every retry/redirect, every
+     retraction/correction of an earlier claim, every scope change. One `---`-separated, timestamped
+     entry per event — **append, never edit or delete** a prior entry (a correction is a NEW entry that
+     marks the old one superseded). You own the cross-cutting entries (manual-gate waits, phase gate
+     PASS/FAIL, escalations); each lead owns entries for calls it makes itself. A run with more than one
+     straight-through pass and an empty `DECISIONS.md` at close-out is a red flag — say so if you see it.
 
 ---
 
@@ -99,7 +189,7 @@ skills the leads run — they are skill invocations, not separate agents.
 | `forgemaster` (BUILD/DEPLOY lead) | `mvn clean install -PautoInstallSinglePackage` | DEPLOY — single authoritative build + deploy **to the local AEM SDK** (includes the assembler page embed); writes the code-quality report (+ deployment artifact names); runs after assembler; deployment gate |
 | `pilot` (SCM/RELEASE lead) | git (commit + push) + GitHub REST API (PR) — **no skills; `gh` is not installed** | SCM — commits everything **except `.claude/`**, pushes the current feature branch, raises the PR to `main`; runs after forgemaster; **last automated phase — then HALTS at the MANUAL GATE** |
 | ⏸ **MANUAL GATE** (human, not an agent) | — | Human merges the PR into `main`, triggers the **Cloud Manager DEV-region pipeline**, waits for the cloud DEV deployment, then explicitly prompts sentinel |
-| `sentinel` (TEST lead) | create-form-tests + test-form-ui + functional validation | TEST — tests the form on the **cloud DEV region**; verifies every user story covered + every test case passed; **starts only on an explicit human prompt** after the manual gate; final gate |
+| `sentinel` (TEST lead) | create-form-tests + Playwright (UI parity / a11y / SEO / NFR) + functional validation | TEST — tests the form on the **cloud DEV region**; verifies every user story covered + every test case passed; **starts only on an explicit human prompt** after the manual gate; final gate |
 | `migrate-form` (standalone) | migrate-form | 11 — Legacy migration (also invoked by formwright for brownfield deliveries) |
 
 ### Skill → owning lead (each skill runs inside its lead via the Skill tool — no sub-agent)
@@ -109,7 +199,7 @@ skills the leads run — they are skill invocations, not separate agents.
 | generate-schema (1) · create-editable-template (2) · create-adaptive-form (3) · create-form-rules (4) · create-form-component (5) · create-form-theme (8) · create-form-clientlib (9) · create-AdaptiveFormFragment · create-fdm | `formwright` |
 | create-submit-action (6) · create-prefill-service (7) · create-workflow (12) | `groundsmith` |
 | assembler (14) | `composer` |
-| create-form-tests (10) · test-form-ui (13) | `sentinel` |
+| create-form-tests (10) · Playwright UI parity + NFR (13, in-agent — `test-form-ui` is retired) | `sentinel` |
 | discover-form-requirements · architect-form-solution | `planwright` |
 | design-form-components · design-form-tests | `draftsmith` |
 | migrate-form (11) | `formwright` (or the standalone `migrate-form` agent) |
@@ -148,7 +238,7 @@ Phase 9  create-form-clientlib         → needs Phase 3
 Phase 10 create-form-tests             → needs Phase 6 + Phase 7 complete
 Phase 11 migrate-form                  → needs Phase 0 + Phase 2
 Phase 12 create-workflow               → needs Phase 3 (+ Phase 6 if PDF/DoR on approval)
-Phase 13 test-form-ui                   → needs the form DEPLOYED ON CLOUD DEV (Phase 3, or Phase 11
+Phase 13 Playwright UI parity (sentinel) → needs the form DEPLOYED ON CLOUD DEV (Phase 3, or Phase 11
                                           migration) — captured from the DEV publish page URL, not localhost. For a
                                           migration, reference = the ORIGINAL form; judge structural parity, not pixels
 Phase 14 assembler                       → needs Phase 3 (the built form); embeds it into the "Test Adaptive Form"
@@ -217,11 +307,11 @@ flowchart TD
     GS -- "No · re-assign (≤2×)" --> PIL
     GS -- Yes --> Man[/"⏸ MANUAL GATE (human) ·<br/>merge PR → run Cloud Manager<br/>DEV pipeline → prompt sentinel"/]
 
-    Man --> SEN[["sentinel (TEST · cloud DEV) ·<br/>create-form-tests + test-form-ui +<br/>functional validation"]]
+    Man --> SEN[["sentinel (TEST · cloud DEV) ·<br/>create-form-tests + Playwright UI/NFR +<br/>functional validation"]]
 
     SEN --> GT{"Gate TEST ·<br/>all cases pass,<br/>all stories covered?"}
     GT -- "No · re-assign (≤2×)" --> SEN
-    GT -- Yes --> Sum["Write handoff/program-summary.md<br/>(Skills Usage Report)"]
+    GT -- Yes --> Sum["Write reports/final-report.md<br/>(Skills Usage Report)"]
     Sum --> Done([End · delivery summary +<br/>deployment_ready])
 
     GP & GD & GB & GI & GA & GDep & GS & GT -. "after 2 failures" .-> Esc[/"Escalate to User ·<br/>error + recommended fix"/]
@@ -295,11 +385,11 @@ instead.
 >    before Forgemaster so the updated page is in the one deploy of record.
 > 4. **`forgemaster`** (DEPLOY) — the single authoritative `mvn clean install -PautoInstallSinglePackage`
 >    build + deploy **to the local AEM SDK** (which includes the updated page), then the code-quality
->    report (with deployment artifact names) in `deployment/`. This is the **deployment gate** — Pilot
+>    report (with deployment artifact names) in `test/forgemaster/`. This is the **deployment gate** — Pilot
 >    runs only on a confirmed, verified deploy.
 > 5. **`pilot`** (SCM) — commits every change **except anything under `.claude/`**, pushes the current
 >    feature branch to `origin`, and raises the **PR to `main`** via the GitHub REST API (`gh` is not
->    installed). Writes `scm/pilot.md`. **This is the last automated phase** — Pilot then prints the
+>    installed). Writes `deploy/pilot.md`. **This is the last automated phase** — Pilot then prints the
 >    manual runbook and the delivery pauses.
 > 6. ⏸ **MANUAL GATE (human)** — merge the PR into `main`, trigger the **Cloud Manager pipeline for the
 >    DEV region**, wait for the cloud DEV deployment, then explicitly prompt Sentinel. The Program Agent
@@ -348,6 +438,11 @@ Phase 0  │ ensure-forms-agents-md     │ Bootstrap project config
 Wait for user confirmation before executing. State up front that the run will **pause after SCM** and
 that TEST needs the human merge + Cloud Manager DEV deployment before it can start.
 
+**Once the user confirms, write `PLAN.md`** at the run directory's own root (AGENTS.md → "`PLAN.md` and
+`DECISIONS.md`") before dispatching Phase 0/PLAN — intake summary, repo/project context, any fixed
+architectural constraint, this confirmed stage table, anticipated human checkpoints, known gaps at
+kickoff. This is the plan-of-record; do not rewrite it once execution starts.
+
 ### Step 3 — Execute phase by phase
 
 For each phase, hand off to the matching **lead agent** (Agent tool) — which runs its skills via the
@@ -355,14 +450,32 @@ Skill tool — or, for a single atomic task, invoke the matching skill directly 
 - Full project tokens from `.aem-forms-config.yaml`
 - The specific task for this phase
 - All relevant outputs from prior phases
-- The `{runId}` — the phase MUST write its **end-deliverable** to the SDLC-cycle subfolder for its
-  phase: `.claude/agents/runs/{runId}/{cycle}/{phase}-{skill}.{ext}` (`{cycle}` ∈
-  `plan` / `design` / `implementation` / `assembly` / `deployment` / `testing` / `handoff`).
+- The `{runId}` — the phase MUST write its **end-deliverable** to its own folder in the run directory:
+
+  | Phase (agent) | End-deliverable folder | Handoff YAML |
+  |---|---|---|
+  | PLAN (planwright) | `plan/` | `handoffs/planwright.yaml` |
+  | DESI (draftsmith) | `design/` | `handoffs/draftsmith.yaml` |
+  | IMPL-B (formwright) | `implement/formwright/` | `handoffs/formwright.yaml` |
+  | IMPL-B (migrate-form) | `implement/migrate-form/` | `handoffs/migrate-form.yaml` |
+  | IMPL-I (groundsmith) | `integrate/groundsmith/` | `handoffs/groundsmith.yaml` |
+  | ASSEMBLY (assembler) | `integrate/assembler/` | `handoffs/assembler.yaml` |
+  | DEPLOY (forgemaster) | `test/forgemaster/` | `handoffs/forgemaster.yaml` |
+  | SCM (pilot) | `deploy/` | `handoffs/pilot.yaml` |
+  | TEST (sentinel) | `test/sentinel/` | `handoffs/sentinel.yaml` |
+  | HANDOFF (you) | `reports/` | — |
+
   Temporary/working files go to the scratchpad dir, never into `runs/`.
 
-Do not start the next phase until the current phase returns its handoff YAML, has written its
-deliverable under the correct `.claude/agents/runs/{runId}/{cycle}/` subfolder, and passes its
-quality gate.
+Do not start the next phase until the current phase returns its handoff YAML, has **written that YAML to
+`.claude/agents/runs/{runId}/handoffs/{agent}.yaml`**, has written its deliverable under its own
+subfolder above, and passes its quality gate.
+
+**After every phase gate**, append a `DECISIONS.md` entry recording the PASS/FAIL verdict in one line
+(the per-phase narrative belongs in that agent's own deliverable, not duplicated here). On a gate
+**FAIL**, log the re-dispatch as its own entry — failure reason, what changed, which agent it bounced to
+— **before** re-assigning. Log every human-facing checkpoint the same way, at the moment it happens, not
+retroactively at close-out.
 
 ### Step 3a — Stop at the manual gate (mandatory)
 
@@ -372,12 +485,16 @@ turn**. Do all of the following and then end your turn:
 1. Report Pilot's commit SHA, branch, and **PR URL**.
 2. Print the manual runbook verbatim: **merge the PR into `main`** → **run the Cloud Manager pipeline for
    the DEV region** → **wait for the cloud DEV deployment** → **prompt Sentinel explicitly**.
-3. Write an **interim** `handoff/program-summary.md` marking `TEST` as `PENDING — awaiting manual merge +
+3. Write an **interim** `reports/final-report.md` marking `TEST` as `PENDING — awaiting manual merge +
    Cloud Manager DEV deployment` and `deployment_ready: false` (cloud DEV not yet verified).
+4. Append a `DECISIONS.md` entry for this checkpoint: PR URL/commit, that the run is pausing at the
+   manual gate, and what happens next (human merge → CM DEV pipeline → explicit prompt to Sentinel).
+   When the human later provides that prompt, append a matching "manual gate cleared" entry before
+   dispatching Sentinel — record who confirmed it and the cloud DEV URLs being tested.
 
 **Do NOT** invoke Sentinel, do NOT poll GitHub for the merge, do NOT trigger the Cloud Manager pipeline,
 and do NOT report the delivery as complete. When the human later prompts for testing, run Sentinel
-(cloud DEV) and then finalise the same `program-summary.md`.
+(cloud DEV) and then finalise the same `reports/final-report.md`.
 
 ### Step 4 — Quality gates (must pass before advancing)
 
@@ -386,13 +503,13 @@ and do NOT report the delivery as complete. When the human later prompts for tes
 | 0 | `.aem-forms-config.yaml` exists with all required keys |
 | PLAN | Structured Requirements + **User Stories (each with ≥1 acceptance criterion, covering every field/rule/submit)** + Solution Architecture + Integration & NFR Strategy + ADLC execution plan all present; every requirement mapped to a real catalog skill (no `gaps`); schema-vs-FDM decided per form; user confirmed the plan |
 | DESI | Component Inventory & Specs + Design Specifications + Authoring Guideline + Test Cases all present in `runs/{runId}/design/`; every component traces to a requirement and **every test case traces to a user story + acceptance criterion** (no `gaps`; `coverage.uncovered_stories` and `coverage.uncovered_acceptance_criteria` empty — every user story & acceptance criterion has ≥1 case); custom components flagged for Phase 5; theme/template reuse-vs-build decided |
-| IMPL-B | (formwright) Data foundation built (schema OR FDM per the plan) + every build phase the plan marked needed (1/2/3/4/5/8/9/11) + fragments ran via its `create-*`/`generate-schema`/`migrate-form` agent and passed that agent's own gate; built artifacts match the DESI specs; **every build-side user story satisfied (`user_stories_unsatisfied: 0`)**; Core Component reuse maximized (custom components only where DESI flagged `source: custom`); **template reuse-first honored — formwright justified any new template (existing templates enumerated; reused one where it fits, `create-editable-template` skipped; new template ONLY with a recorded reason)**; **any Adaptive Form Fragment built passes the fragment gate — DAM asset `type="affragment"` + `affragment="1"` (NOT `formfragment`), `cq:template` is a FRAGMENT template (`afv2-fragment-page` type, `fragmentcontainer` root + `fd:type="fragment"`, NOT the form `blank-af-v2`), and NO custom-function validation lifted in without a wired clientlib — verified to open non-blank in the AF editor**; `formwright.md` in `runs/{runId}/implementation/` |
-| IMPL-I | (groundsmith) Every integration phase the plan marked needed (6 submit / 7 prefill / 12 workflow) ran and passed its gate; submit action has BOTH OSGi service AND JCR node; wired onto the real guideContainer; **every integration user story satisfied (`integration_stories_unsatisfied: 0`)**; `groundsmith.md` in `runs/{runId}/implementation/` |
-| ASSEMBLY | (assembler) The "Test Adaptive Form" page (`{siteRoot}/test-adaptive-form`) exists, reuses the project page component + template, and embeds the NEW form via **exactly one** AEM Form Container whose `formRef` = the built form's path; the **previously embedded form is replaced (not stacked)** (`container_count: 1`, old `formRef` gone); page path covered by a `ui.content` filter; **author-only (no `mvn` — deferred to Forgemaster)**; `assembler.md` in `runs/{runId}/assembly/` |
-| DEPLOY | (forgemaster) `mvn clean install -PautoInstallSinglePackage` ran with **BUILD SUCCESS** and a **confirmed deploy** to the local AEM SDK (including the updated "Test Adaptive Form" page); no failed unit tests; the **Code Quality report names every deployment artifact** (content packages + bundles, by name+version); `code-quality-report.md` in `runs/{runId}/deployment/` |
-| SCM | (pilot) A commit exists on the **current feature branch** (never `main`) containing every change **and zero files under `.claude/`** (`claude_folder_files_committed: 0`, proven with `git diff --cached --name-only`); the branch is pushed and `HEAD == origin/{branch}`; a PR is **open with `main` as the base** (created, or an existing open PR reused — never a duplicate); no force-push, no merge, no Cloud Manager trigger; `pilot.md` in `runs/{runId}/scm/` |
+| IMPL-B | (formwright) Data foundation built (schema OR FDM per the plan) + every build phase the plan marked needed (1/2/3/4/5/8/9/11) + fragments ran via its `create-*`/`generate-schema`/`migrate-form` agent and passed that agent's own gate; built artifacts match the DESI specs; **every build-side user story satisfied (`user_stories_unsatisfied: 0`)**; Core Component reuse maximized (custom components only where DESI flagged `source: custom`); **template reuse-first honored — formwright justified any new template (existing templates enumerated; reused one where it fits, `create-editable-template` skipped; new template ONLY with a recorded reason)**; **any Adaptive Form Fragment built passes the fragment gate — DAM asset `type="affragment"` + `affragment="1"` (NOT `formfragment`), `cq:template` is a FRAGMENT template (`afv2-fragment-page` type, `fragmentcontainer` root + `fd:type="fragment"`, NOT the form `blank-af-v2`), and NO custom-function validation lifted in without a wired clientlib — verified to open non-blank in the AF editor**; `formwright.md` in `runs/{runId}/implement/formwright/` |
+| IMPL-I | (groundsmith) Every integration phase the plan marked needed (6 submit / 7 prefill / 12 workflow) ran and passed its gate; submit action has BOTH OSGi service AND JCR node; wired onto the real guideContainer; **every integration user story satisfied (`integration_stories_unsatisfied: 0`)**; `groundsmith.md` in `runs/{runId}/integrate/groundsmith/` |
+| ASSEMBLY | (assembler) The "Test Adaptive Form" page (`{siteRoot}/test-adaptive-form`) exists, reuses the project page component + template, and embeds the NEW form via **exactly one** AEM Form Container whose `formRef` = the built form's path; the **previously embedded form is replaced (not stacked)** (`container_count: 1`, old `formRef` gone); page path covered by a `ui.content` filter; **author-only (no `mvn` — deferred to Forgemaster)**; `assembler.md` in `runs/{runId}/integrate/assembler/` |
+| DEPLOY | (forgemaster) `mvn clean install -PautoInstallSinglePackage` ran with **BUILD SUCCESS** and a **confirmed deploy** to the local AEM SDK (including the updated "Test Adaptive Form" page); no failed unit tests; the **Code Quality report names every deployment artifact** (content packages + bundles, by name+version); `code-quality-report.md` in `runs/{runId}/test/forgemaster/` |
+| SCM | (pilot) A commit exists on the **current feature branch** (never `main`) containing every change **and zero files under `.claude/`** (`claude_folder_files_committed: 0`, proven with `git diff --cached --name-only`); the branch is pushed and `HEAD == origin/{branch}`; a PR is **open with `main` as the base** (created, or an existing open PR reused — never a duplicate); no force-push, no merge, no Cloud Manager trigger; `pilot.md` in `runs/{runId}/deploy/` |
 | ⏸ MANUAL | (human — not a gate you can pass yourself) PR merged into `main`; the **Cloud Manager DEV-region pipeline** ran and the cloud DEV deployment succeeded; a human **explicitly prompted** Sentinel. Until all three are true, TEST stays `PENDING` |
-| TEST | (sentinel) Started on an **explicit human prompt** (`started_on: human-prompt`) with the **cloud DEV** deployment confirmed (`environment.target: cloud-dev`, DEV URLs 200 and serving the NEW form — localhost results are NOT acceptable); every DESI test case **executed** (`unexecuted_cases: 0`) and passed; **every user story covered (`uncovered_stories: 0`)**; UI parity ran (captured from the DEV publish page) with no Critical findings; functional checks (rules/validation/submit/prefill/workflow) green; `test-report.md` in `runs/{runId}/testing/` |
+| TEST | (sentinel) Started on an **explicit human prompt** (`started_on: human-prompt`) with the **cloud DEV** deployment confirmed (`environment.target: cloud-dev`, DEV URLs 200 and serving the NEW form — localhost results are NOT acceptable); every DESI test case **executed** (`unexecuted_cases: 0`) and passed; **every user story covered (`uncovered_stories: 0`)**; UI parity ran (captured from the DEV publish page) with no Critical findings; functional checks (rules/validation/submit/prefill/workflow) green; `test-report.md` in `runs/{runId}/test/sentinel/` |
 | 1 | Schema at `{schemaContentRoot}/{name}.schema.json` as `dam:Asset`, bindings present |
 | 2 | **Reuse-first honored — formwright ran the template reuse gate and did NOT fork a new template unless justified.** An existing template was enumerated/evaluated; the form reuses one that fits (`reuse:"<path>"`, `create-editable-template` skipped) OR a new template was created with a recorded reason (distinct structure / policy / new form family). Per-form theme/brand did NOT trigger a new template. Any new template uses `af-page-v2` type, no Foundation resource types |
 | 3 | All 5 form artifacts present; no Foundation types; booleans typed `{Boolean}true` |
@@ -404,16 +521,36 @@ and do NOT report the delivery as complete. When the human later prompts for tes
 | 9 | Clientlib at `/apps/clientlibs/`; functions global-scope; `== true()` not `== true` |
 | 10 | `mvn test -pl core` passes; coverage ≥ 80% on Forms service classes |
 | 11 | Zero Foundation types in output; all 4 cloud artifacts present |
-| 13 | Capture came from the **cloud DEV** publish page URL (not localhost); pixel diff ran against the reference (gate evaluated vs threshold) AND vision findings recorded; `.claude/agents/runs/{runId}/testing/test-form-ui-report.md` produced (text-only; comparison PNGs remain in the Cypress results dir, not copied into `runs/`); verdict PASS only if gate passed and no Critical findings |
+| 13 | Capture came from the **cloud DEV** publish page URL (not localhost), taken with **Playwright** at desktop 1440×900 + mobile 390×844; the vision-model diff ran against the reference and its findings are recorded; the parity captures are saved to `.claude/agents/runs/{runId}/test/sentinel/screenshots/` and the Playwright HTML report / JUnit XML are **linked** from `ui.tests/test-module/results/` (not copied); verdict PASS only if no Critical findings |
 | 14 | "Test Adaptive Form" page embeds the NEW form via exactly one AEM Form Container (`formRef` = built form path); prior embed replaced (not stacked); `{project}` used for the page component/template AND the form-path folder segment (single namespace); page covered by a `ui.content` filter |
 
 If a gate fails → re-assign to the same agent with the failure reason.
 After 2 failures → escalate to the user with specific error + recommended fix.
 
-### Step 5 — Skills Usage Report
+### Step 5 — Run reports (`reports/`)
 
-After all phases complete, produce the consolidated run summary and write it to
-`.claude/agents/runs/{runId}/handoff/program-summary.md`:
+After all phases complete, produce **all four** `reports/` artifacts. They are the run's public face —
+`reports/` must never be left partially filled.
+
+| File | What it is | Owner |
+|---|---|---|
+| `reports/tokens.json` | machine-readable token ledger — every agent read-modify-writes its own entry; you write `totals` + `program-agent` | shared |
+| `reports/skills.md` | **Skills & Specialist Usage Report** — per agent: dispatches, skills invoked, outputs produced, tokens, tool calls, duration, and honest notes on anything that could not be measured | you |
+| `reports/final-report.md` | the consolidated run summary (formerly `program-summary.md`) — the YAML block below plus a prose verdict | you |
+| `reports/demo-script.md` | auto-generated presenter walkthrough — what to show, in what order, on which URL | you |
+
+Never fabricate a token, cost, or score figure in any of these. A figure the harness did not expose is
+`null` with a `measurement_gap` note — exactly as the ledger's `measurement_gap_note` records it.
+
+Before writing `final-report.md`, **re-read `DECISIONS.md` in full** — it is the source of truth for
+every deviation, retry, retraction and human checkpoint this run had. `final-report.md` summarizes;
+`DECISIONS.md` is the detailed record it summarizes from. A run with more than one straight-through
+pass and an empty or near-empty `DECISIONS.md` is itself a finding — call it out rather than silently
+producing a clean-looking final report that doesn't match what actually happened.
+
+#### 5a — `reports/final-report.md`
+
+Write the consolidated run summary to `.claude/agents/runs/{runId}/reports/final-report.md`:
 
 ```yaml
 adlc_run:
@@ -431,7 +568,7 @@ adlc_run:
       tokens: 0
     # ... one entry per executed phase
   skipped_phases: []     # list phases not needed for this delivery
-  token_ledger: ".claude/agents/runs/{runId}/tokens.json"   # all per-agent token breakdowns are in this file
+  token_ledger: ".claude/agents/runs/{runId}/reports/tokens.json"   # all per-agent token breakdowns are in this file
   gate_summary: {phase_0: PASS, phase_1: PASS, ..., SCM: PASS, TEST: PENDING}
   scm:
     branch: "{branch}"
@@ -448,12 +585,51 @@ adlc_run:
 Write this summary **twice**: an interim version at the manual gate (TEST `PENDING`,
 `deployment_ready: false`), then the final version after Sentinel passes on cloud DEV.
 
+#### 5b — `reports/skills.md`
+
+Compile the **Skills & Specialist Usage Report** from each agent's own handoff YAML in `handoffs/` and
+its `reports/tokens.json` entry. One `##` section per agent (including agents that were **not**
+dispatched — say so and why), each covering:
+
+- **Skills:** the skills that agent actually invoked via the Skill tool (`none` is a valid, useful answer).
+- **Output:** the files it wrote, by their real run-relative path (`implement/formwright/…`,
+  `integrate/groundsmith/…`, `test/sentinel/…`).
+- **What happened:** per-dispatch narrative — what was built/wired/embedded/tested, any re-dispatch and
+  what triggered it (a failed gate, a regression, a bounced defect).
+- **Numbers:** tokens · tool calls · duration, taken from `tokens.json` — `null` where unmeasured.
+- **Honest gaps:** anything the agent could not verify (e.g. a check that did not run) stated plainly.
+
+#### 5c — `reports/demo-script.md`
+
+Auto-generate the presenter walkthrough for this delivery. Base every statement on artifacts that were
+actually verified — never on the plan's intent. Sections:
+
+1. **Status note for the presenter** — which environment the walkthrough is valid on (cloud DEV after
+   Sentinel passed; local SDK + "not yet deployed to cloud" if the run is still at the manual gate), plus
+   the PR URL and its state.
+2. **What to show** — the "Test Adaptive Form" page URL that embeds the form, then a field-by-field /
+   panel-by-panel walk in the order the form renders.
+3. **Rules & behaviour to demo live** — each show/hide, validation, calculation and cascade rule, with
+   the exact input that triggers it.
+4. **Submit / integration story** — the submit action, prefill source, and workflow (approval path,
+   who gets the task, which notification fires).
+5. **Authoring experience** — open the form in the AF editor: the template it reuses, the theme, any
+   custom component or fragment, and what an author can change without a developer.
+6. **Quality numbers to mention** — Forgemaster's build verdict + artifact names, `mvn test -pl core`
+   result/coverage, Sentinel's test-case pass count and UI-parity verdict. If a number was not
+   measured, say **"not available — do not quote a score"** rather than quoting one.
+7. **Known gaps to disclose if asked** — every open defect, skipped check, or placeholder value.
+
 ---
 
 ## Mandatory rules — enforce in every agent output
 
 | Rule | Enforcement |
 |------|-------------|
+| Run dir lives under a use-case folder | The run directory is ALWAYS `runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/` — the use case is identified from the delivery INPUT (URL/screenshot → Use Case 1; AF migration → Use Case 2; LiveCycle/JEE → Use Case 3) by listing `.claude/agents/runs/` first and copying the bucket name verbatim. Reject any run dir created directly at the `runs/` root, any invented bucket name, and any nesting deeper than two levels; move a misfiled run dir instead of recreating it and log the correction in `DECISIONS.md` |
+| Eight run folders, always | Every run directory has **exactly** `plan/`, `design/`, `implement/`, `integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` — created up front, even if a phase is skipped. Reject a deliverable written outside its owning agent's folder |
+| Every agent files a handoff | No phase is complete until `handoffs/{agent}.yaml` exists for it. A handoff returned in chat but not written to file = gate FAIL |
+| `reports/` is complete | `tokens.json` + `skills.md` + `final-report.md` + `demo-script.md` all present before the delivery is reported complete |
 | No Foundation types | Reject any `fd/af/components/...` in new code |
 | No hardcoded paths | All paths derived from `.aem-forms-config.yaml` tokens |
 | No hardcoded secrets | `$[secret:keyName]` in every `.cfg.json` |

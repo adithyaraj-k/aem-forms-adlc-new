@@ -983,7 +983,7 @@ Apply in every file you write (same as the other skills):
 - [ ] Theme: source theme tree (`.../themeLibrary/<theme>/.../theme-json`) EXHAUSTIVELY parsed and its raw values dumped; every colour + the form **border** (width/style/colour/radius) + page/form **background** copied VERBATIM (no invented/approximated palette), mapped to the `cmp-adaptiveform-*` DOM per Step 6.2, and written into ALL THREE carriers (theme.zip `theme.css`, per-form clientlib CSS with `!important`, DAM theme-json `af_*` nodes); no `/libs` or `/content` theme refs. After deploy, the served clientlib CSS and server `theme.zip` were fetched and confirmed to literally contain the extracted background/border/label values (SDK theme aggregate may stay cached — the `!important` clientlib overrides it; note it rather than guessing)
 - [ ] All namespace prefixes declared on each file's root node
 - [ ] Deployment run automatically (Step 7): AEM reachability pre-checked, `mvn clean install -PautoInstallSinglePackage` executed, BUILD SUCCESS confirmed and reported (or failure diagnosed and re-run)
-- [ ] UI parity check run (Step 8) via `test-form-ui`: migrated form URL compared against the original (screenshot or legacy URL); judged on STRUCTURAL parity (zero Critical findings — same fields/labels/order/types/sections + submit), NOT pixel identity (theme remap intentionally changes colour/spacing — pixel gate advisory); `.claude/agents/runs/{YYYY-MM-DD}-{formName}/testing/test-form-ui-report.md` produced and folded into the outcome; any Critical regression fixed and re-tested. If no original reference exists, captured the migrated form as a record and noted no baseline
+- [ ] UI parity check run (Step 8) via `test-form-ui`: migrated form URL compared against the original (screenshot or legacy URL); judged on STRUCTURAL parity (zero Critical findings — same fields/labels/order/types/sections + submit), NOT pixel identity (theme remap intentionally changes colour/spacing — pixel gate advisory); `.claude/agents/runs/{YYYY-MM-DD}-{formName}/test/sentinel/test-form-ui-report.md` produced and folded into the outcome; any Critical regression fixed and re-tested. If no original reference exists, captured the migrated form as a record and noted no baseline
 
 ---
 
@@ -1119,7 +1119,7 @@ the reference.
 >   → for the first three, fix the form XML (Steps 3–5); for theme mismatches, re-extract and re-apply
 >   (Step 6). Re-deploy + re-test until both structural and colour/border parity are clean.
 
-Fold the resulting `.claude/agents/runs/{YYYY-MM-DD}-{formName}/testing/test-form-ui-report.md` into the migration
+Fold the resulting `.claude/agents/runs/{YYYY-MM-DD}-{formName}/test/sentinel/test-form-ui-report.md` into the migration
 outcome you report to the user, listing any structural (Critical) differences AND any colour/border/background
 mismatches still to fix (the latter mean Step 6 must be re-done from source), noting only genuine
 box-model/font-rendering residuals as accepted.
@@ -1180,8 +1180,7 @@ lead. The **original XDP/PDF rendered output is the parity reference** for the T
 
 ## Step B1 — Collect inputs and unpack the `.lca`
 
-Confirm the same project tokens as Path A (`{project}`, `{appFolder}`, `{formName}`, `{formTitle}`,
-`{theme}`, `{template}`), plus:
+Confirm the same project tokens as Path A (`{project}`, `{appFolder}`, `{theme}`, `{template}`), plus:
 
 | Input | Description | Example |
 |---|---|---|
@@ -1189,6 +1188,10 @@ Confirm the same project tokens as Path A (`{project}`, `{appFolder}`, `{formNam
 | `{dscJarPath}` | The custom DSC bundle whose operations the processes call | `downloads/custom-dsc-1.2.jar` |
 | `{dscSource}` (optional) | Java source for the DSC if available (avoids decompiling) | `src/custom-dsc/` |
 | `{originalReference}` | The original form's rendered output for the Step 8 parity check — a screenshot/PDF of the XDP-rendered form | `C:\legacy\correspondence.pdf` |
+
+**`{formName}` / `{formTitle}` are NOT collected up front here.** An `.lca` commonly contains **more
+than one XDP** — do not assume a single form. Each top-level XDP found in Step B2's inventory gets its
+**own** derived `{formName}`/`{formTitle}`, decided in Step B2, not asked as a single pair now.
 
 An `.lca` is a ZIP. Unpack it to a temp location (never into the repo):
 
@@ -1229,13 +1232,31 @@ Build the **LiveCycle inventory**:
   Generator, Signature/DocAssurance, Reader Extensions, Correspondence Mgmt) — each maps to an
   **OOTB** AEMaaCS step / Document Service (Step B5.1), not custom code.
 
-Then present a **Path B migration plan** (source inventory + the target-mapping decisions from the
-table above + anything with no cloud equivalent, flagged) and get a go-ahead before writing.
+### Multiple XDPs — derive one `{formName}` per top-level XDP (mandatory)
+
+An `.lca` frequently contains **several XDPs**. Classify each one found during the inventory as either:
+- **Top-level (a real, independently-submittable form)** — gets its own `{formName}` (kebab-case its
+  own filename, or its internal `<template>` name if that is more descriptive — e.g.
+  `EmployeeTrainingRequest.xdp` → `employee-training-request`) and its own `{formTitle}`. It is migrated
+  by **repeating Steps B3, B3.5 and B4 once per top-level XDP** (see Step B3's loop note below).
+- **Fragment (referenced by one or more other XDPs, never submitted on its own)** — migrated **once**
+  as an `AdaptiveFormFragment` in Step B7, never duplicated as a standalone form per referencing parent.
+
+**Collision rule:** if two top-level XDPs would derive the **same** `{formName}`, stop and ask the user
+to disambiguate explicitly — never silently auto-suffix (`-2`, `-copy`, etc.).
+
+Then present **ONE consolidated Path B migration plan covering every top-level XDP found** — one row
+per XDP (derived `{formName}`, field count, rule count, whether any process/workflow targets it, DoR
+need) — plus the process/DSC mapping table below, and get a **single** go-ahead for the whole set
+before writing anything. Do not confirm XDPs one at a time.
 
 ## Step B3 — Reverse-engineer each XDP into a Core Components Adaptive Form (+ retain the XDP as DoR)
 
-For every XDP, produce a **Core Components Adaptive Form that is an exact replica of the original**,
-and keep the XDP itself as the Document-of-Record template so the record PDF is preserved.
+For every **top-level** XDP identified in Step B2, produce a **Core Components Adaptive Form that is
+an exact replica of the original**, and keep the XDP itself as the Document-of-Record template so the
+record PDF is preserved. **Repeat this entire step, and B3.5 and B4, once per top-level XDP** from the
+consolidated plan — do not stop after the first one. Skip any XDP Step B2 classified as a **fragment**;
+those are handled once, collectively, in Step B7 instead.
 
 1. **Derive the schema.** Feed the XDP (and its bound XSD) to **`generate-schema`** to produce the
    form data schema + FDM-ready `dataRef` bindings. Prefer the XSD when present (it is the

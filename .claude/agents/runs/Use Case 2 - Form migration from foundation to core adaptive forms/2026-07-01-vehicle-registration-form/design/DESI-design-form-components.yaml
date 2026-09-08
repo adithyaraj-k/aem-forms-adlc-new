@@ -1,0 +1,749 @@
+# DESI — Technical Design · design-form-components
+# Vehicle Registration Form · runId 2026-07-01-vehicle-registration-form
+# Produced by: Design forge (DESI) › Technical Design
+# Inputs: PLAN-discover-form-requirements.yaml, PLAN-architect-form-solution.yaml, PLAN-strategist.md,
+#         reference screenshot c:\Users\330073\Downloads\Vehicle Reg.jpg (authoritative for labels/order/layout)
+# Scope: SPECS ONLY — no .content.xml / HTL / Java / CSS. Feeds create-adaptive-form (P3),
+#        create-form-theme (P8), create-form-rules (P4), create-form-clientlib (P9).
+
+project_tokens:
+  project: aem-adaptive-forms-agents            # proxy resource-type root: {project}/components/adaptiveForm/...
+  appFolder: aem-adaptive-form-agents           # DISTINCT from project; used in DAM + forms roots
+  package: com.aem.forms.agents
+  aemVersion: cloud
+  formType: coreComponents
+  formsContentRoot: /content/forms/af
+  damContentRoot: /content/dam/formsanddocuments/aem-adaptive-form-agents
+  schemaContentRoot: /content/dam/formsanddocuments/schema
+  data_backing: json_schema                     # NO FDM, NO workflow (screenshot-only input)
+  schema_asset: /content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json
+
+# =====================================================================================
+# 1. COMPONENT INVENTORY & SPECS
+# =====================================================================================
+component_inventory_and_specs:
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      subtitle: "Please provide the following details to register your vehicle."
+      layout: single_page                       # 5 numbered panels, 3-column responsive grid
+      custom_component_count: 0                  # every field maps to a Core Component (reuse-first)
+
+      # ---- Form root container ----
+      container:
+        name: guideContainer
+        source: core_component
+        resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/container"
+        super_type: "core/fd/components/form/container/v2/container"
+        field_type: form-container
+        properties:
+          title: "VEHICLE REGISTRATION FORM"
+          themeRef: "/apps/fd/af/themes/aem-adaptive-forms-agents-vehicle-registration"
+          clientLibRef: "vehicle-registration-form-clientlib"
+          data_model: json_schema
+          schemaRef: "/content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json"
+          submit_action: "Custom-Submit-GeneratePDF"   # SHARED Document-of-Record action (reused, not per-form)
+        aria_label: "Vehicle Registration Form"
+
+      # ---- Display content (non-field visible elements from the screenshot) ----
+      display_content:
+        - name: formTitle
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/title"
+          super_type: "core/fd/components/form/title/v1/title"
+          field_type: title
+          properties: { value: "VEHICLE REGISTRATION FORM", level: 1, visible: true }
+          styling: "navy #1a2b5e, bold, centered (theme)"
+          traces_to: [AC-12.1]
+        - name: formSubtitle
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/text"
+          super_type: "core/fd/components/form/text/v1/text"
+          field_type: text-plain
+          properties: { value: "Please provide the following details to register your vehicle.", textIsRich: false }
+          styling: "muted navy/grey, left-aligned under title (theme)"
+          traces_to: [AC-12.1]
+
+      # =============================================================================
+      # PANEL 1 — OWNER DETAILS   (schema object: owner)   order 1
+      # =============================================================================
+      panels:
+        - name: ownerDetailsPanel
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/panelcontainer"
+          super_type: "core/fd/components/form/panelcontainer/v1/panelcontainer"
+          field_type: panel
+          order: 1
+          heading: "1. OWNER DETAILS"
+          heading_style: "navy #1a2b5e bold; subtle horizontal rule below panel (theme)"
+          grid: "3-column responsive"
+          data_ref: "$.owner"
+          traces_to: [AC-12.2, US-01, US-02, US-03]
+          fields:
+            - name: fullName
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Full Name"
+              order: 1
+              column: 1
+              properties: { required: true, maxLength: 100, multiline: false }
+              validation: "non-empty; max 100 chars"
+              aria_label: "Full Name"
+              data_ref: "$.owner.fullName"
+              traces_to: [AC-01.1]
+            - name: dateOfBirth
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/datepicker"
+              super_type: "core/fd/components/form/datepicker/v1/datepicker"
+              field_type: date-picker
+              label: "Date of Birth"
+              order: 2
+              column: 2
+              properties: { required: true, placeholder: "DD / MM / YYYY", displayFormat: "DD/MM/YYYY", editFormat: "DD/MM/YYYY", maxValue: "today" }
+              validation: "valid date; DD/MM/YYYY; not in the future"
+              validation_fn: "validateDateDDMMYYYY + validateDobNotFuture (clientlib P9)"
+              aria_label: "Date of Birth"
+              data_ref: "$.owner.dateOfBirth"
+              traces_to: [AC-01.2]
+            - name: gender
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/radiobutton"
+              super_type: "core/fd/components/form/radiobutton/v1/radiobutton"
+              field_type: radio-group
+              label: "Gender"
+              order: 3
+              column: 3
+              properties:
+                required: true
+                orientation: horizontal
+                enum: ["male", "female", "other"]
+                enumNames: ["Male", "Female", "Other"]
+              validation: "one option required"
+              aria_label: "Gender"
+              data_ref: "$.owner.gender"
+              note: "options via enum/enumNames — NOT <items> child nodes"
+              traces_to: [AC-01.3]
+            - name: mobileNumber
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/telephoneinput"
+              super_type: "core/fd/components/form/telephoneinput/v1/telephoneinput"
+              field_type: telephone-input
+              label: "Mobile Number"
+              order: 4
+              column: 1
+              properties: { required: true, pattern: "^[0-9]{10}$", maxLength: 10, inputMode: numeric }
+              validation: "exactly 10 digits; digits only"
+              validation_fn: "validateMobile10Digits (clientlib P9)"
+              aria_label: "Mobile Number"
+              data_ref: "$.owner.mobileNumber"
+              traces_to: [AC-02.1]
+            - name: emailAddress
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/emailinput"
+              super_type: "core/fd/components/form/emailinput/v1/emailinput"
+              field_type: email-input
+              label: "Email Address"
+              order: 5
+              column: 2
+              properties: { required: false }   # ONLY optional field in Owner Details (no asterisk in screenshot)
+              validation: "valid email format WHEN provided; blank does not block submit"
+              validation_fn: "validateEmailWhenPresent (clientlib P9)"
+              aria_label: "Email Address"
+              data_ref: "$.owner.emailAddress"
+              traces_to: [AC-02.2]
+            - name: address
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Address"
+              order: 6
+              column: 3
+              properties: { required: true, multiline: true, rows: 3 }   # multiline textarea
+              validation: "non-empty"
+              aria_label: "Address"
+              data_ref: "$.owner.address"
+              traces_to: [AC-03.1]
+            - name: city
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "City"
+              order: 7
+              column: 1
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "City"
+              data_ref: "$.owner.city"
+              traces_to: [AC-03.2]
+            - name: state
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              super_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: drop-down
+              label: "State"
+              order: 8
+              column: 2
+              properties:
+                required: true
+                placeholder: "Select"
+                selectionType: single
+                enum: ["AN","AP","AR","AS","BR","CH","CT","DN","DD","DL","GA","GJ","HR","HP","JK","JH","KA","KL","LA","LD","MP","MH","MN","ML","MZ","NL","OR","PY","PB","RJ","SK","TN","TG","TR","UP","UT","WB"]
+                enumNames: ["Andaman and Nicobar Islands","Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chandigarh","Chhattisgarh","Dadra and Nagar Haveli","Daman and Diu","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jammu and Kashmir","Jharkhand","Karnataka","Kerala","Ladakh","Lakshadweep","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Puducherry","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"]
+              validation: "one option required (not the 'Select' placeholder)"
+              aria_label: "State"
+              data_ref: "$.owner.state"
+              note: "FINALIZED enum: 28 states + 8 UTs + 1 blank 'Select' placeholder. Options via enum/enumNames — NOT <items>."
+              traces_to: [AC-03.3]
+            - name: pinCode
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/numberinput"
+              super_type: "core/fd/components/form/numberinput/v1/numberinput"
+              field_type: number-input
+              label: "PIN Code"
+              order: 9
+              column: 3
+              properties: { required: true, pattern: "^[0-9]{6}$", maxLength: 6, inputMode: numeric, leadingZerosAllowed: true }
+              validation: "exactly 6 digits; digits only"
+              validation_fn: "validatePin6Digits (clientlib P9)"
+              aria_label: "PIN Code"
+              data_ref: "$.owner.pinCode"
+              note: "PIN treated as a 6-digit string pattern (preserve leading zeros); numberinput with digit pattern per architecture."
+              traces_to: [AC-03.4]
+
+        # =============================================================================
+        # PANEL 2 — VEHICLE DETAILS   (schema object: vehicle)   order 2
+        # =============================================================================
+        - name: vehicleDetailsPanel
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/panelcontainer"
+          super_type: "core/fd/components/form/panelcontainer/v1/panelcontainer"
+          field_type: panel
+          order: 2
+          heading: "2. VEHICLE DETAILS"
+          heading_style: "navy #1a2b5e bold; subtle horizontal rule below panel (theme)"
+          grid: "3-column responsive"
+          data_ref: "$.vehicle"
+          traces_to: [AC-12.2, US-04, US-05, US-06]
+          fields:
+            - name: vehicleType
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              super_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: drop-down
+              label: "Vehicle Type"
+              order: 1
+              column: 1
+              properties:
+                required: true
+                placeholder: "Select"
+                selectionType: single
+                enum: ["twoWheeler","threeWheeler","fourWheelerCar","commercialVehicle","heavyVehicle","other"]
+                enumNames: ["Two Wheeler","Three Wheeler","Four Wheeler / Car","Commercial Vehicle","Heavy Vehicle","Other"]
+              validation: "one option required (not placeholder)"
+              aria_label: "Vehicle Type"
+              data_ref: "$.vehicle.vehicleType"
+              note: "FINALIZED enum. Options via enum/enumNames — NOT <items>."
+              traces_to: [AC-04.1]
+            - name: manufacturer
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Manufacturer"
+              order: 2
+              column: 2
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Manufacturer"
+              data_ref: "$.vehicle.manufacturer"
+              traces_to: [AC-04.2]
+            - name: model
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Model"
+              order: 3
+              column: 3
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Model"
+              data_ref: "$.vehicle.model"
+              traces_to: [AC-04.3]
+            - name: registrationNumber
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Registration Number"
+              order: 4
+              column: 1
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Registration Number"
+              data_ref: "$.vehicle.registrationNumber"
+              traces_to: [AC-05.1]
+            - name: chassisNumber
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Chassis Number"
+              order: 5
+              column: 2
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Chassis Number"
+              data_ref: "$.vehicle.chassisNumber"
+              traces_to: [AC-05.2]
+            - name: engineNumber
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Engine Number"
+              order: 6
+              column: 3
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Engine Number"
+              data_ref: "$.vehicle.engineNumber"
+              traces_to: [AC-05.3]
+            - name: fuelType
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              super_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: drop-down
+              label: "Fuel Type"
+              order: 7
+              column: 1
+              properties:
+                required: true
+                placeholder: "Select"
+                selectionType: single
+                enum: ["petrol","diesel","cng","lpg","electric","hybrid","other"]
+                enumNames: ["Petrol","Diesel","CNG","LPG","Electric","Hybrid","Other"]
+              validation: "one option required (not placeholder)"
+              aria_label: "Fuel Type"
+              data_ref: "$.vehicle.fuelType"
+              note: "FINALIZED enum. Options via enum/enumNames — NOT <items>."
+              traces_to: [AC-06.1]
+            - name: color
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Color"
+              order: 8
+              column: 2
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Color"
+              data_ref: "$.vehicle.color"
+              traces_to: [AC-06.2]
+            - name: manufacturingYear
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/dropdown"
+              super_type: "core/fd/components/form/dropdown/v1/dropdown"
+              field_type: drop-down
+              label: "Manufacturing Year"
+              order: 9
+              column: 3
+              properties:
+                required: true
+                placeholder: "Select"
+                selectionType: single
+                enum_range: "descending years, current year (2026) down to 1996 (31 entries)"
+                enum: ["2026","2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009","2008","2007","2006","2005","2004","2003","2002","2001","2000","1999","1998","1997","1996"]
+                enumNames: ["2026","2025","2024","2023","2022","2021","2020","2019","2018","2017","2016","2015","2014","2013","2012","2011","2010","2009","2008","2007","2006","2005","2004","2003","2002","2001","2000","1999","1998","1997","1996"]
+              validation: "one option required (not placeholder)"
+              aria_label: "Manufacturing Year"
+              data_ref: "$.vehicle.manufacturingYear"
+              note: "FINALIZED enum: current year down ~30 years (2026..1996). Regenerate the top of the range at build time so the current year is always first. Options via enum/enumNames — NOT <items>."
+              traces_to: [AC-06.3]
+
+        # =============================================================================
+        # PANEL 3 — INSURANCE DETAILS   (schema object: insurance)   order 3
+        # =============================================================================
+        - name: insuranceDetailsPanel
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/panelcontainer"
+          super_type: "core/fd/components/form/panelcontainer/v1/panelcontainer"
+          field_type: panel
+          order: 3
+          heading: "3. INSURANCE DETAILS"
+          heading_style: "navy #1a2b5e bold; subtle horizontal rule below panel (theme)"
+          grid: "3-column responsive"
+          data_ref: "$.insurance"
+          traces_to: [AC-12.2, US-07]
+          fields:
+            - name: insuranceCompany
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Insurance Company"
+              order: 1
+              column: 1
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Insurance Company"
+              data_ref: "$.insurance.insuranceCompany"
+              traces_to: [AC-07.1]
+            - name: policyNumber
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Policy Number"
+              order: 2
+              column: 2
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Policy Number"
+              data_ref: "$.insurance.policyNumber"
+              traces_to: [AC-07.2]
+            - name: policyValidTill
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/datepicker"
+              super_type: "core/fd/components/form/datepicker/v1/datepicker"
+              field_type: date-picker
+              label: "Policy Valid Till"
+              order: 3
+              column: 3
+              properties: { required: true, placeholder: "DD / MM / YYYY", displayFormat: "DD/MM/YYYY", editFormat: "DD/MM/YYYY" }
+              validation: "valid date; DD/MM/YYYY"
+              validation_fn: "validateDateDDMMYYYY (clientlib P9)"
+              aria_label: "Policy Valid Till"
+              data_ref: "$.insurance.policyValidTill"
+              traces_to: [AC-07.3]
+
+        # =============================================================================
+        # PANEL 4 — DOCUMENT CHECKLIST   (schema object: documents)   order 4
+        # =============================================================================
+        - name: documentChecklistPanel
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/panelcontainer"
+          super_type: "core/fd/components/form/panelcontainer/v1/panelcontainer"
+          field_type: panel
+          order: 4
+          heading: "4. DOCUMENT CHECKLIST"
+          heading_style: "navy #1a2b5e bold; subtle horizontal rule below panel (theme)"
+          grid: "single-column (checkbox group stacks vertically per screenshot)"
+          data_ref: "$.documents"
+          traces_to: [AC-12.2, US-08]
+          fields:
+            - name: documentChecklist
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/checkboxgroup"
+              super_type: "core/fd/components/form/checkboxgroup/v1/checkboxgroup"
+              field_type: checkbox-group
+              label: "Document Checklist"
+              label_visible: false        # screenshot shows the 6 options directly under the section heading, no field label
+              order: 1
+              column: full
+              properties:
+                required: false            # no asterisk on the group in the screenshot; zero-or-more allowed
+                multiSelect: true
+                orientation: vertical
+                enum: ["proofOfIdentity","proofOfAddress","vehicleInsurance","pucCertificate","roadTaxReceipt","others"]
+                enumNames: ["Proof of Identity","Proof of Address","Vehicle Insurance","Pollution Under Control (PUC) Certificate","Road Tax Receipt","Others (if any)"]
+              validation: "none (optional multi-select); stores an array of selected values"
+              aria_label: "Document Checklist"
+              data_ref: "$.documents.documentChecklist"
+              note: "MULTI-select checkbox group backed by a JSON-schema array-of-enum. Options via enum/enumNames — NOT <items>. Array binding, not a single scalar."
+              traces_to: [AC-08.1, AC-08.2, AC-08.3]
+
+        # =============================================================================
+        # PANEL 5 — DECLARATION   (schema object: declaration)   order 5
+        # =============================================================================
+        - name: declarationPanel
+          source: core_component
+          resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/panelcontainer"
+          super_type: "core/fd/components/form/panelcontainer/v1/panelcontainer"
+          field_type: panel
+          order: 5
+          heading: "5. DECLARATION"
+          heading_style: "navy #1a2b5e bold; subtle horizontal rule below panel (theme)"
+          grid: "declaration text full-width; then 3-column row for Place / Date / Signature"
+          data_ref: "$.declaration"
+          traces_to: [AC-12.2, US-09]
+          fields:
+            - name: declarationText
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/text"
+              super_type: "core/fd/components/form/text/v1/text"
+              field_type: text-plain          # AF text/plain display component (NON-input static content)
+              label: "Declaration"
+              label_visible: false
+              order: 1
+              column: full
+              properties:
+                value: "I hereby declare that the above information is true and correct to the best of my knowledge."
+                textIsRich: false
+                required: false                # display-only, not an input; carries no value binding
+              aria_label: "Declaration statement"
+              data_ref: null                   # static content — no data binding
+              note: "Static declaration statement rendered as an AF text (plain) component; not a checkbox, not an input."
+              traces_to: [AC-09.1]
+            - name: place
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Place"
+              order: 2
+              column: 1
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Place"
+              data_ref: "$.declaration.place"
+              traces_to: [AC-09.2]
+            - name: declarationDate
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/datepicker"
+              super_type: "core/fd/components/form/datepicker/v1/datepicker"
+              field_type: date-picker
+              label: "Date"
+              order: 3
+              column: 2
+              properties: { required: true, placeholder: "DD / MM / YYYY", displayFormat: "DD/MM/YYYY", editFormat: "DD/MM/YYYY" }
+              validation: "valid date; DD/MM/YYYY"
+              validation_fn: "validateDateDDMMYYYY (clientlib P9)"
+              aria_label: "Declaration Date"
+              data_ref: "$.declaration.declarationDate"
+              traces_to: [AC-09.3]
+            - name: signatureFullName
+              source: core_component
+              resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/textinput"
+              super_type: "core/fd/components/form/textinput/v1/textinput"
+              field_type: text-input
+              label: "Signature / Full Name"
+              order: 4
+              column: 3
+              properties: { required: true, multiline: false }
+              validation: "non-empty"
+              aria_label: "Signature / Full Name"
+              data_ref: "$.declaration.signatureFullName"
+              traces_to: [AC-09.4]
+
+      # =============================================================================
+      # FOOTER — actions
+      # =============================================================================
+      footer:
+        grid: "centered button row (per screenshot)"
+        buttons:
+          - name: submitButton
+            source: core_component
+            resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/button"
+            super_type: "core/fd/components/form/button/v1/button"
+            field_type: button
+            label: "Submit"
+            buttonType: submit
+            properties: { required: false }
+            styling: "navy #1a2b5e filled, white text (theme)"
+            aria_label: "Submit"
+            behaviour: "validates all required fields; blocks submit until valid; on success invokes shared Custom-Submit-GeneratePDF to generate the DoR PDF"
+            traces_to: [AC-12.4, AC-10.1, AC-10.2]
+          - name: resetButton
+            source: core_component
+            resource_type: "aem-adaptive-forms-agents/components/adaptiveForm/button"
+            super_type: "core/fd/components/form/button/v1/button"
+            field_type: button
+            label: "Reset"
+            buttonType: reset
+            properties: { required: false }
+            styling: "white/outlined navy border (theme)"
+            aria_label: "Reset"
+            behaviour: "clears all entered values; returns form to initial empty state"
+            traces_to: [AC-12.4, AC-11.1]
+
+      # ---- Field-count reconciliation ----
+      counts:
+        input_fields: 26            # 9 owner + 9 vehicle + 3 insurance + 1 checkbox group + (place, date, signature) declaration = 25 value fields + declarationText display = 26 logical entries
+        value_bound_fields: 25      # all except the static declarationText
+        required_fields: 23         # every asterisked field (email + document checklist optional; declarationText not an input)
+        optional_fields: 2          # emailAddress, documentChecklist
+        display_only: 1             # declarationText
+        dropdowns: 4                # state, vehicleType, fuelType, manufacturingYear
+        date_pickers: 3             # dateOfBirth, policyValidTill, declarationDate
+        panels: 5
+        buttons: 2                  # Submit, Reset
+        custom_components: 0
+
+# =====================================================================================
+# 2. DESIGN SPECIFICATIONS  (theme tokens, layout, responsive, accessibility)
+# =====================================================================================
+design_specifications:
+  theme:
+    decision: build                 # dedicated theme — screenshot palette is distinct from all stock themes
+    name: "aem-adaptive-forms-agents-vehicle-registration"
+    apps_theme_zip: "/apps/fd/af/themes/aem-adaptive-forms-agents-vehicle-registration/theme.zip"
+    dam_theme_json: "/content/dam/formsanddocuments/aem-adaptive-form-agents/themes/aem-adaptive-forms-agents-vehicle-registration"
+    reuse_rejected: "easel, fsi, healthcare, manufacturing, public, wknd — none match the navy/light-blue palette"
+    tokens:
+      color_heading_navy: "#1a2b5e"          # title, subtitle accents, all section headings, field labels
+      color_page_background: "#e8eef7"       # light-blue page background (approx; tune to screenshot)
+      color_field_background: "#ffffff"      # white field backgrounds
+      color_field_border: "#c9d3e6"          # light navy-grey field borders
+      color_required_asterisk: "#e02020"     # RED required asterisk
+      color_submit_bg: "#1a2b5e"             # navy filled Submit button
+      color_submit_text: "#ffffff"
+      color_reset_bg: "#ffffff"              # outlined Reset button
+      color_reset_border: "#1a2b5e"
+      color_reset_text: "#1a2b5e"
+      color_section_rule: "#c9d3e6"          # subtle horizontal rule between sections
+      font_family: "system sans-serif stack (Arial/Helvetica/Segoe UI) — matches screenshot; no external webfont supplied"
+      font_title: "bold, ~28px, centered"
+      font_section_heading: "bold, ~18px, uppercase (as authored)"
+      font_label: "~14px, semi-bold navy"
+      spacing_grid: "8px base spacing"
+      field_radius: "4px"
+      button_radius: "4px"
+    contrast_check:
+      - "navy #1a2b5e text on light-blue #e8eef7 background — well above 4.5:1 (AA body text)"
+      - "white #ffffff on navy #1a2b5e Submit button — well above 4.5:1"
+      - "red #e02020 asterisk is a supplementary marker; required state is ALSO conveyed by the field's required attribute/aria (not colour alone)"
+  layout:
+    vehicle-registration-form:
+      type: single_page             # NOT wizard/tabs/accordion — one scrolling page (matches screenshot)
+      panels: ["1. OWNER DETAILS","2. VEHICLE DETAILS","3. INSURANCE DETAILS","4. DOCUMENT CHECKLIST","5. DECLARATION"]
+      grid: "3-column responsive (each panel lays its fields left-to-right, top-to-bottom across 3 columns)"
+      column_widths: "equal thirds on desktop; the platform float grid (.aem-Grid--12 > .aem-GridColumn--default--4) — theme CSS targets the LIVE served grid, add clearfix + clear:both on full-width columns"
+      exceptions:
+        - "Address is a multiline textarea sitting in one grid column (screenshot column 3, row 2)"
+        - "Document Checklist stacks its 6 checkboxes vertically in a single full-width column"
+        - "Declaration text is full-width; Place / Date / Signally row is 3-column"
+        - "Submit + Reset are a centered button row in the footer"
+  responsive:
+    breakpoints:
+      - "mobile < 768px — single column, fields stack full-width"
+      - "tablet 768–1024px — 2 columns (optional; platform default may collapse to 1)"
+      - "desktop >= 1024px — 3 columns"
+    notes: >
+      3-column grid collapses to a single column on mobile so every field is full-width and tappable.
+      Date-picker native/overlay must remain reachable on mobile; ensure z-index/focus-within handled
+      in the theme so the calendar overlay is not clipped.
+  accessibility:
+    target: "WCAG 2.1 AA"
+    rules:
+      - "aria-label on EVERY field (all 25 value fields + the radio group + 4 dropdowns + checkbox group + 3 date pickers) — enforced in create-adaptive-form"
+      - "keyboard navigable in DOM order (owner -> vehicle -> insurance -> documents -> declaration -> Submit/Reset)"
+      - "visible focus state on inputs, dropdowns, checkboxes, radios, and buttons (theme)"
+      - "required state conveyed by attribute + aria-required, not by the red asterisk colour alone"
+      - "date fields announce DD/MM/YYYY format via placeholder + aria description"
+      - "colour contrast >= 4.5:1 for text (see contrast_check)"
+    traces_to: [AC-13.1, AC-13.2]
+  icon_assets: []                   # NONE — the screenshot is a pure text/field form; no logo, icon, or illustration present. Nothing to store as a DAM asset.
+
+# =====================================================================================
+# 3. AUTHORING GUIDELINE
+# =====================================================================================
+authoring_guideline:
+  template:
+    decision: reuse-builtin
+    ref: "af-page-v2 (create-adaptive-form built-in page/template wiring)"
+    reason: "Single one-off public form; no governed reusable template requested. create-editable-template (Phase 2) skipped."
+  allowed_components:
+    - textinput            # incl. multiline for Address
+    - datepicker
+    - radiobutton
+    - telephoneinput
+    - emailinput
+    - numberinput
+    - dropdown
+    - checkboxgroup
+    - text                 # plain display text (subtitle, declaration statement)
+    - title
+    - panelcontainer
+    - button               # submit + reset
+  disallowed_components:
+    - "Any Foundation guide resource type (fd/af/components/...) — this is a Core Components project"
+    - "captcha / recaptcha — NOT included (parity with screenshot; no CAPTCHA)"
+    - "fileinput / attachment — not in the screenshot (Document Checklist is a checkbox list, not uploads)"
+    - "custom components — 0 required"
+  content_policies:
+    - "Lock the structural panels (5 numbered sections) and their headings/order"
+    - "Lock the form title + subtitle content"
+    - "Lock the footer button set (Submit + Reset)"
+    - "Field labels, required flags, dropdown enums, and validation are authored per this spec — do not add/remove fields"
+    - "guideContainer bound to the JSON Schema; each field's Bind Reference is the JSONPath in this spec"
+  fragments:
+    needed: false
+    reason: "Single form; no section reused across other forms. create-AdaptiveFormFragment skipped."
+  dos:
+    - "Provide choice options via enum/enumNames arrays (State, Vehicle Type, Fuel Type, Manufacturing Year, Document Checklist, Gender) — NEVER <items> child nodes (they render empty in Core Components)"
+    - "Set aria-label on every field"
+    - "Bind Document Checklist to a schema array-of-enum (multi-select) — checkboxgroup, not repeatable panel"
+    - "Author all validations via the Rule Editor as fd:rules AST attributes on field nodes, backed by the clientlib functions"
+    - "Use the shared Custom-Submit-GeneratePDF action for submit — do not scaffold a per-form PDF action"
+    - "Render the declaration as an AF text (plain) display component — not a checkbox/consent field"
+    - "Regenerate the Manufacturing Year top-of-range at build time so the current year is first"
+  donts:
+    - "Do not add CAPTCHA (screenshot parity) unless the business later approves it"
+    - "Do not add FDM, prefill, or workflow — JSON Schema + PDF-on-submit only"
+    - "Do not improvise <validate> child nodes or inline fd:click='fn()' — use full EVENT_SCRIPTS/validation AST"
+    - "Do not hardcode /content/forms/af paths in code — use config tokens"
+    - "Do not make Email Address or Document Checklist required (they are optional per the screenshot)"
+
+# =====================================================================================
+# TRACEABILITY  (every component -> requirement/AC)
+# =====================================================================================
+traceability:
+  - { requirement: "Full Name (required text, max 100)", component: fullName, ac: AC-01.1, story: US-01 }
+  - { requirement: "Date of Birth (required date DD/MM/YYYY, not future)", component: dateOfBirth, ac: AC-01.2, story: US-01 }
+  - { requirement: "Gender (required radio Male/Female/Other)", component: gender, ac: AC-01.3, story: US-01 }
+  - { requirement: "Mobile Number (required, 10 digits)", component: mobileNumber, ac: AC-02.1, story: US-02 }
+  - { requirement: "Email Address (optional, valid when provided)", component: emailAddress, ac: AC-02.2, story: US-02 }
+  - { requirement: "Address (required multiline)", component: address, ac: AC-03.1, story: US-03 }
+  - { requirement: "City (required text)", component: city, ac: AC-03.2, story: US-03 }
+  - { requirement: "State (required dropdown, 'Select' placeholder)", component: state, ac: AC-03.3, story: US-03 }
+  - { requirement: "PIN Code (required, 6 digits)", component: pinCode, ac: AC-03.4, story: US-03 }
+  - { requirement: "Vehicle Type (required dropdown)", component: vehicleType, ac: AC-04.1, story: US-04 }
+  - { requirement: "Manufacturer (required text)", component: manufacturer, ac: AC-04.2, story: US-04 }
+  - { requirement: "Model (required text)", component: model, ac: AC-04.3, story: US-04 }
+  - { requirement: "Registration Number (required text)", component: registrationNumber, ac: AC-05.1, story: US-05 }
+  - { requirement: "Chassis Number (required text)", component: chassisNumber, ac: AC-05.2, story: US-05 }
+  - { requirement: "Engine Number (required text)", component: engineNumber, ac: AC-05.3, story: US-05 }
+  - { requirement: "Fuel Type (required dropdown)", component: fuelType, ac: AC-06.1, story: US-06 }
+  - { requirement: "Color (required text)", component: color, ac: AC-06.2, story: US-06 }
+  - { requirement: "Manufacturing Year (required dropdown, descending years)", component: manufacturingYear, ac: AC-06.3, story: US-06 }
+  - { requirement: "Insurance Company (required text)", component: insuranceCompany, ac: AC-07.1, story: US-07 }
+  - { requirement: "Policy Number (required text)", component: policyNumber, ac: AC-07.2, story: US-07 }
+  - { requirement: "Policy Valid Till (required date DD/MM/YYYY)", component: policyValidTill, ac: AC-07.3, story: US-07 }
+  - { requirement: "Document Checklist (optional multi-select, 6 options)", component: documentChecklist, ac: [AC-08.1, AC-08.2, AC-08.3], story: US-08 }
+  - { requirement: "Declaration static text displayed", component: declarationText, ac: AC-09.1, story: US-09 }
+  - { requirement: "Place (required text)", component: place, ac: AC-09.2, story: US-09 }
+  - { requirement: "Date (required date DD/MM/YYYY)", component: declarationDate, ac: AC-09.3, story: US-09 }
+  - { requirement: "Signature / Full Name (required text)", component: signatureFullName, ac: AC-09.4, story: US-09 }
+  - { requirement: "Submit blocked until valid; PDF DoR on submit", component: submitButton, ac: [AC-10.1, AC-10.2], story: US-10 }
+  - { requirement: "Reset clears the form", component: resetButton, ac: AC-11.1, story: US-11 }
+  - { requirement: "Title + subtitle displayed", component: [formTitle, formSubtitle], ac: AC-12.1, story: US-12 }
+  - { requirement: "Five numbered section headings", component: [ownerDetailsPanel, vehicleDetailsPanel, insuranceDetailsPanel, documentChecklistPanel, declarationPanel], ac: AC-12.2, story: US-12 }
+  - { requirement: "3-column grid + red asterisks", component: "theme + all panels", ac: AC-12.3, story: US-12 }
+  - { requirement: "Submit + Reset in footer", component: [submitButton, resetButton], ac: AC-12.4, story: US-12 }
+  - { requirement: "aria-label on every field; WCAG 2.1 AA", component: "all fields + theme", ac: [AC-13.1, AC-13.2], story: US-13 }
+
+# =====================================================================================
+# MAPS TO BUILD SKILLS
+# =====================================================================================
+maps_to_build_skills:
+  - { artifact: "JSON Schema (5 objects: owner/vehicle/insurance/documents/declaration; ~25 typed props + array-of-enum for checklist)", skill: generate-schema, phase: 1 }
+  - { artifact: "form page + DAM guide asset + conf context + filter + validation clientlib scaffold; 5 panels, 3-col grid, 26 fields, title/subtitle/headings, declaration text, Submit/Reset, aria-labels", skill: create-adaptive-form, phase: 3 }
+  - { artifact: "fd:rules validation AST (mobile 10-digit, PIN 6-digit, email-when-present, DOB not-future, 3 dates DD/MM/YYYY, required-blocks-submit)", skill: create-form-rules, phase: 4 }
+  - { artifact: "wire form to SHARED Custom-Submit-GeneratePDF (DoR PDF)", skill: create-submit-action, phase: 6, note: "reuse shared action; do NOT scaffold per-form" }
+  - { artifact: "dedicated theme aem-adaptive-forms-agents-vehicle-registration (apps theme.zip + DAM theme-json)", skill: create-form-theme, phase: 8 }
+  - { artifact: "vehicle-registration-form-clientlib: 5 validation fns + Rule-Editor custom fns (js.txt manifest)", skill: create-form-clientlib, phase: 9 }
+  - { artifact: "editable template", skill: create-editable-template, phase: 2, note: "SKIP — reuse built-in af-page-v2" }
+  - { artifact: "custom component", skill: create-form-component, phase: 5, note: "SKIP — 0 custom components" }
+  - { artifact: "prefill service", skill: create-prefill-service, phase: 7, note: "SKIP — no source of truth" }
+  - { artifact: "workflow", skill: create-workflow, phase: 12, note: "SKIP — no approval/routing" }
+  - { artifact: "fragment", skill: create-AdaptiveFormFragment, note: "SKIP — no shared section" }
+
+gaps: []                            # every component traces to a requirement; all enums finalized; no missing UX/brand input (screenshot authoritative)
+
+custom_component_count: 0

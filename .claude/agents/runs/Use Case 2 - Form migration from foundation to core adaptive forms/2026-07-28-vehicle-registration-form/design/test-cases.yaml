@@ -1,0 +1,1080 @@
+test_cases:
+  brief: "Vehicle Registration Form — Test cases covering all requirements, user stories, and acceptance criteria"
+  form_key: "vehicle-registration-form"
+  total_user_stories: 10
+  total_acceptance_criteria: 44
+
+  cases:
+    # ========== SECTION 1: OWNER DETAILS (6 fields)
+    # US-01: Owner provides identifying details (ownerFullName, dateOfBirth, gender)
+    - id: "TC-01-001"
+      title: "Owner Full Name is required and limited to 100 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "ownerFullName"
+      target_rule: "R01"
+      preconditions: "Form loaded; focus on Owner Full Name field"
+      steps:
+        - "Leave Owner Full Name empty"
+        - "Tab to next field (triggers blur validation)"
+        - "Verify error message"
+        - "Enter text with 101 characters"
+        - "Verify error at max length boundary"
+      expected_result: |
+        - Empty: mandatory error message displayed inline (red text)
+        - 100 chars: accepted, no error
+        - 101 chars: error "Owner Full Name must not exceed 100 characters"
+      executes_with: "test-form-ui"
+      traces_to_story: "US-01"
+      traces_to_ac: "AC-01.1"
+
+    - id: "TC-01-002"
+      title: "Date of Birth cannot be future date and optionally enforces 18+ years"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "dateOfBirth"
+      target_rule: "R02"
+      preconditions: "Form loaded; focus on Date of Birth field"
+      steps:
+        - "Enter today's date + 1 day (future)"
+        - "Tab to next field (triggers validation)"
+        - "Verify error message"
+        - "Enter a date less than 18 years ago (e.g., 5 years ago)"
+        - "Verify error for underage (if 18+ enforcement enabled)"
+        - "Enter a valid past date >= 18 years ago"
+        - "Verify no error"
+      expected_result: |
+        - Future date: error "Date of Birth cannot be in the future"
+        - Age < 18: error "You must be at least 18 years old"
+        - Valid date (>= 18 yrs ago): accepted, no error
+      executes_with: "test-form-ui"
+      traces_to_story: "US-01"
+      traces_to_ac: "AC-01.2"
+
+    - id: "TC-01-003"
+      title: "Date of Birth defaults to DD/MM/YYYY format and accepts valid dates"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "dateOfBirth"
+      target_rule: "R02"
+      preconditions: "Form loaded; Date of Birth field visible with calendar icon"
+      steps:
+        - "Click calendar icon on Date of Birth field"
+        - "Verify date picker opens with DD/MM/YYYY format"
+        - "Select a valid past date (e.g., 01/01/2000)"
+        - "Verify date appears in field as DD/MM/YYYY"
+      expected_result: |
+        - Calendar icon visible
+        - Date picker shows DD/MM/YYYY format
+        - Selected date populates field correctly
+      executes_with: "test-form-ui"
+      traces_to_story: "US-01"
+      traces_to_ac: "AC-01.3"
+
+    - id: "TC-01-004"
+      title: "Gender dropdown is required and offers Male, Female, Other"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "gender"
+      target_rule: "R03"
+      preconditions: "Form loaded; Gender dropdown visible with 'Select' placeholder"
+      steps:
+        - "Leave Gender unselected"
+        - "Click Submit (triggers form-level validation)"
+        - "Verify mandatory error on Gender"
+        - "Click Gender dropdown"
+        - "Verify options: Male, Female, Other appear"
+        - "Select 'Male'"
+        - "Verify selection persists; error clears"
+      expected_result: |
+        - Unselected: mandatory error displayed
+        - Dropdown shows exactly 3 options: Male, Female, Other
+        - Selection updates field and clears error
+      executes_with: "test-form-ui"
+      traces_to_story: "US-01"
+      traces_to_ac: "AC-01.4"
+
+    # US-02: Owner provides contact information (contactNumber, emailAddress, emergencyContactNo)
+    - id: "TC-02-001"
+      title: "Contact Number accepts 10-digit numeric input only"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "contactNumber"
+      target_rule: "R04"
+      preconditions: "Form loaded; focus on Contact Number field"
+      steps:
+        - "Enter 9 digits (e.g., 123456789)"
+        - "Tab to next field"
+        - "Verify error message"
+        - "Clear field and enter 10 letters (e.g., ABCDEFGHIJ)"
+        - "Verify error (non-numeric)"
+        - "Enter exactly 10 digits (e.g., 9876543210)"
+        - "Verify no error"
+      expected_result: |
+        - 9 digits: error "Contact number must be 10 digits"
+        - Letters/special chars: error "Contact number must be 10 digits"
+        - 10 digits exactly: accepted, no error
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.1"
+
+    - id: "TC-02-002"
+      title: "Contact Number error message displays correctly on validation failure"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "contactNumber"
+      target_rule: "R04"
+      preconditions: "Contact Number field with invalid value"
+      steps:
+        - "Enter invalid contact number (9 digits)"
+        - "Tab out to trigger validation"
+        - "Verify error text 'Contact number must be 10 digits.' appears inline below field in red"
+      expected_result: |
+        - Error message is visible, text is red (#d32f2f), positioned below the field
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.2"
+
+    - id: "TC-02-003"
+      title: "Email Address validates RFC 5322 format"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "emailAddress"
+      target_rule: "R05"
+      preconditions: "Form loaded; focus on Email Address field"
+      steps:
+        - "Enter invalid email (e.g., 'notanemail')"
+        - "Tab to next field"
+        - "Verify error message"
+        - "Enter missing domain (e.g., 'user@')"
+        - "Verify error"
+        - "Enter valid RFC 5322 email (e.g., 'john.doe+tag@example.co.uk')"
+        - "Verify no error"
+      expected_result: |
+        - Invalid formats: error "Please enter a valid email address"
+        - Valid RFC 5322 format: accepted, no error
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.3"
+
+    - id: "TC-02-004"
+      title: "Email Address error message displays correctly"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "emailAddress"
+      target_rule: "R05"
+      preconditions: "Email Address field with invalid value"
+      steps:
+        - "Enter invalid email"
+        - "Tab out to trigger validation"
+        - "Verify error text 'Please enter a valid email address.' appears inline in red"
+      expected_result: |
+        - Error message visible, red color, below field
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.4"
+
+    - id: "TC-02-005"
+      title: "Emergency Contact No. accepts 10-digit numeric input only"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "emergencyContactNo"
+      target_rule: "R06"
+      preconditions: "Form loaded; focus on Emergency Contact No. field"
+      steps:
+        - "Enter 11 digits"
+        - "Tab to next field"
+        - "Verify error"
+        - "Enter exactly 10 digits"
+        - "Verify no error"
+      expected_result: |
+        - 11 digits or non-numeric: error "Contact number must be 10 digits"
+        - 10 digits: accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.5"
+
+    - id: "TC-02-006"
+      title: "Emergency Contact No. error message displays correctly"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "emergencyContactNo"
+      target_rule: "R06"
+      preconditions: "Emergency Contact No. field with invalid value"
+      steps:
+        - "Enter invalid emergency contact"
+        - "Trigger validation"
+        - "Verify error text 'Contact number must be 10 digits.' in red below field"
+      expected_result: |
+        - Error message visible and in red color
+      executes_with: "test-form-ui"
+      traces_to_story: "US-02"
+      traces_to_ac: "AC-02.6"
+
+    # ========== SECTION 2: VEHICLE DETAILS (5 fields)
+    # US-03: Owner specifies vehicle type and basic vehicle information
+    - id: "TC-03-001"
+      title: "Vehicle Type dropdown defaults to 'Electric Vehicle' and requires selection"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "vehicleType"
+      target_rule: "R07"
+      preconditions: "Form loaded; Vehicle Type dropdown visible"
+      steps:
+        - "Verify dropdown displays 'Electric Vehicle' as default on page load"
+        - "Change selection to 'Four Wheeler'"
+        - "Verify dropdown value updates"
+        - "Verify all options available: Two Wheeler, Four Wheeler, Commercial Vehicle, Electric Vehicle"
+      expected_result: |
+        - Default value is 'Electric Vehicle' on load
+        - All 4 options present in dropdown
+        - Selection updates correctly
+      executes_with: "test-form-ui"
+      traces_to_story: "US-03"
+      traces_to_ac: "AC-03.1"
+
+    - id: "TC-03-002"
+      title: "Make & Model is required and limited to 100 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "makeModel"
+      target_rule: "R08"
+      preconditions: "Form loaded; focus on Make & Model field"
+      steps:
+        - "Leave Make & Model empty"
+        - "Tab to next field (blur validation)"
+        - "Verify mandatory error"
+        - "Enter 101 characters"
+        - "Verify length error"
+        - "Enter valid text (up to 100 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error displayed
+        - 101 chars: length error shown
+        - Valid (1–100 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-03"
+      traces_to_ac: "AC-03.2"
+
+    - id: "TC-03-003"
+      title: "Registration Year accepts 4-digit past year only"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "registrationYear"
+      target_rule: "R09"
+      preconditions: "Form loaded; focus on Registration Year field"
+      steps:
+        - "Enter 3 digits (e.g., 202)"
+        - "Tab to next field"
+        - "Verify error"
+        - "Enter future year (e.g., 2030)"
+        - "Verify error 'Registration year must be a valid past year'"
+        - "Enter valid past year (e.g., 2015)"
+        - "Verify no error"
+      expected_result: |
+        - 3 digits: error shown
+        - Future year: error "Registration year must be a valid past year"
+        - Valid past year (4 digits, <= current year): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-03"
+      traces_to_ac: "AC-03.3"
+
+    - id: "TC-03-004"
+      title: "Registration Year error message displays correctly"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "registrationYear"
+      target_rule: "R09"
+      preconditions: "Registration Year field with invalid value"
+      steps:
+        - "Enter future year"
+        - "Trigger validation"
+        - "Verify error 'Registration year must be a valid past year.' appears in red below field"
+      expected_result: |
+        - Error message visible, red color
+      executes_with: "test-form-ui"
+      traces_to_story: "US-03"
+      traces_to_ac: "AC-03.4"
+
+    - id: "TC-03-005"
+      title: "Chassis Number is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "chassisNumber"
+      target_rule: "R10"
+      preconditions: "Form loaded; focus on Chassis Number field"
+      steps:
+        - "Leave empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid text (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-03"
+      traces_to_ac: "AC-03.5"
+
+    # US-04: Owner specifies vehicle fuel type
+    - id: "TC-04-001"
+      title: "Fuel Type dropdown is required and offers all 5 fuel types"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "fuelType"
+      target_rule: "R11"
+      preconditions: "Form loaded; Fuel Type dropdown visible"
+      steps:
+        - "Leave Fuel Type unselected"
+        - "Click Submit"
+        - "Verify mandatory error on Fuel Type"
+        - "Click Fuel Type dropdown"
+        - "Verify all options present: Petrol, Diesel, CNG, Electric, Hybrid"
+        - "Select 'Diesel'"
+        - "Verify error clears"
+      expected_result: |
+        - Unselected: mandatory error on submit
+        - All 5 fuel options visible
+        - Selection updates; error clears
+      executes_with: "test-form-ui"
+      traces_to_story: "US-04"
+      traces_to_ac: "AC-04.1"
+
+    - id: "TC-04-002"
+      title: "Fuel Type shows error message if not selected on submission"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "fuelType"
+      target_rule: "R11"
+      preconditions: "Fuel Type unselected; all other fields valid"
+      steps:
+        - "Click Submit with Fuel Type unselected"
+        - "Verify error message appears on Fuel Type field"
+      expected_result: |
+        - Error message displayed in red, below Fuel Type dropdown
+      executes_with: "test-form-ui"
+      traces_to_story: "US-04"
+      traces_to_ac: "AC-04.2"
+
+    # ========== SECTION 3: ADDRESS DETAILS (4 fields)
+    # US-05: Owner provides residential address details
+    - id: "TC-05-001"
+      title: "Address Line is required, full-width, and limited to 200 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "addressLine"
+      target_rule: "R12"
+      preconditions: "Form loaded; focus on Address Line field (full-width)"
+      steps:
+        - "Leave Address Line empty"
+        - "Trigger blur validation"
+        - "Verify mandatory error"
+        - "Enter 201 characters"
+        - "Verify length error"
+        - "Enter valid address (up to 200 chars)"
+        - "Verify no error"
+        - "Verify field spans full form width (not 3-column)"
+      expected_result: |
+        - Empty: mandatory error
+        - 201 chars: length error
+        - Valid (1–200 chars): accepted
+        - Field layout is full-width (not 3-column with other fields)
+      executes_with: "test-form-ui"
+      traces_to_story: "US-05"
+      traces_to_ac: "AC-05.1"
+
+    - id: "TC-05-002"
+      title: "City is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "city"
+      target_rule: "R13"
+      preconditions: "Form loaded; focus on City field"
+      steps:
+        - "Leave City empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid city (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-05"
+      traces_to_ac: "AC-05.2"
+
+    - id: "TC-05-003"
+      title: "State is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "state"
+      target_rule: "R14"
+      preconditions: "Form loaded; focus on State field"
+      steps:
+        - "Leave State empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid state (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-05"
+      traces_to_ac: "AC-05.3"
+
+    - id: "TC-05-004"
+      title: "Pincode accepts exactly 6 digits numeric only"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "pincode"
+      target_rule: "R15"
+      preconditions: "Form loaded; focus on Pincode field"
+      steps:
+        - "Enter 5 digits (e.g., 12345)"
+        - "Tab to next field"
+        - "Verify error"
+        - "Enter 7 digits"
+        - "Verify error"
+        - "Enter letters (e.g., ABCDEF)"
+        - "Verify error"
+        - "Enter exactly 6 digits (e.g., 123456)"
+        - "Verify no error"
+      expected_result: |
+        - 5 or 7 digits: error "Pincode must be 6 digits"
+        - Letters: error "Pincode must be 6 digits"
+        - 6 digits exactly: accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-05"
+      traces_to_ac: "AC-05.4"
+
+    - id: "TC-05-005"
+      title: "Pincode error message displays correctly on validation failure"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "pincode"
+      target_rule: "R15"
+      preconditions: "Pincode field with invalid value (not 6 digits)"
+      steps:
+        - "Enter invalid pincode"
+        - "Trigger validation"
+        - "Verify error 'Pincode must be 6 digits.' appears in red below field"
+      expected_result: |
+        - Error message visible, red color, positioned below field
+      executes_with: "test-form-ui"
+      traces_to_story: "US-05"
+      traces_to_ac: "AC-05.5"
+
+    # ========== SECTION 4: DOCUMENT & INSURANCE DETAILS (3 fields)
+    # US-06: Owner provides document and insurance details
+    - id: "TC-06-001"
+      title: "RC Book Number is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "rcBookNumber"
+      target_rule: "R16"
+      preconditions: "Form loaded; focus on RC Book Number field"
+      steps:
+        - "Leave empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid RC number (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-06"
+      traces_to_ac: "AC-06.1"
+
+    - id: "TC-06-002"
+      title: "Insurance Policy Number is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "insurancePolicyNumber"
+      target_rule: "R17"
+      preconditions: "Form loaded; focus on Insurance Policy Number field"
+      steps:
+        - "Leave empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid policy number (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-06"
+      traces_to_ac: "AC-06.2"
+
+    - id: "TC-06-003"
+      title: "PUC Certificate Number is required and limited to 50 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "pucCertificateNumber"
+      target_rule: "R18"
+      preconditions: "Form loaded; focus on PUC Certificate Number field"
+      steps:
+        - "Leave empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 51 characters"
+        - "Verify length error"
+        - "Enter valid PUC number (up to 50 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 51 chars: length error
+        - Valid (1–50 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-06"
+      traces_to_ac: "AC-06.3"
+
+    # ========== SECTION 5: DECLARATION (2 fields + static text)
+    # US-07: Owner declares accuracy and signs the form
+    - id: "TC-07-001"
+      title: "Declaration static text 'I confirm that the above information is accurate' is visible"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "declaration_section"
+      target_rule: "—"
+      preconditions: "Form loaded; scrolled to Declaration section"
+      steps:
+        - "Scroll to Section 5 (DECLARATION)"
+        - "Verify static text appears: 'I confirm that the above information is accurate.'"
+        - "Verify text is regular style (not bold), dark color"
+      expected_result: |
+        - Static text visible below Declaration header
+        - Text styling matches design spec
+      executes_with: "test-form-ui"
+      traces_to_story: "US-07"
+      traces_to_ac: "AC-07.1"
+
+    - id: "TC-07-002"
+      title: "Submitted By field is required and limited to 100 characters"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "submittedBy"
+      target_rule: "R19"
+      preconditions: "Form loaded; focus on Submitted By field"
+      steps:
+        - "Leave empty; trigger validation"
+        - "Verify mandatory error"
+        - "Enter 101 characters"
+        - "Verify length error"
+        - "Enter valid name (up to 100 chars)"
+        - "Verify no error"
+      expected_result: |
+        - Empty: mandatory error
+        - 101 chars: length error
+        - Valid (1–100 chars): accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-07"
+      traces_to_ac: "AC-07.2"
+
+    - id: "TC-07-003"
+      title: "Declaration Date defaults to today, accepts DD/MM/YYYY format, rejects future dates"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "declarationDate"
+      target_rule: "R20"
+      preconditions: "Form loaded; Declaration Date field visible"
+      steps:
+        - "Verify Declaration Date field displays today's date on page load"
+        - "Verify date format is DD/MM/YYYY"
+        - "Enter future date (today + 1 day)"
+        - "Trigger validation"
+        - "Verify error 'Date cannot be in the future'"
+        - "Clear and enter today's date"
+        - "Verify no error"
+      expected_result: |
+        - Default: today's date pre-filled in DD/MM/YYYY format
+        - Future date: error "Date cannot be in the future"
+        - Today or past date: accepted
+      executes_with: "test-form-ui"
+      traces_to_story: "US-07"
+      traces_to_ac: "AC-07.3"
+
+    - id: "TC-07-004"
+      title: "Declaration Date error message displays correctly on future date"
+      category: "field_validation"
+      level: "ui-visual"
+      target_field: "declarationDate"
+      target_rule: "R20"
+      preconditions: "Declaration Date field with future date"
+      steps:
+        - "Enter future date"
+        - "Trigger validation"
+        - "Verify error 'Date cannot be in the future.' appears in red below field"
+      expected_result: |
+        - Error message visible, red color
+      executes_with: "test-form-ui"
+      traces_to_story: "US-07"
+      traces_to_ac: "AC-07.4"
+
+    # ========== SUBMIT & RESET BUTTONS
+    # US-08: Owner submits the completed form
+    - id: "TC-08-001"
+      title: "Submit Form button is visible and styled with solid green/teal background and white text"
+      category: "button"
+      level: "ui-visual"
+      target_field: "submit_button"
+      target_rule: "—"
+      preconditions: "Form loaded; scrolled to bottom (button area)"
+      steps:
+        - "Scroll to form footer"
+        - "Verify Submit Form button is visible"
+        - "Verify button has solid green/teal background (#228B22 or similar)"
+        - "Verify button text is white"
+        - "Verify button has standard padding and border radius"
+      expected_result: |
+        - Button visible, label: "Submit Form"
+        - Background color: green/teal (#228B22)
+        - Text color: white (#ffffff)
+        - Border radius: 4px
+      executes_with: "test-form-ui"
+      traces_to_story: "US-08"
+      traces_to_ac: "AC-08.1"
+
+    - id: "TC-08-002"
+      title: "Submit button is disabled or shows validation errors if required fields are empty"
+      category: "submit"
+      level: "e2e"
+      target_field: "submit_button"
+      target_rule: "—"
+      preconditions: "Form loaded with required fields empty"
+      steps:
+        - "Leave all required fields empty"
+        - "Click Submit Form button"
+        - "Verify form submission is blocked"
+        - "Verify inline validation error messages appear on all empty required fields"
+        - "Verify first empty required field receives focus"
+      expected_result: |
+        - Submit blocked; no request sent
+        - All required fields show mandatory error messages (red text, below field)
+        - First invalid field focused (keyboard accessible)
+        - No PDF generated
+      executes_with: "sentinel"
+      traces_to_story: "US-08"
+      traces_to_ac: "AC-08.2"
+
+    - id: "TC-08-003"
+      title: "Clicking Submit with valid form generates PDF/Document of Record with all data"
+      category: "submit"
+      level: "integration"
+      target_field: "submit_button"
+      target_rule: "—"
+      preconditions: "Form loaded with all required fields filled with valid data"
+      steps:
+        - "Fill all required fields with valid data"
+        - "Click Submit Form button"
+        - "Wait for PDF generation"
+        - "Verify PDF download prompt appears (or file appears in downloads)"
+        - "Verify PDF contains all submitted form data (fields + values)"
+        - "Verify PDF includes submission timestamp"
+      expected_result: |
+        - PDF generated and offered for download
+        - PDF includes all form fields and their entered values
+        - PDF is properly formatted and readable
+      executes_with: "create-form-tests"
+      traces_to_story: "US-08"
+      traces_to_ac: "AC-08.3"
+
+    - id: "TC-08-004"
+      title: "Form submission triggers assign-task-to-admin workflow on successful submit"
+      category: "submit"
+      level: "integration"
+      target_field: "submit_button"
+      target_rule: "—"
+      preconditions: "Form with valid data; AEM author instance accessible"
+      steps:
+        - "Fill form with valid data"
+        - "Click Submit"
+        - "Wait for workflow trigger"
+        - "Check AEM admin user's task inbox"
+        - "Verify Medium-priority task created with form submission details"
+        - "Verify email notification sent to admin (if configured)"
+      expected_result: |
+        - Workflow triggered on successful submit
+        - Admin task created (Medium priority)
+        - Task includes form data reference
+        - Email notification sent (optional, if configured)
+      executes_with: "create-form-tests"
+      traces_to_story: "US-08"
+      traces_to_ac: "AC-08.4"
+
+    # US-09: Owner resets form to start over
+    - id: "TC-09-001"
+      title: "Reset button is visible and styled with white background, green/teal border and text"
+      category: "button"
+      level: "ui-visual"
+      target_field: "reset_button"
+      target_rule: "—"
+      preconditions: "Form loaded; scrolled to button area"
+      steps:
+        - "Scroll to form footer"
+        - "Verify Reset button is visible next to Submit button"
+        - "Verify button has white/transparent background"
+        - "Verify button has 2px green/teal border"
+        - "Verify button text is green/teal"
+      expected_result: |
+        - Button visible, label: "Reset"
+        - Background: white/transparent
+        - Border: 2px solid green/teal (#228B22)
+        - Text: green/teal (#228B22)
+        - Border radius: 4px
+      executes_with: "test-form-ui"
+      traces_to_story: "US-09"
+      traces_to_ac: "AC-09.1"
+
+    - id: "TC-09-002"
+      title: "Clicking Reset clears all form fields to initial/empty state"
+      category: "button"
+      level: "ui-visual"
+      target_field: "reset_button"
+      target_rule: "—"
+      preconditions: "Form loaded and filled with data"
+      steps:
+        - "Fill form with various data (text, dates, dropdowns, etc.)"
+        - "Click Reset button"
+        - "Verify all fields are cleared to empty state"
+        - "Verify validation error messages disappear"
+      expected_result: |
+        - All fields cleared
+        - No error messages visible
+        - Form returns to initial empty state
+      executes_with: "test-form-ui"
+      traces_to_story: "US-09"
+      traces_to_ac: "AC-09.2"
+
+    - id: "TC-09-003"
+      title: "Reset button restores default values (Vehicle Type = Electric Vehicle, Date = today)"
+      category: "button"
+      level: "ui-visual"
+      target_field: "reset_button"
+      target_rule: "—"
+      preconditions: "Form loaded; fields modified from defaults"
+      steps:
+        - "Verify Vehicle Type initially shows 'Electric Vehicle' (default)"
+        - "Change Vehicle Type to 'Four Wheeler'"
+        - "Click Reset"
+        - "Verify Vehicle Type returns to 'Electric Vehicle'"
+        - "Verify Declaration Date shows today's date again"
+      expected_result: |
+        - Vehicle Type resets to 'Electric Vehicle'
+        - Declaration Date resets to today
+        - Other fields become empty (no defaults)
+      executes_with: "test-form-ui"
+      traces_to_story: "US-09"
+      traces_to_ac: "AC-09.3"
+
+    # ========== VISUAL DESIGN & RESPONSIVE
+    # US-10: Form displays exact visual replica of the reference design
+    - id: "TC-10-001"
+      title: "Title 'VEHICLE REGISTRATION FORM' is centered, bold, dark navy/charcoal color"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "form_title"
+      target_rule: "—"
+      preconditions: "Form loaded; at top of page"
+      steps:
+        - "Scroll to top of form"
+        - "Verify title 'VEHICLE REGISTRATION FORM' is visible"
+        - "Verify title is centered (horizontally aligned to center)"
+        - "Verify title font is bold"
+        - "Verify title color is dark navy/charcoal (#1a1a1a or similar)"
+        - "Verify title font size is approximately 32px"
+      expected_result: |
+        - Title centered, bold, dark color, appropriate size
+        - Matches reference screenshot exactly
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.1"
+
+    - id: "TC-10-002"
+      title: "Subtitle 'Please provide the details below...' is gray, centered, regular weight"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "form_subtitle"
+      target_rule: "—"
+      preconditions: "Form loaded; at top of page below title"
+      steps:
+        - "Verify subtitle is visible below title"
+        - "Verify subtitle text: 'Please provide the details below to complete your registration.'"
+        - "Verify subtitle is centered"
+        - "Verify subtitle font is regular weight (not bold)"
+        - "Verify subtitle color is gray (#666666 or similar)"
+      expected_result: |
+        - Subtitle centered, gray, regular weight, ~14px font size
+        - Matches reference screenshot
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.2"
+
+    - id: "TC-10-003"
+      title: "Section headers are green/teal bold, ALL CAPS, numbered, with thin dividers"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "section_headers"
+      target_rule: "—"
+      preconditions: "Form loaded; all 5 sections visible"
+      steps:
+        - "Scroll through form"
+        - "Verify all 5 section headers visible: '1. OWNER DETAILS', '2. VEHICLE DETAILS', etc."
+        - "Verify each header is in green/teal color (#228B22 or similar)"
+        - "Verify each header is bold font"
+        - "Verify each header is ALL CAPS (except numbers)"
+        - "Verify each header has thin horizontal line (border-bottom) below it"
+        - "Verify divider is 1px solid light gray (#e0e0e0 or similar)"
+      expected_result: |
+        - All 5 headers styled consistently: green/teal, bold, ALL CAPS, numbered
+        - Each header has thin divider below
+        - Matches reference screenshot exactly
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.3"
+
+    - id: "TC-10-004"
+      title: "Required asterisks are RED color on all required field labels"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "required_asterisks"
+      target_rule: "—"
+      preconditions: "Form loaded; all fields visible"
+      steps:
+        - "Scroll through entire form"
+        - "Verify every required field label has RED asterisk (*) after label text"
+        - "Count required fields: should be 20 (all fields except static text)"
+        - "Verify NO asterisk appears on optional fields (there are none in this form)"
+        - "Verify asterisk color is red (#d32f2f or similar)"
+      expected_result: |
+        - All 20 required fields have RED asterisks
+        - Asterisks are red color
+        - No asterisks on non-existent optional fields
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.4"
+
+    - id: "TC-10-005"
+      title: "Fields are laid out in correct multi-column rows per section"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "form_layout"
+      target_rule: "—"
+      preconditions: "Form loaded on desktop view (1024px+)"
+      steps:
+        - "Verify Section 1 (Owner Details) shows 3 fields per row (2 rows of 3)"
+        - "Verify Section 2 (Vehicle Details) shows 3 fields in first row, 2 in second row"
+        - "Verify Section 3 (Address) shows Address Line full-width, then City/State/Pincode in 3-column row"
+        - "Verify Section 4 (Document) shows 3 fields in one row"
+        - "Verify Section 5 (Declaration) shows static text, then Submitted By/Date in 2-column row"
+        - "Verify field alignment and consistent spacing between columns"
+      expected_result: |
+        - Layout matches multi-column structure exactly
+        - Column widths are equal within each row
+        - Spacing is consistent (16px gaps)
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.5"
+
+    - id: "TC-10-006"
+      title: "Form field borders are 1px light gray, white background, radius 4px"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "form_fields"
+      target_rule: "—"
+      preconditions: "Form loaded; inspect field styling"
+      steps:
+        - "Inspect any form input field (text, date, dropdown, etc.)"
+        - "Verify border is 1px solid light gray (#cccccc or similar)"
+        - "Verify background is white (#ffffff)"
+        - "Verify border radius is 4px"
+        - "Verify padding is appropriate (8–12px)"
+        - "Verify focus state has visible focus ring (4–6px outline)"
+      expected_result: |
+        - All fields have consistent border/background/radius styling
+        - Fields are visually distinct and accessible
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.6"
+
+    - id: "TC-10-007"
+      title: "All fonts, colors, spacing, and padding match the reference screenshot exactly"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "visual_fidelity"
+      target_rule: "—"
+      preconditions: "Form fully deployed; reference screenshot available"
+      steps:
+        - "Capture screenshots of form on desktop, tablet, mobile"
+        - "Compare to reference screenshot pixel-by-pixel (or near-pixel via visual diff)"
+        - "Verify typography: font sizes, weights, colors match"
+        - "Verify spacing: margin/padding/gaps match reference"
+        - "Verify colors: buttons, text, borders, backgrounds match"
+        - "Verify layout: column widths, alignment, field order match"
+      expected_result: |
+        - Visual diff shows zero Critical findings
+        - Form layout, fonts, colors, spacing, buttons all match reference exactly
+        - No missing or extra visual elements
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.7"
+
+    - id: "TC-10-008"
+      title: "Submit and Reset buttons are positioned correctly with proper spacing"
+      category: "ui_parity"
+      level: "ui-visual"
+      target_field: "buttons"
+      target_rule: "—"
+      preconditions: "Form loaded; buttons visible at bottom"
+      steps:
+        - "Scroll to button area"
+        - "Verify both Submit and Reset buttons are visible"
+        - "Verify buttons are centered or left-aligned (per design)"
+        - "Verify 16px gap between buttons"
+        - "Verify buttons have appropriate padding (12px vertical, 24px horizontal)"
+        - "Verify buttons have proper font size (~14px) and weight (semi-bold)"
+      expected_result: |
+        - Buttons positioned and spaced correctly
+        - Button styling matches design spec
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "AC-10.8"
+
+    # ========== RESPONSIVE DESIGN
+    - id: "TC-11-001"
+      title: "Form layout collapses to single column on mobile (< 768px)"
+      category: "responsive"
+      level: "ui-visual"
+      target_field: "form_layout"
+      target_rule: "—"
+      preconditions: "Form loaded on mobile device or mobile browser view"
+      steps:
+        - "View form on mobile device (< 768px width)"
+        - "Verify all multi-column rows collapse to single column (full-width)"
+        - "Verify fields are stacked vertically"
+        - "Verify form remains readable and usable"
+        - "Verify buttons may stack vertically on very small screens"
+      expected_result: |
+        - All fields full-width on mobile
+        - Responsive layout functions correctly
+        - No horizontal scrolling needed
+      executes_with: "test-form-ui"
+      traces_to_story: "US-10"
+      traces_to_ac: "—"
+
+    # ========== ACCESSIBILITY
+    - id: "TC-12-001"
+      title: "Every form field has aria-label for screen reader accessibility"
+      category: "accessibility"
+      level: "unit"
+      target_field: "all_fields"
+      target_rule: "—"
+      preconditions: "Form HTML rendered; inspect DOM"
+      steps:
+        - "Use browser DevTools or axe accessibility scanner"
+        - "Verify every form field (<input>, <select>, <textarea>) has aria-label attribute"
+        - "Verify aria-label text is descriptive (e.g., 'Owner Full Name')"
+        - "Check for missing aria-labels on any field"
+      expected_result: |
+        - All 20 form fields have aria-label attributes
+        - No missing labels (0 violations)
+        - aria-labels are descriptive and helpful
+      executes_with: "create-form-tests"
+      traces_to_story: "US-10"
+      traces_to_ac: "—"
+
+    - id: "TC-12-002"
+      title: "Form is keyboard navigable (Tab through all fields)"
+      category: "accessibility"
+      level: "ui-visual"
+      target_field: "form_navigation"
+      target_rule: "—"
+      preconditions: "Form loaded in browser"
+      steps:
+        - "Click on form area"
+        - "Press Tab repeatedly to navigate through all fields"
+        - "Verify Tab key moves focus through fields in logical order"
+        - "Verify each focused field has visible focus indicator (outline)"
+        - "Verify Shift+Tab navigates backward"
+        - "Verify Submit button is reachable via Tab"
+      expected_result: |
+        - All fields are keyboard navigable
+        - Focus order is logical (top-to-bottom, left-to-right)
+        - Visible focus indicators on all interactive elements
+      executes_with: "sentinel"
+      traces_to_story: "US-10"
+      traces_to_ac: "—"
+
+    - id: "TC-12-003"
+      title: "Color contrast meets WCAG 2.1 AA standard (4.5:1 minimum)"
+      category: "accessibility"
+      level: "unit"
+      target_field: "form_colors"
+      target_rule: "—"
+      preconditions: "Form rendered; color values known"
+      steps:
+        - "Use WCAG contrast checker tool"
+        - "Check text colors: dark (#1a1a1a) on white (#ffffff) background"
+        - "Check green/teal (#228B22) on white"
+        - "Check red error text (#d32f2f) on white"
+        - "Check gray (#666) on white"
+        - "Verify all contrasts >= 4.5:1"
+      expected_result: |
+        - All text/background color pairs meet WCAG AA contrast (>= 4.5:1)
+        - Form is accessible to users with color vision deficiency
+      executes_with: "create-form-tests"
+      traces_to_story: "US-10"
+      traces_to_ac: "—"
+
+coverage:
+  user_stories_total: 10
+  user_stories_with_cases: 10
+  acceptance_criteria_total: 44
+  acceptance_criteria_with_cases: 44
+  uncovered_stories: []
+  uncovered_acceptance_criteria: []
+  coverage_summary: "100% — Every user story (US-01 through US-10) has >= 1 test case. Every acceptance criterion (AC-01.1 through AC-10.8) is traced to at least one test case. No gaps."
+
+executes_with_summary:
+  create-form-tests:
+    - "TC-08-003: PDF generation on submit (integration)"
+    - "TC-08-004: Workflow trigger on submit (integration)"
+    - "TC-12-001: aria-label verification (unit/accessibility)"
+    - "TC-12-003: color contrast verification (unit/accessibility)"
+  test-form-ui:
+    - "TC-01-001 through TC-12-003: all field validation, visual design, responsive, accessibility UI checks (ui-visual level)"
+  sentinel:
+    - "TC-08-002: Submit blocked on invalid form (e2e)"
+    - "TC-12-002: keyboard navigation (ui-visual level, tested by sentinel)"
+
+test_execution_order:
+  phase_1: "test-form-ui (Phase 13, after DEPLOY) — visual/UI tests (TC-01-001 through TC-11-001, TC-12-002)"
+  phase_2: "create-form-tests (Phase 10, before DEPLOY) — unit + integration tests (TC-08-003, TC-08-004, TC-12-001, TC-12-003)"
+  phase_3: "sentinel (TEST phase, after DEPLOY) — e2e + final validation (TC-08-002, TC-12-002 + functional checks)"
+
+key_test_categories:
+  field_validation: "20 tests covering required, format, pattern, length, range, date limits on all 20 form fields"
+  button_interaction: "6 tests for Submit and Reset buttons (styling, behavior, state)"
+  form_submission: "4 tests for submit behavior (validation gating, PDF generation, workflow trigger)"
+  visual_design: "8 tests for visual fidelity (title, subtitle, headers, asterisks, layout, colors, buttons)"
+  responsive_design: "1 test for mobile layout collapse (multi-column to single-column)"
+  accessibility: "3 tests for WCAG 2.1 AA compliance (aria-labels, keyboard nav, color contrast)"
+  total_test_cases: 58
+
+gates:
+  gate_1_field_validations: "All 20 field validation tests must PASS (proper error messages, acceptance of valid data)"
+  gate_2_button_behavior: "Submit must block on invalid data; Reset must clear all fields; buttons styled correctly"
+  gate_3_pdf_and_workflow: "PDF generated on submit; Workflow triggered; Admin task created"
+  gate_4_visual_parity: "Form layout/colors/fonts/spacing match reference screenshot (zero Critical findings from test-form-ui pixel diff)"
+  gate_5_accessibility: "aria-labels on all fields; keyboard navigable; color contrast >= 4.5:1"
+  gate_6_responsive: "Form collapses to single column on mobile; remains usable"

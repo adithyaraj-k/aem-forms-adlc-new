@@ -1,0 +1,478 @@
+structured_requirements:
+  delivery_type: new_single_form
+  business_objective: >
+    Provide a public-facing online Vehicle Registration Form that lets a vehicle owner submit their
+    personal, vehicle, and insurance details along with a document checklist and a signed declaration,
+    so that the registering authority can capture a complete, accurate vehicle-registration record in a
+    single web submission. On submit the form must generate a PDF copy of the submitted data (Document
+    of Record) for the applicant.
+  source_inputs:
+    - "Reference screenshot: c:\\Users\\330073\\Downloads\\Vehicle Reg.jpg (authoritative source for fields, labels, order, sections, required markers, layout)"
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      audience: public
+      channels: [web, mobile]
+      locales: [en]
+      layout: single_page                    # single page, 3-column responsive grid, 5 numbered panels
+      display_content:                        # non-field visible elements captured from the screenshot (nothing dropped)
+        - element: form_title
+          text: "VEHICLE REGISTRATION FORM"
+          location: "form header (top, centered)"
+        - element: subtitle
+          text: "Please provide the following details to register your vehicle."
+          location: "under the title"
+        - element: mandatory_marker
+          text: "Required fields are marked with a red asterisk (*)"
+          location: "implied by red asterisks on each required field label; no explicit legend text in screenshot"
+        - element: section_heading
+          text: "1. OWNER DETAILS"
+        - element: section_heading
+          text: "2. VEHICLE DETAILS"
+        - element: section_heading
+          text: "3. INSURANCE DETAILS"
+        - element: section_heading
+          text: "4. DOCUMENT CHECKLIST"
+        - element: section_heading
+          text: "5. DECLARATION"
+        - element: declaration_static_text
+          text: "I hereby declare that the above information is true and correct to the best of my knowledge."
+          location: "under the '5. DECLARATION' heading, above the Place/Date/Signature fields"
+        - element: button_label
+          text: "Submit"
+        - element: button_label
+          text: "Reset"
+      data:
+        binding_intent: schema               # input is a SCREENSHOT ONLY — no integration contract; architect defaults to generate-schema (JSON Schema), no FDM
+        binding_intent_basis: "Input is a screenshot/image only; no requirement document with integration logic, no external API/CRM, no system of record."
+        source_of_truth: "none"
+        api_spec: "none"
+        api_auth: none
+        prefill: "none"
+        submit: [dor_pdf]                     # PDF-on-submit via SHARED generic Custom-Submit-GeneratePDF action (Document-of-Record style); no FDM, no workflow
+        submit_notes: >
+          On Submit, generate a PDF of the submitted form data using the SHARED generic
+          "Custom-Submit-GeneratePDF" submit action (Document-of-Record style, reused by every form) —
+          NOT a per-form PDF action. Reset clears all fields. No REST write-back, no email, no FDM, no
+          workflow.
+      sections:
+        - name: "1. OWNER DETAILS"
+          fields:
+            - name: fullName
+              label: "Full Name"
+              type: text
+              required: true
+              validations: ["non-empty", "reasonable max length (e.g. 100 chars)"]
+              aria_label: "Full Name"
+            - name: dateOfBirth
+              label: "Date of Birth"
+              type: date
+              required: true
+              validations: ["format DD/MM/YYYY", "must be a valid date", "not in the future"]
+              placeholder: "DD / MM / YYYY"
+              aria_label: "Date of Birth"
+            - name: gender
+              label: "Gender"
+              type: radio
+              required: true
+              options:
+                - { value: "male", label: "Male" }
+                - { value: "female", label: "Female" }
+                - { value: "other", label: "Other" }
+              aria_label: "Gender"
+            - name: mobileNumber
+              label: "Mobile Number"
+              type: phone
+              required: true
+              validations: ["exactly 10 digits", "digits only (10-digit mobile validation)"]
+              aria_label: "Mobile Number"
+            - name: emailAddress
+              label: "Email Address"
+              type: email
+              required: false               # ONLY optional field in Owner Details (no red asterisk in screenshot)
+              validations: ["valid email format when provided"]
+              aria_label: "Email Address"
+            - name: address
+              label: "Address"
+              type: textarea                # multiline
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Address"
+            - name: city
+              label: "City"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "City"
+            - name: state
+              label: "State"
+              type: dropdown
+              required: true
+              placeholder: "Select"
+              options: ["<state enum list — Indian states/UTs; exact list to be confirmed at design time>"]
+              aria_label: "State"
+            - name: pinCode
+              label: "PIN Code"
+              type: number
+              required: true
+              validations: ["exactly 6 digits", "digits only (6-digit PIN validation)"]
+              aria_label: "PIN Code"
+        - name: "2. VEHICLE DETAILS"
+          fields:
+            - name: vehicleType
+              label: "Vehicle Type"
+              type: dropdown
+              required: true
+              placeholder: "Select"
+              options: ["<vehicle-type enum — e.g. Two Wheeler, Car, Commercial; exact list to be confirmed at design time>"]
+              aria_label: "Vehicle Type"
+            - name: manufacturer
+              label: "Manufacturer"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Manufacturer"
+            - name: model
+              label: "Model"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Model"
+            - name: registrationNumber
+              label: "Registration Number"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Registration Number"
+            - name: chassisNumber
+              label: "Chassis Number"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Chassis Number"
+            - name: engineNumber
+              label: "Engine Number"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Engine Number"
+            - name: fuelType
+              label: "Fuel Type"
+              type: dropdown
+              required: true
+              placeholder: "Select"
+              options: ["<fuel-type enum — e.g. Petrol, Diesel, CNG, Electric, Hybrid; exact list to be confirmed at design time>"]
+              aria_label: "Fuel Type"
+            - name: color
+              label: "Color"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Color"
+            - name: manufacturingYear
+              label: "Manufacturing Year"
+              type: dropdown
+              required: true
+              placeholder: "Select"
+              options: ["<year enum — descending list of years; range to be confirmed at design time>"]
+              aria_label: "Manufacturing Year"
+        - name: "3. INSURANCE DETAILS"
+          fields:
+            - name: insuranceCompany
+              label: "Insurance Company"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Insurance Company"
+            - name: policyNumber
+              label: "Policy Number"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Policy Number"
+            - name: policyValidTill
+              label: "Policy Valid Till"
+              type: date
+              required: true
+              validations: ["format DD/MM/YYYY", "must be a valid date"]
+              placeholder: "DD / MM / YYYY"
+              aria_label: "Policy Valid Till"
+        - name: "4. DOCUMENT CHECKLIST"
+          fields:
+            - name: documentChecklist
+              label: "Document Checklist"
+              type: checkbox-group           # MULTI-select
+              required: false                # no red asterisk on the group in screenshot
+              multi_select: true
+              options:
+                - { value: "proofOfIdentity", label: "Proof of Identity" }
+                - { value: "proofOfAddress", label: "Proof of Address" }
+                - { value: "vehicleInsurance", label: "Vehicle Insurance" }
+                - { value: "pucCertificate", label: "Pollution Under Control (PUC) Certificate" }
+                - { value: "roadTaxReceipt", label: "Road Tax Receipt" }
+                - { value: "others", label: "Others (if any)" }
+              aria_label: "Document Checklist"
+        - name: "5. DECLARATION"
+          fields:
+            - name: declarationText
+              label: "Declaration"
+              type: display_text             # static declaration text (non-field content, in scope)
+              required: false
+              value: "I hereby declare that the above information is true and correct to the best of my knowledge."
+              aria_label: "Declaration statement"
+            - name: place
+              label: "Place"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Place"
+            - name: declarationDate
+              label: "Date"
+              type: date
+              required: true
+              validations: ["format DD/MM/YYYY", "must be a valid date"]
+              placeholder: "DD / MM / YYYY"
+              aria_label: "Declaration Date"
+            - name: signatureFullName
+              label: "Signature / Full Name"
+              type: text
+              required: true
+              validations: ["non-empty"]
+              aria_label: "Signature / Full Name"
+      rules:
+        - "All fields marked with a red asterisk are mandatory and block submission when empty (Full Name, Date of Birth, Gender, Mobile Number, Address, City, State, PIN Code, Vehicle Type, Manufacturer, Model, Registration Number, Chassis Number, Engine Number, Fuel Type, Color, Manufacturing Year, Insurance Company, Policy Number, Policy Valid Till, Place, Date, Signature / Full Name)."
+        - "Email Address is optional; when provided it must be a valid email format."
+        - "Mobile Number must be exactly 10 digits (10-digit mobile validation)."
+        - "PIN Code must be exactly 6 digits (6-digit PIN validation)."
+        - "Date of Birth, Policy Valid Till, and Declaration Date use DD/MM/YYYY format and must be valid dates."
+        - "Document Checklist is a multi-select checkbox group; zero or more items may be selected."
+        - "Submit generates a PDF Document of Record of the submitted data via the shared Custom-Submit-GeneratePDF action."
+        - "Reset clears all entered values and returns the form to its initial empty state."
+      workflow:
+        needed: false
+        summary: "No approval/review/routing/e-signature. Plain PDF-on-submit (Document of Record) only; no FDM, no workflow."
+  user_stories:
+    - id: US-01
+      form: "vehicle-registration-form"
+      title: "Owner provides personal identifying details"
+      as_a: "vehicle owner"
+      i_want: "to enter my full name, date of birth, and gender"
+      so_that: "the authority can identify me as the registrant"
+      acceptance_criteria:
+        - id: AC-01.1
+          criterion: "Full Name is required (text) and blocks submission when empty; has aria-label 'Full Name'"
+        - id: AC-01.2
+          criterion: "Date of Birth is required, uses DD/MM/YYYY format, must be a valid date and not in the future; has aria-label 'Date of Birth'"
+        - id: AC-01.3
+          criterion: "Gender is required and offers exactly Male, Female, Other as radio options; has aria-label 'Gender'"
+      covers_fields: [fullName, dateOfBirth, gender]
+      covers_rules: ["mandatory fields block submission when empty", "Date of Birth DD/MM/YYYY valid date"]
+    - id: US-02
+      form: "vehicle-registration-form"
+      title: "Owner provides contact details with correct formats"
+      as_a: "vehicle owner"
+      i_want: "to enter my mobile number and optionally my email"
+      so_that: "the authority can contact me about my registration"
+      acceptance_criteria:
+        - id: AC-02.1
+          criterion: "Mobile Number is required and must be exactly 10 digits (digits only); invalid input is rejected; has aria-label 'Mobile Number'"
+        - id: AC-02.2
+          criterion: "Email Address is optional; when provided it must be a valid email format; when blank it does not block submission; has aria-label 'Email Address'"
+      covers_fields: [mobileNumber, emailAddress]
+      covers_rules: ["Mobile Number exactly 10 digits", "Email optional but valid format when provided"]
+    - id: US-03
+      form: "vehicle-registration-form"
+      title: "Owner provides address details"
+      as_a: "vehicle owner"
+      i_want: "to enter my full address, city, state, and PIN code"
+      so_that: "the authority has my correct location on record"
+      acceptance_criteria:
+        - id: AC-03.1
+          criterion: "Address is a required multiline text area; has aria-label 'Address'"
+        - id: AC-03.2
+          criterion: "City is a required text field; has aria-label 'City'"
+        - id: AC-03.3
+          criterion: "State is a required dropdown showing placeholder 'Select' with a list of states; has aria-label 'State'"
+        - id: AC-03.4
+          criterion: "PIN Code is required and must be exactly 6 digits (digits only); invalid input is rejected; has aria-label 'PIN Code'"
+      covers_fields: [address, city, state, pinCode]
+      covers_rules: ["PIN Code exactly 6 digits", "State dropdown placeholder 'Select'"]
+    - id: US-04
+      form: "vehicle-registration-form"
+      title: "Owner provides core vehicle identification"
+      as_a: "vehicle owner"
+      i_want: "to select vehicle type and enter manufacturer and model"
+      so_that: "the vehicle is correctly categorised and identified"
+      acceptance_criteria:
+        - id: AC-04.1
+          criterion: "Vehicle Type is a required dropdown with placeholder 'Select'; has aria-label 'Vehicle Type'"
+        - id: AC-04.2
+          criterion: "Manufacturer is a required text field; has aria-label 'Manufacturer'"
+        - id: AC-04.3
+          criterion: "Model is a required text field; has aria-label 'Model'"
+      covers_fields: [vehicleType, manufacturer, model]
+      covers_rules: ["mandatory fields block submission when empty"]
+    - id: US-05
+      form: "vehicle-registration-form"
+      title: "Owner provides vehicle registration and mechanical identifiers"
+      as_a: "vehicle owner"
+      i_want: "to enter registration number, chassis number, and engine number"
+      so_that: "the vehicle is uniquely identified on the register"
+      acceptance_criteria:
+        - id: AC-05.1
+          criterion: "Registration Number is a required text field; has aria-label 'Registration Number'"
+        - id: AC-05.2
+          criterion: "Chassis Number is a required text field; has aria-label 'Chassis Number'"
+        - id: AC-05.3
+          criterion: "Engine Number is a required text field; has aria-label 'Engine Number'"
+      covers_fields: [registrationNumber, chassisNumber, engineNumber]
+      covers_rules: ["mandatory fields block submission when empty"]
+    - id: US-06
+      form: "vehicle-registration-form"
+      title: "Owner provides vehicle attributes"
+      as_a: "vehicle owner"
+      i_want: "to select fuel type and manufacturing year and enter the colour"
+      so_that: "the vehicle's specifications are recorded"
+      acceptance_criteria:
+        - id: AC-06.1
+          criterion: "Fuel Type is a required dropdown with placeholder 'Select'; has aria-label 'Fuel Type'"
+        - id: AC-06.2
+          criterion: "Color is a required text field; has aria-label 'Color'"
+        - id: AC-06.3
+          criterion: "Manufacturing Year is a required dropdown with placeholder 'Select'; has aria-label 'Manufacturing Year'"
+      covers_fields: [fuelType, color, manufacturingYear]
+      covers_rules: ["mandatory fields block submission when empty"]
+    - id: US-07
+      form: "vehicle-registration-form"
+      title: "Owner provides insurance details"
+      as_a: "vehicle owner"
+      i_want: "to enter my insurance company, policy number, and policy validity date"
+      so_that: "the authority can confirm the vehicle is insured"
+      acceptance_criteria:
+        - id: AC-07.1
+          criterion: "Insurance Company is a required text field; has aria-label 'Insurance Company'"
+        - id: AC-07.2
+          criterion: "Policy Number is a required text field; has aria-label 'Policy Number'"
+        - id: AC-07.3
+          criterion: "Policy Valid Till is a required date field in DD/MM/YYYY format and must be a valid date; has aria-label 'Policy Valid Till'"
+      covers_fields: [insuranceCompany, policyNumber, policyValidTill]
+      covers_rules: ["Policy Valid Till DD/MM/YYYY valid date", "mandatory fields block submission when empty"]
+    - id: US-08
+      form: "vehicle-registration-form"
+      title: "Owner indicates which supporting documents are available"
+      as_a: "vehicle owner"
+      i_want: "to tick the supporting documents I am providing"
+      so_that: "the authority knows which documents accompany my registration"
+      acceptance_criteria:
+        - id: AC-08.1
+          criterion: "Document Checklist is a multi-select checkbox group; the owner can select zero or more items"
+        - id: AC-08.2
+          criterion: "The group offers exactly: Proof of Identity, Proof of Address, Vehicle Insurance, Pollution Under Control (PUC) Certificate, Road Tax Receipt, Others (if any)"
+        - id: AC-08.3
+          criterion: "The checkbox group has aria-label 'Document Checklist'"
+      covers_fields: [documentChecklist]
+      covers_rules: ["Document Checklist is multi-select; zero or more items may be selected"]
+    - id: US-09
+      form: "vehicle-registration-form"
+      title: "Owner reads and completes the declaration"
+      as_a: "vehicle owner"
+      i_want: "to see the truthfulness declaration and enter place, date, and my signature/name"
+      so_that: "I legally attest that the submitted information is correct"
+      acceptance_criteria:
+        - id: AC-09.1
+          criterion: "The static declaration text 'I hereby declare that the above information is true and correct to the best of my knowledge.' is displayed in the Declaration section"
+        - id: AC-09.2
+          criterion: "Place is a required text field; has aria-label 'Place'"
+        - id: AC-09.3
+          criterion: "Date is a required date field in DD/MM/YYYY format and must be a valid date; has aria-label 'Declaration Date'"
+        - id: AC-09.4
+          criterion: "Signature / Full Name is a required text field; has aria-label 'Signature / Full Name'"
+      covers_fields: [declarationText, place, declarationDate, signatureFullName]
+      covers_rules: ["Declaration Date DD/MM/YYYY valid date", "mandatory fields block submission when empty"]
+    - id: US-10
+      form: "vehicle-registration-form"
+      title: "Owner submits the form and receives a PDF record"
+      as_a: "vehicle owner"
+      i_want: "to submit the completed form and get a PDF copy of what I submitted"
+      so_that: "I have a Document of Record of my vehicle registration submission"
+      acceptance_criteria:
+        - id: AC-10.1
+          criterion: "Submit is blocked until all required fields are valid; on success the submission is accepted"
+        - id: AC-10.2
+          criterion: "On successful submit, a PDF of the submitted form data is generated via the shared Custom-Submit-GeneratePDF action and made available to the owner (Document of Record)"
+      covers_fields: []
+      covers_rules: ["Submit generates a PDF Document of Record via shared Custom-Submit-GeneratePDF"]
+    - id: US-11
+      form: "vehicle-registration-form"
+      title: "Owner resets the form"
+      as_a: "vehicle owner"
+      i_want: "to clear all my entries with a Reset button"
+      so_that: "I can start over without reloading the page"
+      acceptance_criteria:
+        - id: AC-11.1
+          criterion: "Clicking Reset clears all entered values and returns the form to its initial empty state"
+      covers_fields: []
+      covers_rules: ["Reset clears all entered values"]
+    - id: US-12
+      form: "vehicle-registration-form"
+      title: "Form presents its title, subtitle, and sectioned layout"
+      as_a: "vehicle owner"
+      i_want: "to see the form title, subtitle, and five clearly numbered sections"
+      so_that: "I understand what the form is for and can navigate it easily"
+      acceptance_criteria:
+        - id: AC-12.1
+          criterion: "The form displays the title 'VEHICLE REGISTRATION FORM' and subtitle 'Please provide the following details to register your vehicle.'"
+        - id: AC-12.2
+          criterion: "The form shows five numbered section headings: 1. OWNER DETAILS, 2. VEHICLE DETAILS, 3. INSURANCE DETAILS, 4. DOCUMENT CHECKLIST, 5. DECLARATION"
+        - id: AC-12.3
+          criterion: "Fields are laid out in a 3-column responsive grid and required fields are marked with a red asterisk"
+        - id: AC-12.4
+          criterion: "Submit and Reset buttons are shown in the form footer"
+      covers_fields: []
+      covers_rules: ["mandatory fields marked with red asterisk"]
+    - id: US-13
+      form: "vehicle-registration-form"
+      title: "Form is accessible to all owners"
+      as_a: "vehicle owner using assistive technology"
+      i_want: "every field to have an accessible label and the form to meet WCAG 2.1 AA"
+      so_that: "I can complete the registration with a screen reader or keyboard only"
+      acceptance_criteria:
+        - id: AC-13.1
+          criterion: "Every field (including radio group, dropdowns, checkbox group, and date fields) has an aria-label"
+        - id: AC-13.2
+          criterion: "The form is keyboard navigable and meets WCAG 2.1 AA colour-contrast and labelling requirements"
+      covers_fields: [fullName, dateOfBirth, gender, mobileNumber, emailAddress, address, city, state, pinCode, vehicleType, manufacturer, model, registrationNumber, chassisNumber, engineNumber, fuelType, color, manufacturingYear, insuranceCompany, policyNumber, policyValidTill, documentChecklist, place, declarationDate, signatureFullName]
+      covers_rules: ["accessibility: aria-label on every field"]
+  nfrs:
+    accessibility: "WCAG 2.1 AA; aria-label on every field; keyboard navigable; sufficient colour contrast"
+    localization: "en at launch; i18n-ready (externalize labels/messages so additional locales can be added later)"
+    volume: "Not stated; public government-style registration form — assume moderate/steady volume (design for public-scale, no hard SLA given)"
+    security_pii: >
+      Collects owner PII: Full Name, Date of Birth, Mobile Number, Email Address, Address (and vehicle
+      identifiers). Handle as PII — no PII in logs, transmit over HTTPS, restrict access to submitted
+      data and generated PDFs, apply appropriate retention.
+    compliance: "None explicitly stated; treat as PII/consumer-data handling; retention policy to be confirmed by business"
+    branding: "Screenshot uses a light-blue background with dark-navy headings/buttons; match this palette via project theme (no external design system supplied)"
+    record_copy: "DoR PDF required — PDF of submitted data generated on submit via shared Custom-Submit-GeneratePDF action"
+    bot_protection: >
+      No CAPTCHA requirement stated, BUT this is a public/anonymous-facing registration form —
+      RECOMMEND adding CAPTCHA (e.g. reCAPTCHA/Turnstile) for bot protection. Flagged for architect
+      decision; not confirmed by business.
+    environments: "AEM as a Cloud Service author + publish; dispatcher cache for static assets"
+  reference_for_ui_check: "c:\\Users\\330073\\Downloads\\Vehicle Reg.jpg"
+  assumptions:
+    - "Email Address is the only optional field in section 1 (no red asterisk in the screenshot); all other asterisked fields are mandatory."
+    - "Document Checklist has no required marker in the screenshot, so it is treated as optional (zero or more selections allowed)."
+    - "State, Vehicle Type, Fuel Type, and Manufacturing Year dropdown option lists are not enumerated in the screenshot; sensible domain lists (Indian states/UTs, common vehicle types, common fuel types, a descending year range) will be finalized at design time."
+    - "Date fields use DD/MM/YYYY per the visible placeholders; Date of Birth assumed not-in-the-future; no other explicit date-range constraints were shown."
+    - "Mobile Number = 10-digit and PIN Code = 6-digit validations follow standard Indian conventions as stated in the brief."
+    - "Data-binding intent is a JSON Schema (no FDM, no workflow) because the sole input is a screenshot with no integration contract; PDF-on-submit uses the shared generic Custom-Submit-GeneratePDF action."
+    - "CAPTCHA is recommended (public form) but not confirmed as a requirement; recorded for the architect to decide."
+  open_questions: []
+  acceptance_criteria:
+    - "Rendered form matches the reference screenshot (Vehicle Reg.jpg): title, subtitle, five numbered sections, field labels, order, 3-column layout, red asterisks on required fields, and Submit/Reset buttons."
+    - "Every field renders with the specified type, required flag, validation, options, and aria-label."
+    - "Mandatory fields block submission when empty; Mobile Number enforces 10 digits; PIN Code enforces 6 digits; Email is optional but validated when provided; date fields validate DD/MM/YYYY."
+    - "Document Checklist is a working multi-select; the declaration static text is displayed."
+    - "On successful Submit a PDF Document of Record is generated via the shared Custom-Submit-GeneratePDF action; Reset clears the form."
+    - "Every user story (US-01 .. US-13) is satisfied and covered by at least one passing test case downstream."

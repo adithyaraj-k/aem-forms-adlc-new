@@ -1,0 +1,684 @@
+# DESI — Test Design · design-form-tests
+# Vehicle Registration Form · runId 2026-07-01-vehicle-registration-form
+# Produced by: Design forge (DESI) › Test Design
+# Inputs: PLAN-discover-form-requirements.yaml (US-01..US-13 + AC-*), PLAN-architect-form-solution.yaml,
+#         DESI-design-form-components.yaml (component + design specs), reference c:\Users\330073\Downloads\Vehicle Reg.jpg
+# Scope: TEST PLAN ONLY — no JUnit/Selenium/Cypress code. Cases feed create-form-tests (P10),
+#        test-form-ui (P13), and the Sentinel TEST lead (functional/e2e).
+# Executors: create-form-tests = unit/integration JUnit; test-form-ui = visual parity;
+#            sentinel = e2e/functional validation on the deployed form.
+
+test_cases:
+  forms:
+    - key: "vehicle-registration-form"
+      reference_for_ui_check: "c:\\Users\\330073\\Downloads\\Vehicle Reg.jpg"
+      cases:
+
+        # =========================================================================
+        # US-01 — Owner personal identifying details (Full Name, DOB, Gender)
+        # =========================================================================
+        - id: TC-001
+          title: "Full Name is required and blocks submit when empty"
+          category: field_validation
+          level: e2e
+          target: fullName
+          preconditions: "form loaded"
+          steps: ["leave Full Name empty", "fill all other required fields", "click Submit"]
+          expected: "Submit blocked; mandatory message shown on Full Name; form not submitted"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+        - id: TC-002
+          title: "Full Name accepts valid input up to max length and has aria-label"
+          category: field_validation
+          level: e2e
+          target: fullName
+          preconditions: "form loaded"
+          steps: ["enter a valid name (<=100 chars)", "inspect aria-label = 'Full Name'"]
+          expected: "value accepted; aria-label 'Full Name' present"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.1
+        - id: TC-003
+          title: "Date of Birth enforces DD/MM/YYYY, valid date, not in the future"
+          category: field_validation
+          level: e2e
+          target: dateOfBirth
+          preconditions: "form loaded"
+          steps: ["enter a future date", "enter an invalid date (32/13/2000)", "enter a valid past date"]
+          expected: "future date rejected; invalid date rejected; valid past date accepted; format DD/MM/YYYY; aria-label 'Date of Birth'"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.2
+        - id: TC-004
+          title: "validateDateDDMMYYYY + validateDobNotFuture clientlib functions (unit)"
+          category: field_validation
+          level: unit
+          target: "clientlib: validateDateDDMMYYYY, validateDobNotFuture"
+          preconditions: "clientlib functions available"
+          steps: ["assert valid DD/MM/YYYY passes", "assert malformed date fails", "assert future date fails DOB check", "assert empty is safe (no ReferenceError)"]
+          expected: "functions return correct boolean; empty-safe; no exceptions"
+          executes_with: create-form-tests
+          traces_to_story: US-01
+          traces_to_ac: AC-01.2
+        - id: TC-005
+          title: "Gender radio group is required and offers exactly Male/Female/Other"
+          category: field_validation
+          level: e2e
+          target: gender
+          preconditions: "form loaded"
+          steps: ["inspect options", "submit without selecting", "select one option"]
+          expected: "exactly Male, Female, Other via enum/enumNames; required blocks submit when none selected; aria-label 'Gender'"
+          executes_with: sentinel
+          traces_to_story: US-01
+          traces_to_ac: AC-01.3
+
+        # =========================================================================
+        # US-02 — Contact details (Mobile 10-digit, Email optional-but-valid)
+        # =========================================================================
+        - id: TC-006
+          title: "Mobile Number requires exactly 10 digits (digits only)"
+          category: field_validation
+          level: e2e
+          target: mobileNumber
+          preconditions: "form loaded"
+          steps: ["enter 9 digits", "enter 11 digits", "enter letters/symbols", "enter exactly 10 digits"]
+          expected: "9 and 11 digits rejected; non-digits rejected; exactly 10 digits accepted; aria-label 'Mobile Number'"
+          executes_with: sentinel
+          traces_to_story: US-02
+          traces_to_ac: AC-02.1
+        - id: TC-007
+          title: "validateMobile10Digits clientlib function (unit)"
+          category: field_validation
+          level: unit
+          target: "clientlib: validateMobile10Digits"
+          preconditions: "clientlib function available"
+          steps: ["assert '9876543210' passes", "assert '123' fails", "assert 'abcd' fails", "assert empty is safe"]
+          expected: "returns true only for exactly 10 digits; empty-safe"
+          executes_with: create-form-tests
+          traces_to_story: US-02
+          traces_to_ac: AC-02.1
+        - id: TC-008
+          title: "Email Address is optional but validated when provided"
+          category: field_validation
+          level: e2e
+          target: emailAddress
+          preconditions: "form loaded"
+          steps: ["leave email blank + submit (all else valid)", "enter 'notanemail'", "enter 'a@b.com'"]
+          expected: "blank does NOT block submit; invalid format rejected; valid format accepted; aria-label 'Email Address'"
+          executes_with: sentinel
+          traces_to_story: US-02
+          traces_to_ac: AC-02.2
+        - id: TC-009
+          title: "validateEmailWhenPresent clientlib function (unit)"
+          category: field_validation
+          level: unit
+          target: "clientlib: validateEmailWhenPresent"
+          preconditions: "clientlib function available"
+          steps: ["assert '' passes (optional)", "assert 'bad' fails", "assert 'a@b.com' passes"]
+          expected: "empty passes; malformed fails; valid passes"
+          executes_with: create-form-tests
+          traces_to_story: US-02
+          traces_to_ac: AC-02.2
+
+        # =========================================================================
+        # US-03 — Address details (Address, City, State, PIN 6-digit)
+        # =========================================================================
+        - id: TC-010
+          title: "Address is a required multiline text area"
+          category: field_validation
+          level: e2e
+          target: address
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "confirm multiline rendering", "enter multi-line text"]
+          expected: "required blocks submit; renders as textarea (multiline); aria-label 'Address'"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.1
+        - id: TC-011
+          title: "City is a required text field"
+          category: field_validation
+          level: e2e
+          target: city
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'City'"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.2
+        - id: TC-012
+          title: "State dropdown shows 'Select' placeholder and Indian states/UTs; required"
+          category: field_validation
+          level: e2e
+          target: state
+          preconditions: "form loaded"
+          steps: ["inspect placeholder", "inspect option list", "submit with placeholder still selected", "select a state"]
+          expected: "placeholder 'Select'; options are the 28 states + 8 UTs (enum/enumNames, not <items>); required blocks submit while placeholder selected; aria-label 'State'"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.3
+        - id: TC-013
+          title: "PIN Code requires exactly 6 digits (digits only)"
+          category: field_validation
+          level: e2e
+          target: pinCode
+          preconditions: "form loaded"
+          steps: ["enter 5 digits", "enter 7 digits", "enter letters", "enter exactly 6 digits"]
+          expected: "5 and 7 digits rejected; non-digits rejected; exactly 6 digits accepted; aria-label 'PIN Code'"
+          executes_with: sentinel
+          traces_to_story: US-03
+          traces_to_ac: AC-03.4
+        - id: TC-014
+          title: "validatePin6Digits clientlib function (unit)"
+          category: field_validation
+          level: unit
+          target: "clientlib: validatePin6Digits"
+          preconditions: "clientlib function available"
+          steps: ["assert '560001' passes", "assert '5600' fails", "assert 'ab0001' fails", "assert empty is safe"]
+          expected: "returns true only for exactly 6 digits; empty-safe"
+          executes_with: create-form-tests
+          traces_to_story: US-03
+          traces_to_ac: AC-03.4
+
+        # =========================================================================
+        # US-04 — Core vehicle identification (Vehicle Type, Manufacturer, Model)
+        # =========================================================================
+        - id: TC-015
+          title: "Vehicle Type dropdown required with 'Select' placeholder and finalized enum"
+          category: field_validation
+          level: e2e
+          target: vehicleType
+          preconditions: "form loaded"
+          steps: ["inspect placeholder + options", "submit with placeholder", "select a type"]
+          expected: "placeholder 'Select'; options Two Wheeler/Three Wheeler/Four Wheeler-Car/Commercial/Heavy/Other; required blocks submit; aria-label 'Vehicle Type'"
+          executes_with: sentinel
+          traces_to_story: US-04
+          traces_to_ac: AC-04.1
+        - id: TC-016
+          title: "Manufacturer is a required text field"
+          category: field_validation
+          level: e2e
+          target: manufacturer
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Manufacturer'"
+          executes_with: sentinel
+          traces_to_story: US-04
+          traces_to_ac: AC-04.2
+        - id: TC-017
+          title: "Model is a required text field"
+          category: field_validation
+          level: e2e
+          target: model
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Model'"
+          executes_with: sentinel
+          traces_to_story: US-04
+          traces_to_ac: AC-04.3
+
+        # =========================================================================
+        # US-05 — Registration / Chassis / Engine numbers
+        # =========================================================================
+        - id: TC-018
+          title: "Registration Number is a required text field"
+          category: field_validation
+          level: e2e
+          target: registrationNumber
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Registration Number'"
+          executes_with: sentinel
+          traces_to_story: US-05
+          traces_to_ac: AC-05.1
+        - id: TC-019
+          title: "Chassis Number is a required text field"
+          category: field_validation
+          level: e2e
+          target: chassisNumber
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Chassis Number'"
+          executes_with: sentinel
+          traces_to_story: US-05
+          traces_to_ac: AC-05.2
+        - id: TC-020
+          title: "Engine Number is a required text field"
+          category: field_validation
+          level: e2e
+          target: engineNumber
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Engine Number'"
+          executes_with: sentinel
+          traces_to_story: US-05
+          traces_to_ac: AC-05.3
+
+        # =========================================================================
+        # US-06 — Vehicle attributes (Fuel Type, Color, Manufacturing Year)
+        # =========================================================================
+        - id: TC-021
+          title: "Fuel Type dropdown required with 'Select' placeholder and finalized enum"
+          category: field_validation
+          level: e2e
+          target: fuelType
+          preconditions: "form loaded"
+          steps: ["inspect placeholder + options", "submit with placeholder", "select a fuel type"]
+          expected: "placeholder 'Select'; options Petrol/Diesel/CNG/LPG/Electric/Hybrid/Other; required blocks submit; aria-label 'Fuel Type'"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.1
+        - id: TC-022
+          title: "Color is a required text field"
+          category: field_validation
+          level: e2e
+          target: color
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Color'"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.2
+        - id: TC-023
+          title: "Manufacturing Year dropdown required with descending year range and 'Select' placeholder"
+          category: field_validation
+          level: e2e
+          target: manufacturingYear
+          preconditions: "form loaded"
+          steps: ["inspect placeholder + options", "confirm descending order (current year first)", "submit with placeholder", "select a year"]
+          expected: "placeholder 'Select'; descending years current-year..~30-yrs-back; required blocks submit; aria-label 'Manufacturing Year'"
+          executes_with: sentinel
+          traces_to_story: US-06
+          traces_to_ac: AC-06.3
+
+        # =========================================================================
+        # US-07 — Insurance details (Company, Policy Number, Policy Valid Till date)
+        # =========================================================================
+        - id: TC-024
+          title: "Insurance Company is a required text field"
+          category: field_validation
+          level: e2e
+          target: insuranceCompany
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Insurance Company'"
+          executes_with: sentinel
+          traces_to_story: US-07
+          traces_to_ac: AC-07.1
+        - id: TC-025
+          title: "Policy Number is a required text field"
+          category: field_validation
+          level: e2e
+          target: policyNumber
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Policy Number'"
+          executes_with: sentinel
+          traces_to_story: US-07
+          traces_to_ac: AC-07.2
+        - id: TC-026
+          title: "Policy Valid Till is required date in DD/MM/YYYY, must be valid"
+          category: field_validation
+          level: e2e
+          target: policyValidTill
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter invalid date", "enter valid DD/MM/YYYY date"]
+          expected: "required blocks submit; invalid date rejected; valid date accepted; format DD/MM/YYYY; aria-label 'Policy Valid Till'"
+          executes_with: sentinel
+          traces_to_story: US-07
+          traces_to_ac: AC-07.3
+
+        # =========================================================================
+        # US-08 — Document Checklist (multi-select, 6 options)
+        # =========================================================================
+        - id: TC-027
+          title: "Document Checklist is multi-select; zero or more may be selected"
+          category: field_validation
+          level: e2e
+          target: documentChecklist
+          preconditions: "form loaded"
+          steps: ["submit with zero selected (all else valid)", "select multiple items", "confirm multiple stay checked simultaneously"]
+          expected: "zero selections do NOT block submit; multiple items can be checked at once (checkboxgroup, array binding)"
+          executes_with: sentinel
+          traces_to_story: US-08
+          traces_to_ac: AC-08.1
+        - id: TC-028
+          title: "Document Checklist offers exactly the 6 specified options"
+          category: field_validation
+          level: e2e
+          target: documentChecklist
+          preconditions: "form loaded"
+          steps: ["inspect the option list"]
+          expected: "exactly: Proof of Identity, Proof of Address, Vehicle Insurance, Pollution Under Control (PUC) Certificate, Road Tax Receipt, Others (if any) — via enum/enumNames, not <items>"
+          executes_with: sentinel
+          traces_to_story: US-08
+          traces_to_ac: AC-08.2
+        - id: TC-029
+          title: "Document Checklist group has aria-label 'Document Checklist'"
+          category: accessibility
+          level: e2e
+          target: documentChecklist
+          preconditions: "form loaded"
+          steps: ["inspect group aria-label"]
+          expected: "checkbox group exposes aria-label 'Document Checklist'"
+          executes_with: sentinel
+          traces_to_story: US-08
+          traces_to_ac: AC-08.3
+
+        # =========================================================================
+        # US-09 — Declaration (static text, Place, Date, Signature/Full Name)
+        # =========================================================================
+        - id: TC-030
+          title: "Static declaration text is displayed in the Declaration section"
+          category: ui_parity
+          level: ui-visual
+          target: declarationText
+          preconditions: "deployed form; reference screenshot available"
+          steps: ["render section 5", "compare declaration text to reference"]
+          expected: "text 'I hereby declare that the above information is true and correct to the best of my knowledge.' visible under '5. DECLARATION'"
+          executes_with: test-form-ui
+          traces_to_story: US-09
+          traces_to_ac: AC-09.1
+        - id: TC-031
+          title: "Place is a required text field"
+          category: field_validation
+          level: e2e
+          target: place
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Place'"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.2
+        - id: TC-032
+          title: "Declaration Date is required date in DD/MM/YYYY, must be valid"
+          category: field_validation
+          level: e2e
+          target: declarationDate
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter invalid date", "enter valid DD/MM/YYYY date"]
+          expected: "required blocks submit; invalid date rejected; valid date accepted; aria-label 'Declaration Date'"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.3
+        - id: TC-033
+          title: "Signature / Full Name is a required text field"
+          category: field_validation
+          level: e2e
+          target: signatureFullName
+          preconditions: "form loaded"
+          steps: ["leave empty + submit", "enter valid value"]
+          expected: "required blocks submit; value accepted; aria-label 'Signature / Full Name'"
+          executes_with: sentinel
+          traces_to_story: US-09
+          traces_to_ac: AC-09.4
+
+        # =========================================================================
+        # US-10 — Submit blocked until valid; PDF Document of Record
+        # =========================================================================
+        - id: TC-034
+          title: "Submit is blocked until all required fields are valid"
+          category: submit
+          level: e2e
+          target: "guideContainer submit"
+          preconditions: "form loaded"
+          steps: ["click Submit on empty form", "confirm blocked with messages on required fields", "fill all 23 required fields validly", "click Submit"]
+          expected: "empty/invalid submit blocked with validation messages; valid submit accepted"
+          executes_with: sentinel
+          traces_to_story: US-10
+          traces_to_ac: AC-10.1
+        - id: TC-035
+          title: "Shared Custom-Submit-GeneratePDF generates a DoR PDF on submit (service unit)"
+          category: submit
+          level: unit
+          target: "Custom-Submit-GeneratePDF action + GeneratePDFServlet + Sling Models"
+          preconditions: "AEM Mocks; valid submitted form data map"
+          steps: ["invoke submit action with a valid data map", "assert PDF generated", "assert PDF uploaded to DAM", "assert empty/null path handled"]
+          expected: "PDF of submitted data produced (Document of Record); happy + null/empty + error paths covered; >=80% coverage on service classes"
+          executes_with: create-form-tests
+          traces_to_story: US-10
+          traces_to_ac: AC-10.2
+        - id: TC-036
+          title: "On successful submit a PDF DoR is made available to the owner (e2e)"
+          category: submit
+          level: e2e
+          target: "guideContainer submit + PDF delivery"
+          preconditions: "deployed form wired to shared Custom-Submit-GeneratePDF"
+          steps: ["fill all required fields validly", "submit", "confirm PDF of submitted data is generated and delivered"]
+          expected: "PDF Document of Record generated via shared action and made available to the owner"
+          executes_with: sentinel
+          traces_to_story: US-10
+          traces_to_ac: AC-10.2
+
+        # =========================================================================
+        # US-11 — Reset clears the form
+        # =========================================================================
+        - id: TC-037
+          title: "Reset clears all entered values and restores initial empty state"
+          category: business_rule
+          level: e2e
+          target: resetButton
+          preconditions: "form loaded and partially filled (text, dropdowns, radios, checkboxes, dates)"
+          steps: ["fill several fields across all field types", "click Reset"]
+          expected: "all values cleared; dropdowns back to 'Select'; radios/checkboxes unchecked; dates cleared; form in initial empty state; no page reload"
+          executes_with: sentinel
+          traces_to_story: US-11
+          traces_to_ac: AC-11.1
+
+        # =========================================================================
+        # US-12 — Title, subtitle, sectioned layout, 3-col grid, asterisks, buttons
+        # =========================================================================
+        - id: TC-038
+          title: "Form displays title and subtitle matching the reference"
+          category: ui_parity
+          level: ui-visual
+          target: "formTitle, formSubtitle"
+          preconditions: "deployed form; reference screenshot available"
+          steps: ["capture header", "compare to reference"]
+          expected: "title 'VEHICLE REGISTRATION FORM' and subtitle 'Please provide the following details to register your vehicle.' visible and rendered (navy, centered title)"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.1
+        - id: TC-039
+          title: "Five numbered section headings present in order"
+          category: ui_parity
+          level: ui-visual
+          target: "5 panels"
+          preconditions: "deployed form; reference screenshot available"
+          steps: ["capture form", "verify section headings + order vs reference"]
+          expected: "1. OWNER DETAILS, 2. VEHICLE DETAILS, 3. INSURANCE DETAILS, 4. DOCUMENT CHECKLIST, 5. DECLARATION in that order"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.2
+        - id: TC-040
+          title: "Fields laid out in a 3-column grid with red asterisks on required fields"
+          category: ui_parity
+          level: ui-visual
+          target: "whole form layout + required markers"
+          preconditions: "deployed form; reference screenshot available"
+          steps: ["capture form at desktop width", "verify 3-column grid + red asterisks vs reference"]
+          expected: "3-column responsive grid; red (#e02020) asterisk on every required field label; zero Critical visual findings"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.3
+        - id: TC-041
+          title: "Submit and Reset buttons shown in the footer with correct styling"
+          category: ui_parity
+          level: ui-visual
+          target: "submitButton, resetButton"
+          preconditions: "deployed form; reference screenshot available"
+          steps: ["capture footer", "compare buttons to reference"]
+          expected: "navy filled 'Submit' + white/outlined 'Reset' shown centered in footer"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.4
+        - id: TC-042
+          title: "Overall rendered form matches the reference screenshot (parity gate)"
+          category: ui_parity
+          level: ui-visual
+          target: "whole form"
+          preconditions: "deployed form; reference c:\\Users\\330073\\Downloads\\Vehicle Reg.jpg"
+          steps: ["capture live form", "pixel diff vs reference", "vision comparison of fields/labels/order/layout/colour"]
+          expected: "zero Critical visual findings; fields, labels, order, 3-col layout, navy/light-blue palette match reference"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.3
+
+        # =========================================================================
+        # US-13 — Accessibility (aria-label on every field; WCAG 2.1 AA)
+        # =========================================================================
+        - id: TC-043
+          title: "Every field (inputs, radio, dropdowns, checkbox group, dates) has an aria-label"
+          category: accessibility
+          level: e2e
+          target: "all 25 value fields + gender radio + 4 dropdowns + checkbox group + 3 date pickers"
+          preconditions: "deployed form"
+          steps: ["enumerate all fields", "assert each exposes a non-empty aria-label matching the spec"]
+          expected: "every field has the aria-label defined in DESI-design-form-components.yaml; none missing"
+          executes_with: sentinel
+          traces_to_story: US-13
+          traces_to_ac: AC-13.1
+        - id: TC-044
+          title: "Form is keyboard navigable and meets WCAG 2.1 AA contrast/labelling"
+          category: accessibility
+          level: e2e
+          target: "whole form"
+          preconditions: "deployed form; axe/keyboard tooling"
+          steps: ["tab through all fields + buttons in DOM order", "run automated WCAG 2.1 AA audit (contrast, labels, focus)", "verify visible focus states"]
+          expected: "all fields/buttons reachable and operable by keyboard in logical order; no WCAG 2.1 AA violations; navy-on-light-blue and white-on-navy contrast >= 4.5:1; visible focus"
+          executes_with: sentinel
+          traces_to_story: US-13
+          traces_to_ac: AC-13.2
+
+        # =========================================================================
+        # Cross-cutting — responsive (design spec breakpoints)
+        # =========================================================================
+        - id: TC-045
+          title: "Responsive layout: 3 columns on desktop collapse to single column on mobile"
+          category: responsive
+          level: ui-visual
+          target: "whole form grid"
+          preconditions: "deployed form"
+          steps: ["capture at >=1024px (3 columns)", "capture at <768px (single column)"]
+          expected: "desktop shows 3-column grid; mobile stacks every field full-width and tappable; date-picker overlay not clipped"
+          executes_with: test-form-ui
+          traces_to_story: US-12
+          traces_to_ac: AC-12.3
+
+# =====================================================================================
+# COVERAGE
+# =====================================================================================
+coverage:
+  user_stories_total: 13
+  user_stories_with_cases: 13
+  acceptance_criteria_total: 33
+  acceptance_criteria_with_cases: 33
+  uncovered_stories: []
+  uncovered_acceptance_criteria: []
+  ac_to_cases:
+    AC-01.1: [TC-001, TC-002]
+    AC-01.2: [TC-003, TC-004]
+    AC-01.3: [TC-005]
+    AC-02.1: [TC-006, TC-007]
+    AC-02.2: [TC-008, TC-009]
+    AC-03.1: [TC-010]
+    AC-03.2: [TC-011]
+    AC-03.3: [TC-012]
+    AC-03.4: [TC-013, TC-014]
+    AC-04.1: [TC-015]
+    AC-04.2: [TC-016]
+    AC-04.3: [TC-017]
+    AC-05.1: [TC-018]
+    AC-05.2: [TC-019]
+    AC-05.3: [TC-020]
+    AC-06.1: [TC-021]
+    AC-06.2: [TC-022]
+    AC-06.3: [TC-023]
+    AC-07.1: [TC-024]
+    AC-07.2: [TC-025]
+    AC-07.3: [TC-026]
+    AC-08.1: [TC-027]
+    AC-08.2: [TC-028]
+    AC-08.3: [TC-029]
+    AC-09.1: [TC-030]
+    AC-09.2: [TC-031]
+    AC-09.3: [TC-032]
+    AC-09.4: [TC-033]
+    AC-10.1: [TC-034]
+    AC-10.2: [TC-035, TC-036]
+    AC-11.1: [TC-037]
+    AC-12.1: [TC-038]
+    AC-12.2: [TC-039]
+    AC-12.3: [TC-040, TC-042, TC-045]
+    AC-12.4: [TC-041]
+    AC-13.1: [TC-043]
+    AC-13.2: [TC-044]
+
+# =====================================================================================
+# EXECUTOR SUMMARY
+# =====================================================================================
+executes_with_summary:
+  create-form-tests:            # unit (JUnit) — clientlib validation fns + shared submit action/servlet
+    - TC-004
+    - TC-007
+    - TC-009
+    - TC-014
+    - TC-035
+  test-form-ui:                 # visual parity vs Vehicle Reg.jpg
+    - TC-030
+    - TC-038
+    - TC-039
+    - TC-040
+    - TC-041
+    - TC-042
+    - TC-045
+  sentinel:                     # e2e / functional / accessibility on the deployed form
+    - TC-001
+    - TC-002
+    - TC-003
+    - TC-005
+    - TC-006
+    - TC-008
+    - TC-010
+    - TC-011
+    - TC-012
+    - TC-013
+    - TC-015
+    - TC-016
+    - TC-017
+    - TC-018
+    - TC-019
+    - TC-020
+    - TC-021
+    - TC-022
+    - TC-023
+    - TC-024
+    - TC-025
+    - TC-026
+    - TC-027
+    - TC-028
+    - TC-029
+    - TC-031
+    - TC-032
+    - TC-033
+    - TC-034
+    - TC-036
+    - TC-037
+    - TC-043
+    - TC-044
+
+totals:
+  test_cases: 45
+  by_category:
+    field_validation: 27
+    accessibility: 3
+    submit: 3
+    business_rule: 1
+    ui_parity: 8
+    responsive: 1
+  by_level:
+    unit: 5
+    e2e: 25
+    ui-visual: 8
+    integration: 0
+    performance: 0        # no hard SLA/volume stated in NFRs — no performance case warranted

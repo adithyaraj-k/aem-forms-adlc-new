@@ -1,0 +1,412 @@
+solution_architecture:
+  brief: "Vehicle Registration Form — EXACT visual + functional replica from screenshot"
+  delivery_type: "new_single_form"
+  input_type: "reference screenshot + complete field inventory + styling specification"
+
+  forms:
+    - key: "vehicle-registration-form"
+      title: "VEHICLE REGISTRATION FORM"
+      data_backing: "schema"
+      data_reason: |
+        Input is a reference screenshot with field inventory and styling spec — no system-of-record
+        or integration contract. Defaults to JSON Schema per architect rule (screenshot → schema,
+        not FDM). Form is standalone collect-and-submit with PDF/DoR output and approval workflow.
+        If future integration to CRM/backend is required, FDM can be added in v2.
+
+      template_decision: "reuse:blank-af-v2"
+      template_reason: |
+        Repository has blank-af-v2 under /conf/aem-adaptive-forms-agents/settings/wcm/templates/.
+        This is a Core Components af-page-v2 type template with a locked header region, unlocked
+        form container region, and generic footer. It fits the form's single-page layout, allows
+        all required Core Components fields, and is broadly reusable across forms. Reuse it.
+        New template is NOT warranted — this is not a new form family or governed layout.
+        Per-form theme/brand (green/teal colors) is handled via create-form-theme + conf context,
+        not template. SKIP create-editable-template.
+
+      theme_decision: "reuse:/apps/fd/af/themes/aem-adaptive-forms-agents-wknd"
+      theme_reason: |
+        The form uses the project's default theme (wknd) as a base. Per the CLAUDE.md mandatory
+        rule "Theme as token override (Option A)", a thin :root token override ONLY is needed to
+        set the green/teal brand colors (#228B22) for buttons and section headers. The base theme
+        owns standard element styling; no new full theme is needed. Reuse the wknd theme. The
+        form clientlib (Phase 9) will provide form-specific theme token overrides (--af-primary:
+        #228B22) and grid-width rules for multi-column layout.
+
+      custom_components: []
+      custom_components_reason: |
+        All field types (text, email, tel, date, dropdown, textarea) are covered by Core
+        Components. No custom components needed (signature pad, OTP, star rating, etc. not
+        required). Phase 5 skipped.
+
+      fields_coverage:
+        - ownerFullName: "text field (Core Components text input)"
+        - dateOfBirth: "date field (Core Components date picker, DD/MM/YYYY format)"
+        - gender: "dropdown (Core Components select/dropdown)"
+        - contactNumber: "tel field (Core Components tel input with pattern validation)"
+        - emailAddress: "email field (Core Components email input)"
+        - emergencyContactNo: "tel field (Core Components tel input)"
+        - vehicleType: "dropdown (Core Components select, default: Electric Vehicle)"
+        - makeModel: "text field (Core Components text input)"
+        - registrationYear: "text/number field (Core Components text input with numeric validation)"
+        - chassisNumber: "text field (Core Components text input)"
+        - fuelType: "dropdown (Core Components select)"
+        - addressLine: "text field (Core Components text input, full-width)"
+        - city: "text field (Core Components text input)"
+        - state: "text field (Core Components text input)"
+        - pincode: "text/number field (Core Components text input with 6-digit validation)"
+        - rcBookNumber: "text field (Core Components text input)"
+        - insurancePolicyNumber: "text field (Core Components text input)"
+        - pucCertificateNumber: "text field (Core Components text input)"
+        - submittedBy: "text field (Core Components text input)"
+        - declarationDate: "date field (Core Components date picker, defaults to today)"
+
+      rules_summary:
+        - "20 validation rules (R01–R20) covering: required, format, length, numeric-only, date range, pattern matching"
+        - "All implemented via create-form-rules + field-level clientlib validation"
+        - "Error messages tied to each rule"
+        - "No complex show/hide or cascading logic; all rules are field-level validations"
+
+      layout: "single_page"
+      layout_reason: |
+        Form is a flat single-page layout with 5 sections (Owner Details, Vehicle Details, Address,
+        Document & Insurance, Declaration). No wizard, tabs, or accordion needed. All fields fit on
+        one page with responsive multi-column layout (3-column on desktop, 1-column on mobile).
+
+      submit_action: "pdf_dor + workflow"
+      submit_reason: |
+        Form is a replica with default submit behavior (PDF/Document of Record download on submit).
+        Also triggers the shared assign-task-to-admin workflow (Medium priority) for admin review.
+        Custom submit action required (Phase 6) to wire both: OSGi service + JCR node under
+        /apps/aem-adaptive-forms-agents/fd/af/submitactions/vehicle-registration-pdf-submit/.
+        Uses the "Invoke an AEM Workflow" built-in submit step on approval.
+
+      prefill: "none"
+      prefill_reason: |
+        No prefill source specified in requirements. Form starts with empty fields (except
+        default values: Vehicle Type = Electric Vehicle, Declaration Date = today).
+        If future prefill from user profile or CRM is needed, create-prefill-service added in v2.
+
+      workflow: "assign-task-to-admin (shared, reusable)"
+      workflow_reason: |
+        Per mandatory rule: every form auto-wires to ONE shared reusable workflow model
+        /var/workflow/models/assign-task-to-admin (or /conf/global/settings/workflow/models/assign-task-to-admin
+        on AEMaaCS) that assigns Medium-priority task to admin. Created ONCE, reused by all forms.
+        The shared model includes: task assignment to admin user, email notification on task creation,
+        and optional PDF/DoR generation on approval. If already deployed, groundsmith reuses it;
+        if absent, groundsmith creates it and wires it to all forms' submit actions.
+
+  integration_nfr_strategy:
+    data_sources: |
+      None. Form is schema-bound (JSON Schema with JCR storage). No external REST/FDM integration.
+      If future CRM/backend integration desired, add create-fdm (new data source + OAuth2) in v2.
+
+    accessibility: |
+      WCAG 2.1 AA target.
+      - Every field has aria-label (enforced by create-adaptive-form skill).
+      - Required asterisks set via CSS and label content (no aria-required confusion).
+      - Form is keyboard navigable (AF Core Components default behavior).
+      - Color contrast meets WCAG AA: green/teal (#228B22) on white, dark text on light backgrounds.
+      - Form clientlib (Phase 9) injects aria-label at runtime for visibility + accessibility.
+
+    localization: |
+      Primary locale: English (en).
+      Form is designed for en; if future FR/DE/ES translations needed, add form conf context
+      internationalization in v2. All static text (labels, placeholders, error messages) is
+      capturable for translation.
+
+    security_pii: |
+      Form collects PII: contact numbers, email, residential address, RC/insurance/PUC numbers.
+      Mitigations:
+      - All transport is HTTPS (AEM Cloud default).
+      - Avoid PII in logs: configure AEM logging to exclude contactNumber, emailAddress, etc.
+      - Document of Record (PDF) is generated on submit and can be encrypted if needed.
+      - No plain-text secrets: submit action credentials use $[secret:keyName] in OSGi config.
+      - Service user for form submission wired via repoinit (not manual, per mandatory rule).
+      - CAPTCHA not required (form is not public-facing; internal/trusted submission).
+
+    record_copy: |
+      Document of Record (PDF) REQUIRED.
+      - PDF generated on successful form submission via custom submit action (Phase 6).
+      - PDF includes all submitted data (fields + values, not just visual snapshot).
+      - PDF stored in DAM or sent via email to admin (tbd in groundsmith prefill-style ask).
+      - PDF serves as retention/audit trail for vehicle registration submission.
+
+    performance: |
+      Expected moderate volume (~5k submissions/month, per assumption).
+      - Theme, clientlib, and form assets cached via dispatcher (publish-level caching).
+      - Form load time target: <2s on 4G networks (lazy-load assets if needed).
+      - Submission via standard AEM Forms submit (no custom performance tuning needed for v1).
+      - Database/JCR storage of form data is AEM Cloud standard (no additional scaling assumed).
+
+    environments: |
+      Deployment: AEM Cloud (author + publish).
+      - Secrets (e.g., workflow notifier email) stored per environment via $[secret:] in config.
+      - Form deployed to publish for end-user access; embedded on /content/sites/aem-adaptive-forms-agents/test-adaptive-form page.
+      - Dispatcher cache strategy: form content → revalidate on publish; theme/clientlib → long TTL (24h).
+
+    bot_protection: |
+      Not required. Form is embedded on internal/trusted AEM page, not public-facing.
+      If open to public in future, add reCAPTCHA or Turnstile (create-form-theme or clientlib).
+
+  artifact_manifest:
+    schema:
+      path: "/content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json"
+      creates: "typed structure for form data"
+      bindings: "field name → schema property"
+
+    form:
+      path: "/content/forms/af/aem-adaptive-form-agents/vehicle-registration-form"
+      dam_guide_asset: "/content/dam/formsanddocuments/aem-adaptive-form-agents/vehicle-registration-form"
+      conf_context: "/conf/forms/aem-adaptive-form-agents/vehicle-registration-form"
+
+    template:
+      path: "/conf/aem-adaptive-forms-agents/settings/wcm/templates/blank-af-v2 (reused, not built)"
+      status: "REUSE — no new template built"
+
+    theme:
+      path: "/apps/fd/af/themes/aem-adaptive-forms-agents-wknd (reused base)"
+      form_clientlib: "/apps/aem-adaptive-forms-agents/clientlibs/vehicle-registration-form-clientlib"
+      theme_override: "form clientlib provides --af-primary: #228B22 and grid-width rules"
+
+    submit_action:
+      java_service: "com.aem.forms.agents.forms.submit.VehicleRegistrationPdfSubmit"
+      jcr_node: "/apps/aem-adaptive-forms-agents/fd/af/submitactions/vehicle-registration-pdf-submit"
+      functionality: "Generate PDF/DoR + trigger assign-task-to-admin workflow"
+
+    workflow:
+      model_path: "/var/workflow/models/assign-task-to-admin (shared reusable, created once)"
+      status: "ENSURE PRESENT — if absent, create in Phase 12; reuse thereafter"
+
+    clientlib:
+      shared_base: "/apps/aem-adaptive-forms-agents/clientlibs/aem-adaptive-forms-agents.forms.base"
+      form_specific: "/apps/aem-adaptive-forms-agents/clientlibs/vehicle-registration-form-clientlib"
+      contains: "form-specific validation functions, grid-width rules, aria-label injection"
+
+    tests:
+      unit_tests: "com.aem.forms.agents.forms.submit.VehicleRegistrationPdfSubmitTest"
+      integration_tests: "via create-form-tests"
+      ui_parity: "test-form-ui against c:\\Users\\2035448\\OneDrive - Cognizant\\Desktop\\vehicle_registration_form.png"
+
+  adlc_execution_plan:
+    - phase: 0
+      skill: "ensure-forms-agents-md"
+      status: "verify"
+      note: ".aem-forms-config.yaml present; verify tokens loaded"
+      parallel_with: []
+
+    - phase: 1
+      skill: "generate-schema"
+      status: "execute"
+      note: "Create vehicle-registration-form.schema.json with typed fields (text, email, tel, date, etc.) and bindings"
+      parallel_with: []
+      outputs:
+        - "/content/dam/formsanddocuments/schema/vehicle-registration-form.schema.json"
+        - "/content/dam/formsanddocuments/schema/vehicle-registration-form.bindings.json"
+
+    - phase: 2
+      skill: "create-editable-template"
+      status: "skip"
+      reason: "Reuse existing blank-af-v2 template. No new template needed."
+      skip: true
+
+    - phase: 3
+      skill: "create-adaptive-form"
+      status: "execute"
+      note: |
+        Build vehicle-registration-form (Core Components, AEM Cloud).
+        - 5 sections: Owner Details (3-col), Vehicle Details (3-col), Address (full+3-col),
+          Document & Insurance (3-col), Declaration (2-col + static text).
+        - All 20 fields with Core Components field types.
+        - Form data binding to schema (JSON Schema).
+        - Per-form conf context for form-specific configurations.
+        - DAM guide asset created.
+        - Form container + submit button + reset button.
+        - Embedded on /content/sites/aem-adaptive-forms-agents/test-adaptive-form page (via Phase 14 composer).
+      parallel_with: ["8"]
+      outputs:
+        - "/content/forms/af/aem-adaptive-form-agents/vehicle-registration-form"
+        - "/content/dam/formsanddocuments/aem-adaptive-form-agents/vehicle-registration-form"
+        - "/conf/forms/aem-adaptive-form-agents/vehicle-registration-form"
+
+    - phase: 4
+      skill: "create-form-rules"
+      status: "execute"
+      note: |
+        Implement all 20 validation rules (R01–R20):
+        - R01–R10: Contact numbers (10-digit), email (RFC 5322), registration year (4-digit past),
+          chassis number, fuel type, address fields.
+        - R11–R15: Address validation (address, city, state, pincode 6-digit).
+        - R16–R20: Document fields, submitted-by, declaration date (no future, defaults to today).
+        - All use client-side validation + form-level error messaging.
+        - No complex show/hide or cross-field logic (all field-level validators).
+      parallel_with: ["6", "7"]
+      outputs:
+        - "fd:rules AST nodes attached to form fields"
+
+    - phase: 5
+      skill: "create-form-component"
+      status: "skip"
+      reason: "All field types covered by Core Components. No custom components."
+      skip: true
+
+    - phase: 6
+      skill: "create-submit-action"
+      status: "execute"
+      note: |
+        Custom submit action: VehicleRegistrationPdfSubmit
+        - OSGi service (Java) that generates PDF/Document of Record from form data.
+        - JCR node under /apps/aem-adaptive-forms-agents/fd/af/submitactions/vehicle-registration-pdf-submit.
+        - Wires "Invoke an AEM Workflow" step to trigger assign-task-to-admin workflow on submit.
+        - PDF includes all form fields + values + submission timestamp.
+        - Stores PDF in DAM or sends to admin (configurable).
+      parallel_with: ["7"]
+      outputs:
+        - "/apps/aem-adaptive-forms-agents/fd/af/submitactions/vehicle-registration-pdf-submit"
+        - "core/src/main/java/com/aem/forms/agents/forms/submit/VehicleRegistrationPdfSubmit.java"
+
+    - phase: 7
+      skill: "create-prefill-service"
+      status: "skip"
+      reason: "No prefill source required. Form starts empty (except defaults: Vehicle Type, Date)."
+      skip: true
+
+    - phase: 8
+      skill: "create-form-theme"
+      status: "skip"
+      reason: |
+        Reuse /apps/fd/af/themes/aem-adaptive-forms-agents-wknd as base.
+        Per mandatory rule "Theme as token override (Option A)":
+        - Base theme (wknd) owns standard element styling + --af-* token defaults.
+        - Form-specific overrides (green/teal #228B22 for buttons/headers) provided via
+          form clientlib (Phase 9) :root token override, NOT a new full theme.
+        No create-form-theme needed.
+      skip: true
+
+    - phase: 9
+      skill: "create-form-clientlib"
+      status: "execute"
+      note: |
+        Form clientlib: vehicle-registration-form-clientlib
+        - Shared base clientlib reference: aem-adaptive-forms-agents.forms.base
+        - Form-specific clientlib at /apps/aem-adaptive-forms-agents/clientlibs/vehicle-registration-form-clientlib
+        - Contains:
+          - Custom validation functions (optional, field-level rules mostly built-in).
+          - --af-primary: #228B22 (green/teal) token override for buttons + section headers.
+          - Grid-width rules for multi-column layout (.af-col-3, .af-col-2, etc.) to ensure
+            multi-column fields don't collapse to single column on embed.
+          - aria-label injection at runtime (Core Components drops aria-label when visible label exists).
+          - Form-specific theme token overrides (reuse base, override brand colors only).
+        - clientLibRef on guideContainer: "aem-adaptive-forms-agents.forms.base,vehicle-registration-form-clientlib" (comma-separated).
+      parallel_with: []
+      outputs:
+        - "/apps/aem-adaptive-forms-agents/clientlibs/vehicle-registration-form-clientlib"
+
+    - phase: 10
+      skill: "create-form-tests"
+      status: "execute"
+      note: |
+        Unit + integration tests for VehicleRegistrationPdfSubmit (Phase 6 OSGi service).
+        - Test PDF generation with sample form data.
+        - Test workflow trigger on submit.
+        - Test error handling (missing required fields → submit blocked).
+        - Coverage target: ≥80% on Forms service classes.
+      parallel_with: []
+      outputs:
+        - "core/src/test/java/com/aem/forms/agents/forms/submit/VehicleRegistrationPdfSubmitTest.java"
+
+    - phase: 11
+      skill: "migrate-form"
+      status: "skip"
+      reason: "New form delivery, not a migration. No legacy/Foundation form to port."
+      skip: true
+
+    - phase: 12
+      skill: "create-workflow"
+      status: "execute"
+      note: |
+        Ensure the shared reusable workflow model /var/workflow/models/assign-task-to-admin exists.
+        - If already deployed (from prior forms), skip creation; wire to it.
+        - If absent, create it: assigns Medium-priority task to admin on form submit.
+        - Workflow model includes: task assignment step, email notification on task, approval flow.
+        - Used by all forms in the project (NOT per-form; shared + reused).
+        - groundsmith creates if absent; formwright references it in submit action wiring.
+      parallel_with: []
+      outputs:
+        - "/var/workflow/models/assign-task-to-admin (shared, or verified present)"
+
+    - phase: 13
+      skill: "test-form-ui"
+      status: "execute"
+      note: |
+        UI parity test: compare rendered form to reference screenshot.
+        Reference: c:\\Users\\2035448\\OneDrive - Cognizant\\Desktop\\vehicle_registration_form.png
+        - Pixel diff for hard pass/fail on layout, spacing, colors.
+        - Vision analysis for missing/extra fields, wrong labels, field order, alignment, fonts, colors.
+        - Verdict: PASS only if visual diff threshold passed + no Critical findings.
+        - Runs AFTER deployment (Phase 13, after forgemaster DEPLOY gate).
+      parallel_with: []
+      outputs:
+        - ".claude/agents/runs/2026-07-28-vehicle-registration-form/testing/test-form-ui-report.md"
+        - "Cypress pixel diff images in ui.tests/.../cypress/results/ (not copied to runs/)"
+
+    - phase: 14
+      skill: "composer"
+      status: "execute"
+      note: |
+        Embed the built form into /content/sites/aem-adaptive-forms-agents/test-adaptive-form page.
+        - Uses AEM Form Container component, formRef → built form path.
+        - REPLACES previously embedded form (not stacked).
+        - Page reuses project page component + template.
+        - Page path covered by ui.content filter (deployed with form artifacts).
+        - Runs BEFORE forgemaster (Phase 14 → Phase 15 DEPLOY), so updated page deploys with form.
+      parallel_with: []
+      outputs:
+        - "/content/sites/aem-adaptive-forms-agents/test-adaptive-form"
+        - "AEM Form Container node with formRef = /content/forms/af/aem-adaptive-form-agents/vehicle-registration-form"
+
+  parallelizable_phases: |
+    - Phase 3 (create-adaptive-form) + Phase 8 (create-form-theme) can run in parallel
+      (form build + theme styling independent until clientlib binds them).
+    - Phase 4 (create-form-rules) + Phase 6 (create-submit-action) + Phase 7 (create-prefill-service)
+      can run in parallel after Phase 3 completes.
+
+  phase_dependencies: |
+    Phase 0 (config) → Phase 1 (schema) → Phase 3 (form)
+    Phase 3 → Phase 4 (rules), Phase 6 (submit), Phase 9 (clientlib)
+    Phase 4, 6, 7 → Phase 10 (tests)
+    Phase 3 → Phase 12 (workflow) OR verify present
+    Phase 3, 6, 12 → Phase 14 (composer embed)
+    Phase 14 → DEPLOY (forgemaster, Phase 15)
+    DEPLOY → TEST (sentinel, Phase 13)
+
+  gaps: []
+  gap_notes: "No gaps. All requirements mapped to existing skills."
+
+  risks:
+    - risk: "Multi-column layout on embedded form may collapse to single column if form clientlib grid-width rules missing."
+      severity: "High"
+      mitigation: "Phase 9 (create-form-clientlib) MUST include flex-basis grid-width rules (.af-col-3 { flex-basis: 33% }, etc.). Sentinel UI test verifies layout parity."
+
+    - risk: "Core Components drops aria-label attribute when a visible label exists (accessibility gap)."
+      severity: "Medium"
+      mitigation: "Phase 9 clientlib injects aria-label at runtime via JS on form load. Verified in sentinel accessibility audit."
+
+    - risk: "Shared workflow model /var/workflow/models/assign-task-to-admin must exist before any form submit."
+      severity: "High"
+      mitigation: "groundsmith (Phase 12) ensures model present (creates if absent, reuses if exists). Wire check in formwright (Phase 3) submit action config."
+
+    - risk: "PDF generation via custom submit action may fail on invalid form data or missing fields."
+      severity: "Medium"
+      mitigation: "Phase 6 submit action includes validation gate (blocks submit if required fields empty). Phase 10 tests cover error cases."
+
+    - risk: "Form embedded on page may apply global page styles conflicting with form theme."
+      severity: "Low"
+      mitigation: "Form clientlib specificity + form container isolation. Sentinel UI test catches visual regressions."
+
+  handoff_notes: |
+    This solution architecture drives the ADLC pipeline:
+    1. PLAN (this artifact) → DESI (design specs + test cases) → IMPL-B (formwright build) → IMPL-I (groundsmith integration) → ASSEMBLY (composer embed) → DEPLOY (forgemaster mvn) → TEST (sentinel).
+    2. Key decisions: schema-bound (not FDM), reuse blank-af-v2 template + wknd theme, 20 field validations, PDF/DoR submit + shared workflow, form clientlib for grid layout + aria-labels.
+    3. Every phase is mapped to a real catalog skill; no invented phases.
+    4. Execution order respects dependencies; parallelizable phases noted.
+    5. All mandatory rules enforced: no Foundation types, no hardcoded paths, aria-label on every field, OSGi service + JCR node for submit, shared workflow, template reuse-first, clientlib split (base + form-specific).

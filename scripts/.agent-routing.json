@@ -1,0 +1,117 @@
+{
+  "$comment": [
+    "SINGLE SOURCE OF TRUTH for cross-LLM agent routing.",
+    "",
+    "The agent ROSTER and all PROMPT LOGIC live in .claude/agents/*.md and are never",
+    "duplicated. This file adds only what those .md files cannot express: the role",
+    "tier per agent, and the model each tool should use per tier.",
+    "",
+    "Run `node scripts/sync-agent-routing.mjs` after editing this file. By default",
+    "it only CREATES shims that are missing — it never overwrites an existing",
+    "agent shim. Pass --force to re-sync (overwrite drifted shims + prune orphans)",
+    "and regenerate the AGENTS.md routing matrix. Pass --check for a read-only CI",
+    "drift check.",
+    "",
+    "TO ADD A NEW LLM TOOL: add one entry under `tools`. If its agent files are",
+    "'YAML-frontmatter markdown' or 'TOML with an instructions blob', just set",
+    "`emit` to the existing generic format (\"frontmatter-md\" or \"toml\") plus a",
+    "model per tier — every tool sharing a format renders the exact same",
+    "instructions, only metadata (model, reasoning effort, description, outDir,",
+    "fileSuffix) differs. Only truly new output shapes need a new emitter",
+    "function in the script.",
+    "TO ADD A NEW AGENT: drop a new .claude/agents/<name>.md file, add one line to",
+    "`agentTiers` here, and re-run. Nothing else."
+  ],
+
+  "tiers": [
+    "orchestrator",
+    "deep-reasoning",
+    "execution",
+    "quality-gate",
+    "utility-release"
+  ],
+
+  "agentTiers": {
+    "aem-program-agent": "orchestrator",
+    "planwright": "deep-reasoning",
+    "draftsmith": "deep-reasoning",
+    "formwright": "execution",
+    "migrate-form": "execution",
+    "groundsmith": "execution",
+    "assembler": "execution",
+    "forgemaster": "quality-gate",
+    "sentinel": "quality-gate",
+    "pilot": "utility-release"
+  },
+
+  "tierLabels": {
+    "orchestrator": "Orchestrator",
+    "deep-reasoning": "Deep Reasoning & Architecture",
+    "execution": "Execution",
+    "quality-gate": "Quality Gate",
+    "utility-release": "Utility / Release"
+  },
+
+  "adlcStages": {
+    "aem-program-agent": "— (spans all)",
+    "planwright": "Plan",
+    "draftsmith": "Design",
+    "formwright": "Implement",
+    "migrate-form": "Implement",
+    "groundsmith": "Integrate",
+    "assembler": "Integrate",
+    "forgemaster": "Test (pre-release)",
+    "sentinel": "Test (post-deploy)",
+    "pilot": "Release"
+  },
+
+  "tools": {
+    "claude": {
+      "label": "Claude Code",
+      "emit": "none",
+      "modelSource": "frontmatter",
+      "$comment": "Models are read verbatim from each .claude/agents/<name>.md `model:` key. This tool is authoritative and is never generated or modified."
+    },
+
+    "copilot": {
+      "label": "Copilot CLI",
+      "emit": "frontmatter-md",
+      "outDir": [".github", "agents"],
+      "fileSuffix": ".agent.md",
+      "cliCommand": "copilot",
+      "docs": "https://docs.github.com/en/copilot/reference/custom-agents-configuration",
+      "modelVerified": false,
+      "modelCaveat": "GitHub documents `model` as a custom-agent frontmatter property but documents its model-selection effect only for VS Code, JetBrains, Eclipse and Xcode — not the CLI. Treated as declarative intent. The confirmed CLI mechanism is session-level: --model=MODEL, COPILOT_MODEL, or /model.",
+      "models": {
+        "orchestrator": "GPT-5.4",
+        "deep-reasoning": "GPT-5.5",
+        "execution": "GPT-5.4",
+        "quality-gate": "GPT-5.4",
+        "utility-release": "GPT-5.4 mini"
+      }
+    },
+
+    "codex": {
+      "label": "Codex CLI",
+      "emit": "toml",
+      "outDir": [".codex", "agents"],
+      "fileSuffix": ".toml",
+      "docs": "https://learn.chatgpt.com/docs/agent-configuration/subagents",
+      "modelVerified": true,
+      "models": {
+        "orchestrator": "gpt-5.6-terra",
+        "deep-reasoning": "gpt-5.6-sol",
+        "execution": "gpt-5.6-terra",
+        "quality-gate": "gpt-5.6-terra",
+        "utility-release": "gpt-5.6-luna"
+      },
+      "reasoningEffort": {
+        "orchestrator": "",
+        "deep-reasoning": "",
+        "execution": "",
+        "quality-gate": "",
+        "utility-release": ""
+      }
+    }
+  }
+}

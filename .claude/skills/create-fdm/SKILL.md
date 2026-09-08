@@ -351,6 +351,54 @@ use an **Invoke Service** rule, NOT the FDM submit action (which is a write-back
 The service must be a **model-level service** (top-level `links` — see above), so it appears in the
 Rule Editor's Invoke Service list.
 
+---
+
+## Submitting a form via FDM ("Submit using Form Data Model")
+
+When the PLAN `submit` intent is `fdm` / "Submit using Form Data Model", the form writes its data
+back through the FDM's write operations on submit. This is the **ONLY** case where
+`actionType="fd/afaddon/components/actions/fdm"` should appear on the `guideContainer`.
+
+**Required `guideContainer` attributes (FDM submit):**
+```xml
+<guideContainer
+    ...
+    schemaType="formdatamodel"
+    schemaRef="/content/dam/formsanddocuments-fdm/{project}/{fdm}-data-model"
+    actionType="fd/afaddon/components/actions/fdm"
+    fdmEntityPath="$.{RootEntity}"
+    storeAfSubmittedData="{Boolean}true"/>
+```
+
+- `schemaType` must be `"formdatamodel"` (all lowercase — NOT `formDataModel`); wrong case leaves the
+  editor's Data Sources panel empty.
+- `schemaRef` must be the full DAM path of the FDM model (produced by `create-fdm`).
+- `fdmEntityPath` is the root entity bind reference — `$.{Entity}` (e.g. `$.SimpleInterestResult`).
+- `actionType="fd/afaddon/components/actions/fdm"` is the **CC FDM submit action** path under `/libs`.
+  Do **NOT** use `fd/af/components/guidesubmittype/restendpoint` here.
+
+> ⚠️ **The FDM submit action is terminal — it does NOT trigger the `assign-task-to-admin` workflow.**
+> The standing project rule (every form assigns a Medium-priority admin task on submit) still applies.
+> Add a **Workflow Launcher** (see `create-workflow` → "OSGi Workflow Launcher") that fires on the
+> submitted-data path so the admin task is created independently of the submit action.
+
+### Canonical project example — `calculate-simple-interest`
+
+The **`simple-interset-fdm`** / **`simple-interset-ds`** pair (committed at
+`ui.content/.../conf/global/settings/cloudconfigs/fdm/simple-interset-ds` +
+`ui.content/.../content/dam/formsanddocuments-fdm/simple-interset-fdm`) is the verified reference
+FDM for this project:
+
+| Artifact | Path | Notes |
+|---|---|---|
+| Swagger spec | `api-specs/simple-interest-servlet-swagger.yaml` | Source-of-truth; also copied into `_jcr_content/swaggerFile` |
+| Data source cloud config | `ui.content/.../cloudconfigs/fdm/simple-interset-ds/` | No-auth REST; `serviceEndPoint=http://localhost:4502/`, `restfulService="swagger"` |
+| FDM model | `ui.content/.../dam/formsanddocuments-fdm/simple-interset-fdm/` | Root entity `SimpleInterestResult`; model-level service `GET /calculate-simple-interest` |
+| Backing servlet | `core/.../forms/submit/SimpleInterestServlet.java` | Path-bound at `/bin/aem-adaptive-forms-agents/calculate-simple-interest`; GET with `principal`, `rate`, `time` query params; returns `simpleInterest` + `totalAmount` JSON |
+
+When creating a new FDM for a form that uses "Submit using Form Data Model", follow this same
+pattern: Swagger → data source → FDM model → `guideContainer` with `actionType="fd/afaddon/components/actions/fdm"` + `fdmEntityPath` + Workflow Launcher.
+
 Authored on a trigger (e.g. a button **Click**), the editor compiles it onto that component as
 (VERIFIED, exported from an editor-created rule):
 - **`fd:rules/@fd:click`** — an `EVENT_SCRIPTS` AST whose `BLOCK_STATEMENT` is a **`WSDL_STATEMENT`**:
@@ -375,7 +423,7 @@ Authored on a trigger (e.g. a button **Click**), the editor compiles it onto tha
 |---|---|---|
 | Data Sources panel **blank**, entity **"Unbound"** | `jcr:content/sources/source1` binding node missing on the model | Add `sources/source1` with `dataSourceType` + `configurationPath` (Artifact 2) |
 | **"Services" tab empty** (but data source tree shows the service) | The operation is only under an entity's `links`; no **top-level `links`** model service | Add the service as a top-level `links` node (add it in the editor + export) — see "Model-level services" |
-| `AEM-FDM-001-059 … status code received - 401` on Test Model | No-auth data source calling an **auth-protected** endpoint (it sends no credentials) | Configure **Basic auth** on the data source (set in editor, encrypted), or make the endpoint anonymous |
+| `AEM-FDM-001-059 … status code received - 401` on Test Model | No-auth data source calling an **auth-protected** endpoint (it sends no credentials). On AEM SDK/local the default Sling Authenticator requires auth on `/bin/` paths — the FDM service call is rejected 401. | (1) Add a `org.apache.sling.engine.impl.auth.SlingAuthenticator.cfg.json` under `ui.config/.../osgiconfig/config/` with `"sling.auth.requirements": ["-/bin/{your-servlet-path}"]` and redeploy; OR (2) Configure **Basic auth** on the data source (set in editor, encrypted). For this project the shared config at `osgiconfig/config/org.apache.sling.engine.impl.auth.SlingAuthenticator.cfg.json` adds `-/bin/aem-adaptive-forms-agents` to allow the `calculate-simple-interest` servlet to be called without auth. |
 | BUILD FAILURE on the data source `.content.xml` | Encrypted `password="{…}"` read as a `{Type}value` prefix by FileVault | Escape as `password="\{…}"` |
 | Data source not listed / not recognized as Swagger REST | Missing `serviceEndPoint` and/or `restfulService="swagger"`, or `selectAuthentication="No Authentication"` instead of `"None"` | Add `serviceEndPoint`, `restfulService="swagger"`; use `selectAuthentication="None"` |
 | Change deployed but server still shows old binding/props | FileVault `update`-mode doesn't delete removed nodes/props | Delete-before-deploy (above) |

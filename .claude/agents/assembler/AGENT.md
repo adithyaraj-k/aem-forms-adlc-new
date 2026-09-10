@@ -171,6 +171,23 @@ At the end of your run, write your token usage to **`.claude/agents/runs/{runId}
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in `assembler.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
 
+### Copilot CLI compatibility (additive - does not replace the block above)
+
+The `cli_text`/`read`/`write`/`other` breakdown above is a **self-reported estimate**, kept as-is for
+Claude-Code compatibility. Under **GitHub Copilot CLI**, this agent cannot introspect its own token spend
+from inside its own turn - but real, accurate **per-agent** measurement IS possible, because Copilot CLI
+tags every model call with the dispatching agent_id in its session store. That measurement is owned by
+whichever agent dispatched YOU via the Task tool (normally `aem-forms-program-agent`), not by you:
+
+1. Do not attempt to self-measure or guess a `copilot_cli_actual` figure for yourself.
+2. Your dispatcher already holds the `agent_id` the Task tool returned when it launched you. After you
+   report completion, your dispatcher queries `session_store_sql` (`source: "local"`) for
+   `SELECT model, SUM(input_tokens), SUM(output_tokens) FROM assistant_usage_events WHERE session_id = '{sessionId}' AND agent_id = '{yourAgentId}' GROUP BY model`
+   and writes the real result into your entry in `reports/tokens.json` as a sibling `copilot_cli_actual`
+   object (see `aem-forms-program-agent/AGENT.md` -> "Step 5 - Run reports" for the exact procedure).
+3. Leave `cli_text/read/write/other/total/agent_total` exactly as-is; do not add a `copilot_cli_actual`
+   field yourself - an unverifiable self-reported one would be a fabrication.
+
 ## Run output location (mandatory)
 
 Every run directory has **exactly eight folders** — `plan/`, `design/`, `implement/`,

@@ -542,6 +542,68 @@ After all phases complete, produce **all four** `reports/` artifacts. They are t
 Never fabricate a token, cost, or score figure in any of these. A figure the harness did not expose is
 `null` with a `measurement_gap` note — exactly as the ledger's `measurement_gap_note` records it.
 
+#### `reports/tokens.json` → `copilot_cli_actual` (Copilot CLI real PER-AGENT measurement — additive, does not replace per-agent estimate entries)
+
+Each lead's per-agent `passes[].cli_text/read/write/other/total` entry (see every lead AGENT.md's own
+"Token tracking" section) is a **self-reported estimate** kept for Claude-Code compatibility — a lead
+cannot introspect its own isolated token spend from inside its own turn. But **you** (the program agent,
+or whichever agent calls the Task tool to dispatch a lead) CAN get the real, per-agent figure, because
+Copilot CLI's session store tags every model call with the dispatched sub-agent's `agent_id` — the exact
+same id the Task tool returns to you at dispatch time. Per-agent attribution IS possible; do this instead
+of a whole-session-only estimate:
+
+1. Determine this session's id from the session folder path in your runtime context (the UUID segment of
+   `.../.copilot/session-state/{sessionId}`).
+2. Record the `agent_id` the Task tool returned for **each** lead you dispatch (planwright, draftsmith,
+   formwright, groundsmith, assembler, forgemaster, pilot, sentinel — and any nested re-dispatch/retry gets
+   its own new `agent_id`).
+3. After each lead completes, if `session_store_sql` is available, query it with `source: "local"`:
+   ```sql
+   SELECT model, SUM(input_tokens) AS input_tokens, SUM(output_tokens) AS output_tokens, COUNT(*) AS calls
+   FROM assistant_usage_events
+   WHERE session_id = '{sessionId}' AND agent_id = '{thatLeadsAgentId}'
+   GROUP BY model
+   ```
+   This returns tokens attributable **only** to that one lead's dispatch (its own turns, and anything it
+   further sub-delegates under the same `agent_id`) — not the whole session. Cross-check the id against
+   `list_agents` (scope: "all") to confirm the name/task match before recording it.
+4. Write the real figure into that lead's OWN entry in the `agents` map, as a sibling `copilot_cli_actual`
+   object next to (never replacing) its self-reported `passes[]` estimate:
+   ```json
+   "formwright": {
+     "phase": "IMPL-build",
+     "passes": [ { "pass": 0, "label": "initial", "cli_text": 0, "read": 0, "write": 0, "other": 0, "total": 0 } ],
+     "agent_total": 0,
+     "copilot_cli_actual": {
+       "measured": true,
+       "agent_id": "{thatLeadsAgentId}",
+       "by_model": [{ "model": "...", "input_tokens": 0, "output_tokens": 0, "calls": 0 }],
+       "input_tokens": 0,
+       "output_tokens": 0,
+       "total_tokens": 0
+     }
+   }
+   ```
+5. Also write a run-wide `totals.copilot_cli_actual` (sum across every dispatched `agent_id` for this
+   session, plus your own top-level orchestration turns which carry your own `agent_id`) for a single
+   at-a-glance figure:
+   ```json
+   "totals": {
+     "copilot_cli_actual": {
+       "measured": true,
+       "session_id": "{sessionId}",
+       "by_agent": [{ "agent_id": "...", "lead": "planwright", "input_tokens": 0, "output_tokens": 0 }],
+       "run_total_input_tokens": 0,
+       "run_total_output_tokens": 0,
+       "run_total_tokens": 0
+     }
+   }
+   ```
+6. Any turns in the session with `agent_id IS NULL` belong to the top-level conversation (you, before any
+   dispatch, or the human-facing thread) — attribute those to a `"program-agent"` entry, not to any lead.
+7. If `session_store_sql` or `list_agents` is unavailable in this harness, write
+   `"copilot_cli_actual": { "measured": false, "reason": "session_store_sql/list_agents tool not available in this harness" }` for the affected entries instead — never fabricate a number, and never guess an `agent_id`.
+
 Before writing `final-report.md`, **re-read `DECISIONS.md` in full** — it is the source of truth for
 every deviation, retry, retraction and human checkpoint this run had. `final-report.md` summarizes;
 `DECISIONS.md` is the detailed record it summarizes from. A run with more than one straight-through
@@ -626,7 +688,7 @@ actually verified — never on the plan's intent. Sections:
 
 | Rule | Enforcement |
 |------|-------------|
-| Run dir lives under a use-case folder | The run directory is ALWAYS `runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/` — the use case is identified from the delivery INPUT (URL/screenshot → Use Case 1; AF migration → Use Case 2; LiveCycle/JEE → Use Case 3) by listing `.claude/agents/runs/` first and copying the bucket name verbatim. Reject any run dir created directly at the `runs/` root, any invented bucket name, and any nesting deeper than two levels; move a misfiled run dir instead of recreating it and log the correction in `DECISIONS.md` |
+| Run dir lives under a use-case folder | The run directory is ALWAYS `runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/` — the use case is identified from the delivery INPUT (URL or screenshot → Use Case 1; AF migration → Use Case 2; LiveCycle/JEE → Use Case 3) by listing `.claude/agents/runs/` first and copying the bucket name verbatim. Reject any run dir created directly at the `runs/` root, any invented bucket name, and any nesting deeper than two levels; move a misfiled run dir instead of recreating it and log the correction in `DECISIONS.md` |
 | Eight run folders, always | Every run directory has **exactly** `plan/`, `design/`, `implement/`, `integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` — created up front, even if a phase is skipped. Reject a deliverable written outside its owning agent's folder |
 | Every agent files a handoff | No phase is complete until `handoffs/{agent}.yaml` exists for it. A handoff returned in chat but not written to file = gate FAIL |
 | `reports/` is complete | `tokens.json` + `skills.md` + `final-report.md` + `demo-script.md` all present before the delivery is reported complete |

@@ -722,6 +722,18 @@ WRONG: JS expression using jQuery
 
 RIGHT: Use the AEM Forms bridge expression:
   $('fieldName').value
+
+---
+
+WRONG: Hand-writing a plausible `fd:validate` JSON array and only checking that the form runtime
+  validates.
+
+RIGHT: Start from an editor-authored Core Components AST of the same rule type, preserve its
+  structural fields, change only the required operands/literals, and verify both the JCR property
+  and the Rule Editor. `fd:validate` is a multi-valued JCR property: parse each stored value
+  independently (for example `fd:validate[0]`), rather than parsing the repository's display of
+  the whole property as one JSON array. A rule that validates at runtime but renders as
+  “Unknown Field” or “Incomplete” has not been migrated successfully.
 ```
 
 ---
@@ -739,6 +751,11 @@ Before delivering any rules:
       `<visibility>`/`<calculate>`/`<validate>` child node and NOT a Foundation-era name
       (e.g. `fd:visibility`, `fd:enable`, `fd:mandatory`)
 - [ ] Conditions compare against the enum **code**, not the display label
+- [ ] The original rule was read from the source package and its event, operators, operands,
+      literals and script were transcribed into the migration record before authoring the Core AST
+- [ ] Stored `fd:validate` / `fd:*` values each pass `JSON.parse` after deployment; the Rule Editor
+      opens with no JSON/React console errors and shows the expected complete rule, not
+      “Unknown Field”, `null`, `undefined`, or “Incomplete”
 - [ ] Each rule was verified present in `guideContainer.model.json` after deploy (a wrong property
       name OR a wrong AST node fails silently); 0 `SET_PROPERTY`/`fd:visibility` occurrences remain
 - [ ] Any embedded quote inside an `fd:*` JSON blob's string fields uses 2 backslashes in the XML source

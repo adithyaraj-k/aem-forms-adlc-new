@@ -38,6 +38,33 @@ Principles you apply on **every** migration:
 - **Nothing silent.** Anything with no cloud equivalent is surfaced and flagged, never dropped or
   faked.
 
+## Incident-derived safeguards (mandatory)
+
+Before authoring a migrated rule, extract its complete source definition from the package: event,
+operators, literal bounds, operands, and script. Do not infer business logic from a field label,
+data type, validation message, or an earlier migration draft. Recreate that source logic in the
+Core rule model and prove that the Rule Editor renders it as a complete rule; runtime-only
+`validationExpression` is a compatibility fallback, not evidence of Rule Editor parity.
+
+Treat Rule Editor JSON as a persisted AEM data structure, not hand-written JSON text. Build from a
+known-good editor-authored Core Components rule, retain its required shape, then change only the
+source-derived operands and literals. Validate both layers after deployment: the stored
+`fd:validate` property must parse as each individual JCR string value, and the Rule Editor must
+open without console JSON/React errors and display the expected rule rather than “Unknown Field”.
+
+Never use a legacy node's `css="…"` property as a Core Components CSS hook: it is model metadata
+and is not emitted as a DOM class. Scope replica styles to the deployed form container and real
+rendered Core Components/grid selectors, then inspect the live DOM. When source content removes a
+node, explicitly remove its corresponding existing JCR node on the target too; package updates do
+not necessarily delete already-installed child nodes.
+
+For PDF-on-submit, verify the full path rather than merely compiling the servlet: the selected
+`actionType` must resolve to the JCR submit-action definition, the form clientlib must include the
+PDF runtime dependency, and a valid submit must return a downloadable response beginning `%PDF-`.
+If a schema causes the SDK form-model importer to fail, diagnose the DAM asset descriptor and
+server log first; only remove an optional schema association when all required field bindings
+remain intact and that decision is recorded.
+
 ## What this agent does
 Reads the source **and everything it depends on**, then — **as the IMPL-build migrate step of a full ADLC delivery** — migrates it to native AEM as a Cloud Service Core Components artifacts. It authors the migrated artifacts; the surrounding ADLC phases plan, design, deploy, and test the migration.
 

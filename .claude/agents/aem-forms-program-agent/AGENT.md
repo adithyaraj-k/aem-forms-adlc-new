@@ -183,7 +183,7 @@ skills the leads run — they are skill invocations, not separate agents.
 | `ensure-forms-agents-md` | ensure-forms-agents-md | 0 — Bootstrap |
 | `planwright` (PLAN lead) | discover-form-requirements + architect-form-solution | PLAN — Strategy & planning (precedes Phase 1) |
 | `draftsmith` (DESI lead) | design-form-components + design-form-tests | DESI — Technical design & test-case design (after PLAN, before Phase 1) |
-| `formwright` (IMPL build lead) | generate-schema + create-fdm + create-editable-template + create-form-component + create-AdaptiveFormFragment + create-adaptive-form + create-form-rules + create-form-clientlib + create-form-theme + migrate-form | IMPL build — data foundation (schema/FDM) + artifact-build phases (1, 2, 3, 4, 5, 8, 9, 11) + fragments against the DESI specs |
+| `formwright` (IMPL build lead) | generate-schema + create-fdm + create-editable-template + create-form-component + create-AdaptiveFormFragment + create-adaptive-form + create-form-rules + create-form-clientlib + create-form-theme + migrate-form | IMPL build — data foundation (schema/FDM) + artifact-build phases (1, 2, 3, 4, 5, 8, 9, 11) + fragments against the DESI specs; also owns migrating/scaffolding the `ui.tests` **Playwright** harness + authoring its specs PRE-DEPLOY (no skill — sentinel only executes it post-deploy against cloud DEV) |
 | `groundsmith` (IMPL integration lead) | create-prefill-service + create-submit-action + create-workflow | IMPL integration — prefill (7) + submit (6) + workflow (12) wiring; runs after formwright |
 | `assembler` (ASSEMBLY lead) | composer | ASSEMBLY — a standalone phase after implementation: embed the built form into the "Test Adaptive Form" Sites page (14), replacing the previously embedded form; runs after groundsmith, before forgemaster |
 | `forgemaster` (BUILD/DEPLOY lead) | `mvn clean install -PautoInstallSinglePackage` | DEPLOY — single authoritative build + deploy **to the local AEM SDK** (includes the assembler page embed); writes the code-quality report (+ deployment artifact names); runs after assembler; deployment gate |
@@ -350,14 +350,14 @@ first to get the full component tree, then `mcp__figma__get_screenshot` to captu
 `mcp__figma__get_variable_defs` for design tokens (colours, typography, spacing). From these, produce
 the same (a) **field inventory** and (b) **style spec** as the webpage-URL flow. The Figma frame or
 component matching the form design is the authoritative visual reference — pass the Figma URL as the
-`reference_for_ui_check` so `sentinel`'s `test-form-ui` can diff against the original Figma frame
+`reference_for_ui_check` so Sentinel's Playwright UI suite can diff against the original Figma frame
 (screenshot it via `mcp__figma__get_screenshot` if a live URL is not available as a reference PNG).
 
 In both cases, the capture threads through the pipeline: DESI turns the style spec into theme tokens +
 design specs (a stock/single-column theme is a FAIL); `formwright` builds the form from the inventory
 and the EXACT-replica theme; `create-form-rules` reproduces the client-side behaviour; `groundsmith`
 wires the shared **Custom-Submit-GeneratePDF** download-PDF-on-submit action (the default submit for a
-replica); and `sentinel`'s `test-form-ui` compares the deployed form against the reference. Fidelity
+replica); and Sentinel's Playwright UI suite compares the deployed form against the reference. Fidelity
 bar: an EXACT copy in ALL aspects — fields, labels, layout/alignment, fonts, colours, spacing, card,
 buttons, validation — taking ONLY the form, never the page chrome. For JS-rendered forms where
 WebFetch cannot see the rendered DOM, state the limitation and the fields the user supplies are used

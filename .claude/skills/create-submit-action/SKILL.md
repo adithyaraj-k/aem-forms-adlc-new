@@ -1144,6 +1144,11 @@ Before delivering:
       the classpath (offline/locked-down build hosts can't fetch one)
 - [ ] (AJAX file pattern) servlet path covered by a `filter.xml` root; clientlib attached via
       `clientLibRef` (NOT an edit to `/libs`); download uses `Content-Disposition: attachment`
+- [ ] (Generate PDF) the form container's `actionType` is the absolute path to the selected JCR
+      submit-action definition and its form-specific clientlib depends on the PDF runtime category
+- [ ] (Generate PDF) an authenticated, CSRF-valid valid-form POST was exercised after deployment:
+      response is HTTP 200, begins with `%PDF-`, and has attachment/download headers. A compiling
+      servlet or a visible submit-action option alone is not proof that download works.
 
 ---
 

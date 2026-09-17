@@ -31,7 +31,8 @@ with `#base=`), and you attach clientlibs to forms the supported way — never b
 Before generating, read `.aem-forms-config.yaml` for `project`, `package`, and
 `formsContentRoot`. If missing, ask the developer to confirm. This project's values:
 `project = aem-demo-site`, clientlibs root
-`/apps/{project}/clientlibs/`.
+`/apps/clientlibs/`. This project's direct clientlib root is canonical for form-level clientlibs;
+do not substitute a project-namespaced folder.
 
 This skill is **complementary**, not overlapping:
 - `create-form-theme` → branding/visual tokens (theme clientlib under `/apps/fd/af/themes`).
@@ -50,10 +51,10 @@ function or CSS rule.
 - **ONE shared BASE forms clientlib holds GENERIC scripts/CSS reusable across most forms** —
   common validators (email/phone/date-range), formatters, common Rule-Editor custom functions,
   and shared form CSS. It is created **once and reused by every form** — the single source of
-  truth for generic logic. Home it under `/apps/{project}/clientlibs` with a **forms base
+  truth for generic logic. Home it under `/apps/clientlibs` with a **forms base
   category** (e.g. `{project}.forms.base`); **extend the existing
   `clientlib-base` area rather than creating parallel bases.** (This project already has
-  `/apps/{project}/clientlibs/clientlib-base`, category
+  `/apps/clientlibs/clientlib-base`, category
   `{project}.base`; the forms-scoped base category is the single home for
   generic FORM scripts.)
 - **The BASE clientlib is also the theme BASE LAYER (Option A design tokens).** Because AF has NO
@@ -214,7 +215,7 @@ Embed          : {other categories to bundle, or none}
 ## Files to generate
 
 ```
-ui.apps/src/main/content/jcr_root/apps/{project}/clientlibs/clientlib-{name}/
+ui.apps/src/main/content/jcr_root/apps/clientlibs/{name}-clientlib/
 ├── .content.xml          ← cq:ClientLibraryFolder (category, deps, allowProxy)
 ├── js.txt                ← JS load order (#base=js)
 ├── css.txt               ← CSS load order (#base=css)   [omit if no CSS]
@@ -225,9 +226,12 @@ ui.apps/src/main/content/jcr_root/apps/{project}/clientlibs/clientlib-{name}/
     └── styles.css        ← form-scoped styles            [omit if no CSS]
 ```
 
-The `ui.apps` filter already covers `/apps/{project}/clientlibs` — no
-filter.xml change is needed when generating under that root. If you place a clientlib
-elsewhere, add a covering filter root.
+The `ui.apps` filter MUST cover `/apps/clientlibs` for this direct root. Verify that root before
+creating the clientlib. When adding a brand-new clientlib to an already populated instance, a broad
+root normally remains sufficient; if the project's verified Vault-import behavior requires targeted
+replacement, add an exact `mode="replace"` root for only
+`/apps/clientlibs/{name}-clientlib` before the broad root, after checking filter precedence. Never
+replace `/apps/clientlibs` as a whole because that would risk sibling form clientlibs.
 
 ---
 
@@ -243,6 +247,10 @@ elsewhere, add a covering filter root.
 ```
 
 Rules:
+- **Namespace and node type are mandatory:** preserve exactly
+  `xmlns:cq="http://www.day.com/jcr/cq/1.0"` and
+  `jcr:primaryType="cq:ClientLibraryFolder"`. A malformed descriptor can package successfully yet
+  fail to create a visible CRXDE clientlib node.
 - **`categories`** — array, unique. Convention: `{project}.forms.{name}`.
   This is the exact string you put in the form's `clientLibRef`.
 - **`allowProxy="{Boolean}true"`** — always, so assets serve via
@@ -1054,8 +1062,8 @@ definitions → the endpoint returns empty → all rules "Broken").
 mvn clean install -PautoInstallSinglePackage
 
 # Verify the proxied clientlib serves (AEMaaCS exposes /etc.clientlibs, not /apps):
-#   http://localhost:4502/etc.clientlibs/{project}/clientlibs/clientlib-{name}.js
-#   http://localhost:4502/etc.clientlibs/{project}/clientlibs/clientlib-{name}.css
+#   http://localhost:4502/etc.clientlibs/clientlibs/{name}-clientlib.js
+#   http://localhost:4502/etc.clientlibs/clientlibs/{name}-clientlib.css
 # Then open the form and confirm the <script>/<link> for the category is present:
 #   http://localhost:4502/content/forms/af/{folder}/{formName}.html
 ```
@@ -1092,7 +1100,7 @@ mvn clean install -PautoInstallSinglePackage
 
 - [ ] Clientlib is a `cq:ClientLibraryFolder` with `allowProxy="{Boolean}true"`
 - [ ] **Reuse-first split honored:** generic scripts/CSS live in the shared **base** forms
-      clientlib (category `{project}.forms.base`, under `/apps/{project}/clientlibs`,
+      clientlib (category `{project}.forms.base`, under `/apps/clientlibs`,
       extending the existing `clientlib-base` area) as the CANONICAL reference; the form-specific
       clientlib is **SELF-CONTAINED** — its `functions.js` copies (once) the subset of `@name`
       functions the form's rules reference, and its `css/` copies the base styling

@@ -435,6 +435,25 @@ serves. Only the **form** is replicated — never the page chrome (nav/header/fo
 
 ---
 
+## Build the theme from a Figma design token capture (Use Case 1)
+
+When the source is a **Figma URL**, `discover-form-requirements` Step 1b captures the SAME
+`style_spec` shape as the URL-replica flow above (via `mcp__figma__get_variable_defs` +
+`mcp__figma__get_screenshot`), so the Option A token-override build above applies unchanged.
+Three things are Figma-specific and easy to get wrong — see
+**`references/figma-design-rules.md`** for the full rules, tables, and checklist:
+
+- **Token traceability** — map each named Figma colour/typography/spacing variable onto the
+  `--af-*` token contract (not a guess at "close enough").
+- **Border-box sizing** — Figma frame dimensions are outer/border-box; apply
+  `box-sizing: border-box` on any AF element sized from a Figma frame or the rendered form will be
+  visibly larger than the design.
+- **Auto-layout rows → grid spans** — a Figma horizontal auto-layout field row maps to
+  `panelcontainer` children with `<default width="N">` derived from the auto-layout structure
+  (`create-adaptive-form` authors this; the theme itself never re-declares the grid).
+
+---
+
 ## Quality checklist
 
 - [ ] **Option A honored — the theme is a THIN token override, not a full stylesheet.** `theme.css`
@@ -458,3 +477,4 @@ serves. Only the **form** is replicated — never the page chrome (nav/header/fo
 - [ ] Remember: DAM theme-json does NOT render in the local SDK (only cloud) — local rendering is via the `/apps` theme.zip; the DAM `renditions/original` 404 locally is EXPECTED, not the bug
 - [ ] **When branding to a reference:** the form **title is visibly rendered**, EVERY word from the reference is present & visible, section-header **colours match the exact reference hex**, and all reference **icons render** — confirmed **VISUALLY** against the reference (serve-200 is NOT proof)
 - [ ] **URL replica (exact-visual-replica path):** a captured source-form STYLE SPEC is mapped to `--af-*` token values (fonts, colours, card/container, borders, spacing, button) on the AF `cmp-adaptiveform-*` markup, the source's multi-column field rows are honoured via the grid (not collapsed to generic single column), the theme is wired in BOTH places, only the form (not page chrome) is replicated, and parity is verified VISUALLY as a faithful AF-DOM match (not guaranteed pixel-identical)
+- [ ] **Figma replica (Use Case 1):** every `--af-*` token is traced to a named Figma variable/style, `box-sizing: border-box` is applied wherever a Figma-derived frame size drives width/height/padding, Figma auto-layout field rows map to the correct grid `width` spans, and no Figma CDN asset URL appears in any authored artifact — see `references/figma-design-rules.md`

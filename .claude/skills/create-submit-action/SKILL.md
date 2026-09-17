@@ -11,7 +11,7 @@ description: >
   (single action + single GeneratePDFServlet + single clientlib, created once
   and reused by EVERY form) that, on submit, generates a PDF of the form data,
   uploads it to the DAM, and downloads it to the user — never scaffolded per form.
-version: 1.3.0
+version: 1.3.1
 ide:
   cursor: .cursor/skills/create-submit-action/
   github-copilot: .github/skills/create-submit-action/
@@ -301,6 +301,55 @@ container at it (or you pre-wire it). After deploy:
 The container persists the selection on the `guideContainer` node. The Submit
 button itself needs no change — `create-adaptive-form` already emits the
 `fd:click="submitForm()"` rule and `fd:events` pair.
+
+### Container completion contract — required validation
+
+Before wiring a custom action, inspect a proven working form in the same
+project and match its **container** contract. `actionType` must be the selected
+submit-action node path. Do not add a speculative `submitService` property to
+the form when the project's working authored form resolves the selected action
+from `actionType` alone.
+
+`thankYouOption="page"` is valid only when the form also has a real authorable
+thank-you or redirect-page target. Never set it merely because a thank-you
+message exists: a message is used only by `thankYouOption="message"`. A page
+option without a valid target can fail after a successful server-side action
+and be reported to the author as an HTTP 500. For a message-based form, use
+the working container pattern:
+
+```xml
+<guideContainer
+    fd:version="2.1"
+    actionType="{project}/fd/af/submitactions/Custom-Submit-GeneratePDF"
+    workflowModel="/var/workflow/models/assign-task-to-admin"
+    thankYouOption="message"
+    thankYouMessage="Thank you for your submission." />
+```
+
+When reproducing an existing form, compare `fd:version`, `actionType`, workflow
+wiring, `thankYouOption`, and the target/message as one unit. This avoids a
+working `FormSubmitActionService` being blamed for a failing container redirect.
+
+**Office-compatible authoring rule.** The action definition node retains its
+load-bearing `submitService` property, equal to
+`FormSubmitActionService.getServiceName()`. On the **form's guideContainer**,
+use the exact property shape of a proven working form: select the action through
+`actionType` and do **not** add a redundant `submitService` property merely by
+inference. The Office Event Registration form is the local reference:
+`fd:version="2.1"`, the shared workflow path, actionType-only selection, and
+message-mode completion. An unnecessary container `submitService` can diverge
+from the editor's persisted contract even though the JCR action node is correct.
+
+Before handoff, verify the complete contract together: (1) the JCR action node
+is under `/apps/{project}/fd/af/submitactions/`, has its matching
+`submitService`, and is visible in the Submission dropdown; (2) the Java
+component is **active in the OSGi service registry** as a
+`FormSubmitActionService`; (3) the guideContainer has reference-compatible
+`fd:version`, `actionType`, workflow wiring, and either `thankYouOption="message"`
+plus a message or a real redirect target for `thankYouOption="page"`; and (4) a
+valid native submit returns HTTP 200 and, for the shared PDF action, produces an
+`application/pdf` download/response. An invalid submit must remain blocked and
+must not call the PDF endpoint.
 
 ---
 
@@ -872,14 +921,17 @@ appears in EVERY form's Submission dropdown when it lives under `/apps/{project}
 (the path the editor enumerates) — same location as every other custom submit action in the project.
 
 **`actionType` on the guideContainer MUST be the submit-action NODE PATH — NOT the generic marker.**
-When an author picks the action in the editor, the editor writes on the `guideContainer`:
+When an author picks the action in the editor, the editor writes the selected
+action node path on the `guideContainer`:
 ```
 actionType   = "{project}/fd/af/submitactions/Custom-Submit-GeneratePDF"   <- the NODE PATH (relative to /apps)
-submitService = "Custom-Submit-GeneratePDF"                                <- === OSGi getServiceName()
 ```
+The `submitService="Custom-Submit-GeneratePDF"` value belongs to the **JCR
+action-definition node** and must equal the OSGi service name. The local Office
+reference does not persist that property redundantly on the guideContainer.
 The editor maps the Submission-tab dropdown's SELECTED value by matching `actionType` to a listed
 node path. If you author `actionType="fd/af/components/guidesubmittype/submitservice"` (the generic
-marker) the action still fires at runtime (via `submitService`) but the editor dropdown shows blank
+marker) the action can be selected inconsistently and the editor dropdown shows blank
 **"Select"** because it can't map the generic marker back to a specific action. So set
 `actionType="{project}/fd/af/submitactions/{ActionNode}"` verbatim. (Confirmed against the exact
 value the editor itself writes on manual selection.)
@@ -888,6 +940,15 @@ value the editor itself writes on manual selection.)
 `getServiceName()` returns `"Custom-Submit-GeneratePDF"`; `submit()` returns
 `GuideConstants.FORM_SUBMISSION_COMPLETE = Boolean.TRUE`. (PDF/DAM/download is performed
 by the clientlib→servlet; this acknowledges the submission so the thank-you page shows.)
+
+> **Keep the shared PDF submit service dependency-free.** It must only acknowledge the
+> already-validated native submit; it must not inject a resolver, start a workflow, or write
+> submission data. A missing optional workflow/service-user dependency otherwise leaves the
+> OSGi component unsatisfied, while its JCR action node remains selectable and the Forms REST
+> endpoint fails with HTTP 500. Configure the shared workflow separately on the form container
+> (`workflowModel`) or with a workflow launcher. Verify deployment by checking that the OSGi
+> service registry exposes `CustomSubmitGeneratePDFAction` as a
+> `FormSubmitActionService`, not merely that its JCR definition node exists.
 
 **3) The generic servlet** — `GeneratePDFServlet` (ONE, path-bound, shared):
 
@@ -1129,6 +1190,15 @@ Before delivering:
 - [ ] Unit test covers success path AND error path, asserting on `FORM_SUBMISSION_COMPLETE`
 - [ ] `LOG.error()` called on all catch blocks with the exception object
 - [ ] Both OSGi service AND JCR definition node generated (both required)
+- [ ] Custom action's OSGi component is active and registered as a
+      `FormSubmitActionService` after deployment; a JCR node in CRXDE is not
+      proof that the service can handle submits
+- [ ] guideContainer uses the proven local contract: `actionType` selects the
+      action-node path; action-node `submitService` equals `getServiceName()`;
+      no speculative guideContainer `submitService`; `fd:version` and workflow
+      wiring match the project reference
+- [ ] `thankYouOption="message"` is used unless a real authorable redirect
+      target exists; `page` without a target is a submit-time HTTP 500 risk
 - [ ] Submit AND PDF/DoR generation are **gated on validation success** — invalid form blocks submit,
       shows inline errors, focuses the first invalid field, and produces NO PDF; PDF/servlet is never
       called unconditionally from a raw button onClick (native validating submit, or gated on form
@@ -1144,6 +1214,9 @@ Before delivering:
       the classpath (offline/locked-down build hosts can't fetch one)
 - [ ] (AJAX file pattern) servlet path covered by a `filter.xml` root; clientlib attached via
       `clientLibRef` (NOT an edit to `/libs`); download uses `Content-Disposition: attachment`
+- [ ] Post-deploy smoke: valid native submit returns HTTP 200; shared PDF
+      download/endpoint returns `application/pdf`; invalid submit produces
+      inline errors and no PDF request
 
 ---
 

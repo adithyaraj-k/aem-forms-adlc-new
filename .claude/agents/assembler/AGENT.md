@@ -53,12 +53,12 @@ Read from the run directory (AGENTS.md → "Run output convention"), using the s
 If the built form path is missing (Formwright hasn't run / produced no form), stop and have the
 Program Agent run Formwright first — there is nothing to embed.
 
-## Skill I invoke — I run this MYSELF via the Skill tool (no sub-agents)
+## Skill I load — invoke through the Skill tool when available; otherwise read the canonical `.claude/skills/composer/SKILL.md` before work; no sub-agents
 There is no `composer` sub-agent to delegate to; I am the single assembly agent and I execute the
 skill directly in-conversation. Invoking the skill yields the exact same page/container artifacts it
 always produces.
 
-| Step | Skill (invoke via Skill tool) | Phase | Produces |
+| Step | Skill instruction to read | Phase | Produces |
 |---|---|---|---|
 | Embed | `composer` | 14 | the "Test Adaptive Form" Sites page + the single AEM Form Container repointed to the new form |
 
@@ -68,7 +68,7 @@ I pass the skill: **"author only — do NOT deploy; defer the build+deploy to Fo
 1. **Resolve the form path** from `formwright.md` — the exact
    `{formsContentRoot}/{project}/{formName}` (`{project}` = `aem-demo-site` is the single namespace —
    the same token in the form path AND the page component/template/conf; there is no separate app folder).
-2. **Invoke `composer` (14)** via the Skill tool to embed the form into
+2. **Read `composer` (14)** at `.claude/skills/composer/SKILL.md` in full, then embed the form into
    `{siteRoot}/test-adaptive-form`:
    - Create the page only if it doesn't exist; otherwise reuse it.
    - Ensure **exactly one** AEM Form Container (`{project}/components/aemformscontainer`)

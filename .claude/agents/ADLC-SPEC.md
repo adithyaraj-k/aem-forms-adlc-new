@@ -64,7 +64,7 @@ The 10 specialists map to 8 lifecycle stages (see `AGENTS.md` → "Skill usage i
 | `create-workflow` | AEM Forms workflow model + variables + steps + launcher + "Invoke an AEM Workflow" wiring. | `groundsmith` |
 | `create-form-tests` | JUnit 5 (AEM Mocks + Mockito) unit tests for prefill/submit/Sling Model classes. | `groundsmith` (authoring, during integration) / `sentinel` (execution, post-deploy) |
 | `composer` | Embed the built form into the "Test Adaptive Form" Sites page via one AEM Form Container. | `assembler` |
-| `test-form-ui` | UI parity: Cypress capture (`ui.tests/test-module`) + pixel diff + Claude Vision comparison against a reference. | `sentinel` |
+| `test-form-ui` | UI parity: Playwright capture (`ui.tests/test-module`) + visual/reference comparison and accessibility evidence. | `sentinel` |
 
 ### Platform skills (Claude Code — available, not part of the Forms ADLC dispatch)
 
@@ -401,7 +401,7 @@ Each specialist follows the same 9-field schema (Purpose, Responsibilities, Inpu
 | `assembler` | One narrow, deterministic edit: repoint the "Test Adaptive Form" page's single AEM Form Container at the new form (inline embed, host-page clientlib wiring). | §4.5 |
 | `forgemaster` | Single authoritative `mvn` build + deploy to the local SDK, deploy-integrity orphan sweep, workflow `/var` runtime generation, deployment-artifact manifest, Code Quality report. | §4.6 |
 | `pilot` | Commit (excl. `.claude/`), push, raise the PR via the GitHub REST API (`gh` not installed), then halt at the manual gate. **Never merges, deploys, or starts Sentinel.** | §4.7 |
-| `sentinel` | Unit/integration tests, UI parity (Cypress + pixel diff + Claude Vision), functional validation against **cloud DEV**, traceability-loop closure. **Never self-starts.** | §4.8 |
+| `sentinel` | Unit/integration tests, Playwright UI parity/a11y, functional validation against **cloud DEV**, traceability-loop closure. **Never self-starts.** | §4.8 |
 | `migrate-form` | Foundation→Core-Components migration (Path A) or LiveCycle/JEE re-platforming (Path B), always as a full ADLC delivery. | §4.9 |
 | `ensure-forms-agents-md` | Bootstrap templating of `AGENTS.md` / `CLAUDE.md` / `.aem-forms-config.yaml`. Runs once. | §4.10 |
 
@@ -552,11 +552,18 @@ Rollback / re-validation rules within ADLC scope:
 
 ## 9. Implementation Notes & Bridges
 
-### 9.1 UI test framework — Cypress (not Playwright)
+### 9.1 UI test framework — Playwright
 
-This Forms project's mandated UI-test / visual-comparison framework is **Cypress**, via the existing `ui.tests/test-module` module — the opposite choice from the companion Sites ADLC, which mandates Playwright. `test-form-ui` owns the whole track: it captures the live form (cropped to the embedded form region, never the whole Sites page), runs a pixel diff for a hard pass/fail gate, then a Claude Vision pass that explains what actually differs (missing/extra fields, wrong labels, layout, colour, spacing) with severity. `create-form-tests` separately owns JUnit 5 (AEM Mocks + Mockito) unit tests and Selenium/WebDriver integration tests for rule-editor behaviour — a different tool from the UI-parity Cypress track.
+This Forms project's mandated UI-test and visual-comparison framework is **Playwright**, using the
+existing `ui.tests/test-module` harness. It captures the deployed embedded form at desktop and
+mobile viewports, compares it with the approved reference, checks browser-console errors, and runs
+configured accessibility/performance checks. `FORM_URL` is the target input. `create-form-tests`
+continues to own Java unit/integration tests; Sentinel owns Playwright UI and functional evidence.
 
-Cypress spec inputs are read via `Cypress.env(...)`, which only picks up `CYPRESS_`-prefixed environment variables (`CYPRESS_FORM_URL`, `CYPRESS_REFERENCE_IMAGE`, `CYPRESS_VIEWPORT`, `CYPRESS_MAX_MISMATCH_PCT`) — a plain `FORM_URL` env var is silently ignored and produces a confusing "Cannot read properties of undefined" failure (see `sentinel/AGENT.md` critical rule 4c).
+> **Current UI-test contract — supersedes the retired text above.** Sentinel and `test-form-ui`
+> use Playwright only: the existing `ui.tests/test-module` Playwright harness, `FORM_URL`, desktop
+> and mobile captures, reference comparison, console checks, and configured axe/Lighthouse checks.
+> Do not invoke, install, configure, or report Cypress.
 
 ### 9.2 Skill execution surface
 

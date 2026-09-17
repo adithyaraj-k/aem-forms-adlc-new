@@ -219,7 +219,10 @@ Search the source `.content.xml` (or `cq:Page` tree) for `sling:resourceType` va
 Also record, from the source, everything you must **preserve**:
 - Every field: node name, `name`, `jcr:title`, type, required state, validation messages
 - Data bindings: `bindRef`/`bindReference`, `fd:formDataRef`, schema refs (`schemaType`, `schemaRef`) — note the binding *path* so you can rename it to `dataRef` and convert the value to JSONPath in Step 3 (see the data-binding bullet there)
-- Business logic: `guideRule` / `fd:rules` / `fd:events` nodes, expressions, custom functions
+- Business logic: `guideRule` / `fd:rules` / `fd:events` nodes, expressions, custom functions.
+  For **each** rule record its source event, AST operators, operands, literal values and complete
+  script before conversion. Do not reconstruct a rule from its label, field type, or validation
+  message. A migrated rule is not complete until the Core Rule Editor displays that same logic.
 - Panels / wizard / tab structure and field order
 - Submit configuration: action type, endpoint, submit-action reference
 - Theme and template references (to be remapped, not dropped)
@@ -227,6 +230,11 @@ Also record, from the source, everything you must **preserve**:
   template (`dorTemplateRef`/`dorType`), data schema (`schemaRef`/`schemaType`), Adaptive Form
   Fragment (`fragmentPath`), and icon/SVG — note the reference attribute so you can copy the asset
   and rewrite the reference to its cloud path
+
+> **Rule-source parity gate.** For every source `guideRule`, `fd:rules`, or `fd:events` entry,
+> record its event, AST operators, operands, literal values, and complete script before conversion.
+> Do not reconstruct business logic from a field label, field type, or validation message. The
+> migration is incomplete until the Core Rule Editor displays the same complete rule.
 
 Then present a short **migration plan** to the user: source kind, the resource-type mappings
 you will apply, which of the 4 artifacts already exist vs. must be created, **the asset inventory

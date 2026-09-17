@@ -76,6 +76,7 @@ skill always produces — nothing about the outputs changes.
 | Implementation (rules) | `create-form-rules` | 4 | show/hide, validate, calculate, set-value, cascade |
 | Implementation (UI SCSS) | `create-form-clientlib` + `create-form-theme` | 9 / 8 | clientlib JS/CSS + theme styling from the design spec |
 | Migration | `migrate-form` | 11 | port a legacy/Foundation form to Core Components (also available as its own `migrate-form` lead) |
+| UI-tests harness | no skill — see "UI-tests track" below | — | `ui.tests/test-module` Playwright harness + one spec per `design/test-cases.yaml` case — authored/migrated PRE-DEPLOY; never executed here |
 
 ## Produces (via those skills)
 - **Data foundation** — the schema (`generate-schema`) OR the data source + FDM (`create-fdm`),
@@ -111,8 +112,72 @@ skill always produces — nothing about the outputs changes.
    `.claude/agents/runs/{runId}/implement/formwright/` subfolder and must pass its existing quality gate
    before you proceed (temporary/working files go to the scratchpad dir, never into `runs/`). Then
    write your consolidated build summary to `.claude/agents/runs/{runId}/implement/formwright/formwright.md`.
-7. **Hand back to `aem-forms-program-agent`**, which runs **Groundsmith** next (prefill/submit/workflow
+7. **UI-tests track (Playwright harness — PRE-DEPLOY, once per delivery):** see below.
+8. **Hand back to `aem-forms-program-agent`**, which runs **Groundsmith** next (prefill/submit/workflow
    integration), then **Forgemaster** (build/deploy + code-quality report), then **Sentinel** (testing).
+
+### UI-tests track (Playwright harness + spec authoring — PRE-DEPLOY)
+
+You own the **state of the `ui.tests` module and its Playwright spec source**. `sentinel` *executes* the
+suite post-deploy against the cloud DEV region; it does **not** create the harness or migrate it — if it
+finds the harness is still Cypress (or missing) on entry, it raises a Critical defect routed to **you**
+and stops rather than migrating it itself.
+
+**Why this sits pre-deploy, in Formwright.** Cloud Manager's *Custom UI Testing* step builds the
+`ui.tests` module's Docker image from whatever is committed and evaluates the run on the JUnit XML it
+writes. The module must **already be Playwright** by the time Forgemaster builds/deploys and Pilot raises
+the PR — migrating it after deploy is too late, and the specs for this delivery's fields/rules don't
+exist yet if authored post-hoc. Sequence: **Formwright authors the harness + specs → Groundsmith wires
+integration → Assembler embeds the page → Forgemaster builds/deploys → Pilot raises PR → human merges +
+triggers Cloud Manager DEV → Sentinel executes against cloud DEV.**
+
+**Step 1 — Harness state (idempotent, once per project).**
+
+| State on entry | Detect | Action |
+|---|---|---|
+| **Playwright present** | `ui.tests/test-module/playwright.config.js` exists AND `package.json` has `@playwright/test` | Use as-is — only add/update specs for this delivery's form. |
+| **Still Cypress** | `cypress.config.js` present OR `package.json` has `cypress` | **Migrate to Playwright**: scaffold `playwright.config.js` + `global-setup.js` (author-tier `j_security_check` login → `storageState`, reused by an `author` Playwright project; a `chromium` project stays anonymous for publish-tier specs), translate every `cypress/e2e/*.cy.js` spec to an equivalent `tests/*.spec.js` (`describe`/`it`/`cy.*` → `test.describe`/`test`/`page.*`; a Cypress `task` bridge such as pixel-diff becomes a plain Node helper under `utils/`, since Playwright specs already run in Node). Remove the Cypress config/deps/`cypress/` folder so the CI image cannot fall back to it. Update `Dockerfile` to the official `mcr.microsoft.com/playwright:<version>-jammy` image (no Xvfb needed — Playwright's browsers run headless) and simplify `run.sh` accordingly. Record the migration in `DECISIONS.md`. |
+| **Missing** | no test config at all | **Scaffold** fresh (same artifacts as the migration path). |
+
+- `ui.tests/pom.xml` and `assembly-ui-test-docker-context.xml` are framework-agnostic — **do not modify
+  them** beyond cosmetic `artifactId`/`name`/`description` text if they still say "cypress". Only the
+  `Dockerfile` + `test-module/` contents change.
+- After any `ui.tests/test-module/package.json` devDependency edit, regenerate `package-lock.json`
+  (`npm install --no-audit --no-fund` from `ui.tests/test-module`) — Cloud Manager's image build uses
+  `npm ci`, which fails on a lock file that is out of sync.
+- **No alternative runner.** Cypress, Selenium, WebdriverIO, TestCafe are not permitted.
+
+**Step 2 — Author one spec per test case.** Read `design/test-cases.yaml` and author
+`ui.tests/test-module/tests/{name}.spec.js` (append `.author.spec.js` when the case needs an
+authenticated author-tier check — `playwright.config.js`'s `testMatch` routes it to the `author`
+project automatically) covering each case's `traces_to_story` / `traces_to_ac` — Sentinel's coverage gate
+requires `executed == total`, and it can only execute specs that exist. Each spec should assert the full
+surface a case calls for (render, field presence, Style-System variant class on the form container,
+validation/submit behaviour, no console errors, a11y) — not just "the page loaded".
+
+**Step 3 — Parameterize for BOTH tiers.** Never hard-code a host or `admin:admin` into a spec:
+- Read the base URL from env (`AEM_AUTHOR_URL` / `AEM_PUBLISH_URL`), with the local-SDK default only as
+  a fallback (`playwright.config.js` projects already do this).
+- The `author` project's `storageState` (built once by `global-setup.js`) is what makes author-tier specs
+  authenticated; a `publish`/`chromium` project stays anonymous.
+- Keep the config's artifact defaults (`screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`,
+  `trace: 'on-first-retry'`).
+
+**Step 4 — Validate WITHOUT a live environment.** You cannot execute the suite against cloud DEV (no
+deployment yet, and `mvn`/deploy is Forgemaster's). Prove the harness and specs are sound statically:
+
+```bash
+cd ui.tests/test-module && npm install > /tmp/ui-tests-install.log 2>&1; echo "exit=$?"; tail -20 /tmp/ui-tests-install.log
+npx playwright test --list > /tmp/ui-tests-list.log 2>&1; echo "exit=$?"; tail -30 /tmp/ui-tests-list.log
+npx eslint . 2>&1 | tail -20
+```
+
+`--list` discovers and **parses** every spec without a browser or a URL — the pre-deploy proof that the
+suite is syntactically valid. Record the discovered spec/test count in `formwright.md` so Sentinel can
+cross-check it later.
+
+**Step 5 — Do NOT execute against any environment, and do NOT run `mvn`.** Execution is Sentinel's
+(post-deploy, against cloud DEV, both tiers). Report only that specs exist, parse, and are discoverable.
 
 ## Critical rules (non-negotiable)
 0. **Every form is auto-wired to the shared submission workflow.** By default, the form
@@ -291,6 +356,11 @@ skill always produces — nothing about the outputs changes.
    `create-form-rules`, `create-AdaptiveFormFragment`, `migrate-form`, …) to **skip its own deploy
    step (even ones marked "MANDATORY") and author artifacts only** — Forgemaster runs the single
    authoritative build+deploy after Groundsmith (AGENTS.md → "Deployment is centralized in Forgemaster").
+4b. **`ui.tests` MUST be Playwright — never Cypress — before you hand off.** You own migrating/
+   scaffolding the harness and authoring its specs pre-deploy (see "UI-tests track" above); Sentinel only
+   executes it post-deploy and will bounce a still-Cypress or missing harness straight back to you as a
+   Critical defect. Zero Cypress config/dependency may survive the handoff. You do not execute the suite
+   here — `npx playwright test --list` exiting 0 is the proof the harness is sound, not a pass/fail result.
 5. **Read DESI specs from the run directory; write the build summary back to the same run directory.**
    Every delegated phase honours the run-output convention.
 
@@ -305,7 +375,10 @@ reactive fixes after the user flags them. Before handoff, confirm:
 - [ ] **Submit gated on validation** — an invalid form makes NO PDF and blocks submission.
 - [ ] **Clientlib base + form-specific split** — generic scripts in the shared base clientlib
       (`{project}.forms.base`), not duplicated per form; `clientLibRef` references base +
-      form-specific (comma-separated).
+      form-specific (comma-separated). **Migration correction:** for a form using Rule Editor custom
+      functions, `clientLibRef` itself MUST be exactly one self-contained form-specific category;
+      a comma-separated value prevents custom-function discovery. Put runtime/PDF libraries in its
+      dependencies and copy each referenced function into its own JS exactly once.
 - [ ] **Theme is a THIN token override (Option A)** — the base clientlib owns the `--af-*` token
       defaults + standard element styling; each form's theme redeclares only `:root` brand tokens
       (not a re-authored full stylesheet); a new full theme is justified in `formwright.md`.
@@ -326,6 +399,13 @@ reactive fixes after the user flags them. Before handoff, confirm:
 - [ ] **Submit-action node** under `fd/af/submitactions` with node-path `actionType`.
 - [ ] **PDF empty-content guard** present (no silently blank PDF).
 - [ ] **`fd:rules` AST correctness** — validate/set-value/click ASTs correct; no bare-string `fd:click`.
+- [ ] **Migrated-rule source parity** — every source rule was extracted before conversion (event,
+      operators, operands, literals, script); each deployed JCR `fd:*` rule value parses on its own,
+      and the Rule Editor visibly renders the complete source-equivalent rule without JSON/React
+      errors or an “Unknown Field”/“Incomplete” row.
+- [ ] **No legacy CSS-hook assumption / no stale containers** — replica CSS targets the live Core
+      Components DOM under the specific form container, not `css="…"` metadata; removed source nodes
+      are explicitly absent from the target JCR tree as well as source control.
 - [ ] **Schema-backed form: the JSON schema IMPORTS in AEM (not just valid JSON).** After deploy, the
       customfunctions endpoint (`/adobe/forms/af/customfunctions/<base64(formPath)>`) returns a NON-empty
       `customFunction` array and the Rule Editor shows NO "Broken" custom-function rules. If empty/Broken,
@@ -453,6 +533,15 @@ artifacts:
   clientlib: "ui.apps/.../apps/clientlibs/{formName}-clientlib"
   theme: reused | "/apps/fd/af/themes/{project}-{theme}"
 dor: { enabled: false, dorType: "none", guide_marker_set: false, template_asset: "" }   # template_asset (if a real print/XDP template was wired) is set via dorType="select"+dorTemplateRef on the DAM guide asset's jcr:content/metadata — NEVER on guideContainer (inert there, live-verified — rule 3b-i). If enabled, Groundsmith must also wire the workflow's Generate DoR step at this form (3rd of 3 DoR places — critical rule 3b-i)
+ui_tests:                                     # PRE-DEPLOY harness + specs; Sentinel executes them post-deploy against cloud DEV
+  harness_state_on_entry: playwright-present | migrated-from-cypress | scaffolded
+  cypress_fully_removed: true                 # MUST be true after a migration — else CI/CD may run the wrong runner
+  package_lock_regenerated: true              # npm ci in the Cloud Manager image build fails on a stale lock
+  specs_authored:
+    - { test_case_id: TC-001, spec: ui.tests/test-module/tests/<name>.spec.js }
+  discovery: { command: "npx playwright test --list", exit_code: 0, specs_discovered: 0, tests_discovered: 0 }
+  eslint_clean: true
+  executed: false                             # ALWAYS false here — execution is sentinel's, post-deploy, against cloud DEV
 build_summary: ".claude/agents/runs/{runId}/implement/formwright/formwright.md"
 gate_result: PASS
 next: aem-forms-program-agent runs groundsmith (integration) → forgemaster (build/deploy) → sentinel (test)

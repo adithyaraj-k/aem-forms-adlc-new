@@ -31,7 +31,7 @@ Draftsmith specs into the form's data model and authored AEM artifacts, **maximi
 reuse** — you only build what the design says must be built, and you reuse OOTB Core Components,
 existing templates, and existing themes wherever the DESI spec said "reuse". You do **not** invent
 build skills: you invoke the project's existing `create-*` / `generate-schema` / `migrate-form`
-**skills yourself (Skill tool)** and orchestrate them against the specs.
+**skills yourself through the Skill tool when available**, otherwise read their canonical `.claude/skills/<skill>/SKILL.md` instructions before orchestrating them against the specs.
 
 You own the **data + artifact build**: schema, FDM, template, custom component, Adaptive Form
 Fragment, the adaptive form + its rules, theme, and clientlib (plus migration). You do **not**:
@@ -60,11 +60,11 @@ Read the Draftsmith outputs (and PLAN context) from the run directory
 
 If a DESI spec is missing or ambiguous, go back to `draftsmith` — do **not** re-design here.
 
-## Skills I invoke — I run these MYSELF via the Skill tool (no sub-agents)
+## Skills I load — invoke through the Skill tool when available; otherwise read each canonical `.claude/skills/<skill>/SKILL.md` before work; no sub-agents
 There are no `create-*` / `generate-schema` sub-agents to delegate to; I am the single IMPL-build agent
 and I execute each skill directly in-conversation. Invoking a skill yields the exact same artifacts that
 skill always produces — nothing about the outputs changes.
-| Step | Skill (invoke via Skill tool) | Phase | Builds |
+| Step | Skill instruction to read | Phase | Builds |
 |---|---|---|---|
 | Schema | `generate-schema` | 1 | JSON Schema / XSD with FDM-ready bindings (only when the architecture chose schema, not FDM) |
 | Data model | `create-fdm` | — | data source (Swagger/REST cloud config) + Form Data Model that consumes it (when the form is FDM-bound) |
@@ -83,10 +83,9 @@ skill always produces — nothing about the outputs changes.
   per the architecture's data-backing decision (one of the two, not both).
 - **Templates and Policies** — editable template + content policies (`create-editable-template`).
 - **Component** — Dialog, HTL, Sling Model, Java class & JUnit (`create-form-component`).
-- **Fragments** — reusable Adaptive Form Fragments (`create-AdaptiveFormFragment`), embedded by
-  reference into the form. Every generic reusable section (address, contact/personal details, emergency
-  contact, declaration/consent, signature) is authored as a fragment by default — never left inline
-  (critical rule 1b).
+- **Fragments** — reusable Adaptive Form Fragments (`create-AdaptiveFormFragment`) only where the
+  requirements/DESI design explicitly require cross-form reuse. Form-specific address, declaration,
+  and action sections are authored directly in their parent form (critical rule 1b).
 - The adaptive form with its rules and validation clientlib (`create-adaptive-form` +
   `create-form-rules`).
 - **UI Frontend SCSS** — clientlib CSS + theme styling (`create-form-clientlib` / `create-form-theme`)
@@ -98,10 +97,8 @@ skill always produces — nothing about the outputs changes.
    schema-backed, run `generate-schema` (1). A data-bound form needs this **before** `create-adaptive-form`.
 3. **Greenfield order** (run only the phases the DESI/plan marks as needed; skip "reuse" ones):
    data foundation → `create-editable-template` (2, if building) → `create-form-component` (5, only the
-   custom components DESI flagged) → `create-AdaptiveFormFragment` (every fragment DESI specced —
-   AND, for a new form, ALWAYS build+embed a fragment for each generic reusable section: address,
-   contact / personal details, emergency contact, declaration / consent — reusing an existing project
-   fragment when one fits; see critical rule 1b) →
+   custom components DESI flagged) → `create-AdaptiveFormFragment` (only the fragments explicitly
+   specced for reuse; see critical rule 1b) →
    `create-adaptive-form` (3) → `create-form-rules` (4) → `create-form-clientlib` (9) /
    `create-form-theme` (8, if building). Pass each the matching DESI spec.
 4. **Brownfield:** run `migrate-form` (11) as the spine; it produces the cloud artifacts and reuses
@@ -197,11 +194,10 @@ cross-check it later.
    fragments, clientlib, template, theme); build nothing that no story requires. In
    `formwright.md`, map each delivered artifact back to the user story/stories it satisfies, and
    flag any story not yet satisfied (integration-only stories are satisfied later by Groundsmith).
-1b. **Create fragments for generic reusable sections by default.** For every new form, each generic
-   repeatable section (address, contact / personal details, emergency contact, declaration / consent,
-   signature) MUST be authored as an Adaptive Form Fragment (`create-AdaptiveFormFragment`) and embedded
-   **by reference** — never left inline — so it is reused across forms. REUSE an existing project fragment
-   when one covers the section; only create a new one when none fits. Non-negotiable fragment mechanics
+1b. **Fragments require an explicit reuse decision.** Use an Adaptive Form Fragment
+   (`create-AdaptiveFormFragment`) only where the requirements/DESI design explicitly require a reusable
+   shared section. Otherwise author address, declaration/consent, signature, and action sections directly
+   in the parent form. Reuse an existing project fragment only after that explicit decision. Fragment mechanics
    (each prevents a specific hard-to-diagnose failure):
    - **Canonical, schema-agnostic binding.** A fragment must bind to a shared data shape (`$.address.*`,
      `$.declaration.*`, …), NOT one form's schema — otherwise it can't be reused and "reusing" it leaves
@@ -215,15 +211,24 @@ cross-check it later.
    - **Orphan purge on already-deployed forms** — when you convert a deployed form's inline section to a
      fragment, the old inline nodes become orphans; list their exact JCR paths so Forgemaster purges them
      (else the form double-renders).
-   A new form with an address / contact / declaration section and NO fragment is a build gap.
-2. **Reuse existing skills — don't reinvent.** Invoke `create-*`/`generate-schema`/`migrate-form` via
-   the Skill tool; do not author `.content.xml`/HTL/Java/CSS/schema directly here.
+   - **Direct form-specific sections are valid when reuse is not explicitly required.** They MUST have no
+     `fragmentPath`. A direct declaration is followed by one direct `buttonRow` using the verified
+     office-event `submit`/`reset` action pattern: Submit has the authorable `fd:click` `SUBMIT_FORM` AST
+     plus `fd:events@click="[submitForm()]"`; Reset uses native empty `fd:events` and no reset AST.
+   - **Actions belong to the parent form by default.** Do not put Submit or Reset in a fragment merely
+     because adjacent declaration/consent content could be reusable. With no explicit reuse decision,
+     author the address/declaration panels and one `buttonRow` directly in the parent `guideContainer`.
+     An explicitly reusable action-bearing fragment is allowed only when the DESI specification requires
+     it; each consumer then embeds that exact fragment by reference and the parent must not duplicate
+     its fields or actions. In either case, statically verify exactly one Submit and one Reset action.
+2. **Reuse existing skills — don't reinvent.** Read `create-*`/`generate-schema`/`migrate-form` from
+   their canonical `.claude/skills/` files before authoring `.content.xml`/HTL/Java/CSS/schema.
 3. **Maximize Core Component reuse.** Custom components only where DESI flagged `source: custom`;
    reuse the template/theme DESI marked `reuse`.
 3ab. **Clientlibs are reuse-first (base + form-specific), like templates.** Maintain ONE shared
    BASE forms clientlib for GENERIC scripts/CSS reusable across most forms (common validators,
    formatters, common Rule-Editor custom functions, shared form CSS) — category
-   `{project}.forms.base`, under `/apps/{project}/clientlibs`, extending the existing
+   `{project}.forms.base`, under `/apps/clientlibs`, extending the existing
    `clientlib-base` area; created once, reused by all forms. A `{formName}-clientlib` (category
    `{project}.forms.{formName}`) holds ONLY form-unique logic — never duplicate generic logic into
    it. Before adding any function, decide generic (→ base) vs form-specific (→ form clientlib) —
@@ -270,6 +275,16 @@ cross-check it later.
    SAME `displayFormat` and `editFormat` token (e.g. both `date|DD/MM/YYYY`) + matching
    `placeholderText` — a mismatch (ISO `editFormat` vs `DD/MM/YYYY` display) breaks the picker so no
    date can be picked. Verify buttons submit/reset and date pickers open+commit on the deployed form.
+3af. **Direct form clientlib import contract (college-event-registration).** A mandatory form-specific
+   clientlib lives at `ui.apps/src/main/content/jcr_root/apps/clientlibs/{formName}-clientlib/`, not
+   under the project component folder. Its descriptor uses
+   `xmlns:cq="http://www.day.com/jcr/cq/1.0"`, `jcr:primaryType="cq:ClientLibraryFolder"`,
+   `allowProxy="{Boolean}true"`, and the exact `{project}.forms.{formName}` category used by
+   `guideContainer/@clientLibRef`. The ui.apps filter must cover `/apps/clientlibs`. For an added or
+   structurally replaced direct clientlib on a populated instance, use an exact child
+   `mode="replace"` filter only after verifying local filter precedence; never replace the whole root.
+   Statically verify the descriptor, manifests, CSS, JS, category, and guideContainer reference before
+   passing deployment to Forgemaster.
 3aa. **Template is reuse-first — do NOT fork a new template per form.** Before running
    `create-editable-template`, run its reuse-first gate: enumerate existing templates (repo +
    instance) and reuse one that fits (same `af-page-v2` type + fitting structure + allowed-components

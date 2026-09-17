@@ -5,11 +5,12 @@ description: >
   from scratch — including its field-level validation clientlib. Covers all 5 required
   artifacts: the form page, DAM guide asset, per-form conf context, filter entry, AND the
   per-form validation clientlib (custom functions + Rule-Editor-visible validation rules)
-  derived from the requirement document — OR from a FIELD INVENTORY discovered from a form on
-  a public webpage (URL replica), building the form as an EXACT VISUAL + FUNCTIONAL replica of
-  that source form (the form only, not the page chrome). Follow every instruction here exactly —
+  derived from the requirement document — OR, in **Use Case 1**, from a FIGMA URL / its captured
+  field inventory, building the form as an EXACT VISUAL + FUNCTIONAL replica of that form frame
+  (the form only, not the surrounding artboard or page chrome). It also supports a public-webpage
+  URL replica. Follow every instruction here exactly —
   each rule exists because omitting it causes a specific, hard-to-diagnose failure.
-version: 3.2.0
+version: 3.3.0
 ide:
   cursor: .cursor/skills/create-adaptive-form/
   github-copilot: .github/skills/create-adaptive-form/
@@ -39,6 +40,25 @@ value. You ask the user for the inputs listed below before generating any file.
 > Rule-Editor-visible rules). Creating the form without its clientlib is incomplete. This
 > is a standing project convention — see [[clientlib-per-form-convention]].
 
+> **Use Case 1 — Figma URL replica (first-class route).** If the request to create an Adaptive
+> Form includes a Figma design URL (`https://www.figma.com/design/...`), this is **Use Case 1**.
+> Do not classify it as a generic URL or public-webpage replica, and do not WebFetch it. Before
+> authoring any of the five artifacts, run the Figma capture flow in
+> `discover-form-requirements`: parse the `fileId` and optional `node-id`; use the Figma MCP design
+> context, form-frame screenshot, and variable definitions; then consume its structured field
+> inventory and style spec. Build an **exact visual and functional replica of only the selected
+> form frame**. Preserve every visible field, static element, order, layout, validation cue, and
+> design token. Use the captured form-frame screenshot as `reference_for_ui_check` for later UI
+> parity testing. Default to a JSON Schema and the shared Generate-PDF submit action unless
+> requirements explicitly specify integration. If Figma access fails, record the limitation and use
+> a user-provided export/screenshot; never invent unobservable fields or styling.
+>
+> **Multi-column rows from a Figma auto-layout row** follow the same `<default width="N">` pattern
+> as the URL-replica rule below, but `N` is derived from the Figma auto-layout child count/proportions
+> (2 equal children → `6`/`6`, 3 → `4`/`4`/`4`, etc.) — see `create-form-theme` →
+> `references/figma-design-rules.md` (Rule 3) for the full mapping table, plus its border-box-sizing
+> and temporary-asset-URL rules that apply to this Use Case.
+
 > **URL-replica build (from a field inventory discovered from a public webpage form).** When the
 > input is a **field inventory** discovered from a form on a public webpage (the URL-replica flow —
 > as run for the `complaint-form`), build the form as an **EXACT VISUAL + FUNCTIONAL replica of that
@@ -64,9 +84,9 @@ value. You ask the user for the inputs listed below before generating any file.
 > Data Model (FDM)** are **mutually exclusive** ways to bind a form's data — a form uses **at most
 > one**.
 >
-> **Input-type default:** when the form is being created from a **screenshot/image or a link to an
-> HTML page** (and no requirement document supplies the integration logic), **default to a JSON
-> Schema (`generate-schema`), NOT an FDM** — a picture/HTML carries no system-of-record, endpoint,
+> **Input-type default:** when the form is being created from a **Figma URL, screenshot/image, or a
+> link to an HTML page** (and no requirement document supplies the integration logic), **default to
+> a JSON Schema (`generate-schema`), NOT an FDM** — a design/picture/HTML carries no system-of-record, endpoint,
 > auth, or process, so an FDM source (and any workflow) would be fabricated. Reserve FDM for when a
 > **requirement document with proper integration logic** defines it. (In a pipeline delivery the
 > architect has already made this call; honor it.)
@@ -774,6 +794,42 @@ under `/content/forms/af` like a form and are inserted via the Fragment componen
 requirement has obviously reusable sections, suggest extracting them as a fragment rather than
 duplicating the XML.
 
+> **Section/action ownership decision (mandatory).** Choose the owner from the requirement
+> before authoring. Use an Adaptive Form Fragment only when the declaration, consent, signature,
+> or footer is genuinely reusable **and** the requirement explicitly asks for reuse or fragment
+> authoring. An action-bearing reusable fragment must be embedded **by reference in every
+> consuming parent form**: author exactly one Fragment component with `fragmentPath`, position it
+> after the preceding section, and keep its declaration fields, Submit/Reset action components,
+> and authorable `fd:rules`/`fd:events` in the fragment source.
+>
+> When the requirement asks for a form-specific or directly authored address, declaration, or
+> action section — including whenever reuse is not explicitly requested — do **not** create or reference
+> a fragment. Author each section as a direct `panelcontainer` under that form's `guideContainer`.
+> Keep declaration fields in the direct declaration panel and place one direct `buttonRow` sibling
+> after it. The button row MUST follow the verified office-event shape: `actions/submit` named
+> `submit`, `buttonType="submit"`, an authorable `fd:rules/@fd:click` `SUBMIT_FORM` AST, and
+> `<fd:events click="[submitForm()]"/>`; `actions/reset` named `reset`, `buttonType="reset"`, and
+> an empty native `<fd:events/>`. Add precise `mode="replace"` content-package filters for each
+> remediated direct panel/button row; use direct targeted replacement only for the affected owned
+> subnodes, not the whole form. The standalone fragment, if one already exists, is not deleted
+> merely because this particular form uses direct form-specific sections. In either ownership mode,
+> the parent form model must have exactly one Submit and one Reset action.
+
+```xml
+<!-- child of the parent form's guideContainer; the fragment owns its own fields/actions -->
+<declaration
+    jcr:primaryType="nt:unstructured"
+    sling:resourceType="{project}/components/adaptiveForm/fragment"
+    name="declaration"
+    fieldType="panel"
+    fragmentPath="/content/forms/af/{appFolder}/declaration"
+    aria-label="Declaration">
+    <cq:responsive jcr:primaryType="nt:unstructured">
+        <default jcr:primaryType="nt:unstructured" width="12"/>
+    </cq:responsive>
+</declaration>
+```
+
 ---
 
 ## Artifact 2 — DAM guide asset
@@ -945,8 +1001,8 @@ The clientlib (Artifact 5) lives under `ui.apps`. Ensure **its** filter
 ```xml
 <filter root="/apps/clientlibs"/>
 ```
-Add it if absent (the default `ui.apps` filter covers `/apps/{project}/clientlibs`, NOT
-`/apps/clientlibs`).
+Add it if absent. Form-level clientlibs in this project are direct children of `/apps/clientlibs`;
+do not substitute a project-namespaced clientlib root.
 
 > **⚠ RE-AUTHORING WARNING — `mode="update"` leaves orphan nodes (duplicate sections).**
 > The form filter roots (`/content/forms/af/{project}`, `/content/{project}`) use
@@ -979,7 +1035,7 @@ functions** and the **Rule-Editor-visible validation rules** that call them.
 > Hard rule 7). Rewriting the clientlib will NOT fix this. VERIFIED on sports-event (2026-07-06).
 >
 > **Reuse-first split (canonical base + SELF-CONTAINED form clientlib).** The shared **base**
-> forms clientlib (category `{project}.forms.base`, under `/apps/{project}/clientlibs`) is the
+> forms clientlib (category `{project}.forms.base`, under `/apps/clientlibs`) is the
 > CANONICAL reference for generic validators + standard styling — the one place to read/update
 > them. BUT a per-form clientlib must **NOT** `embed`/`depend on` `{project}.forms.base`: the base
 > re-defines the same `@name` functions, so wiring it in makes the built clientlib define
@@ -1096,6 +1152,9 @@ If the form does not behave as expected after deployment, use this table to diag
 Before deploying, verify every item. Each item maps to one of the failures above.
 
 - [ ] User has confirmed all 5 inputs: `{project}`, `{formName}`, `{formTitle}`, `{theme}`, `{template}`
+- [ ] **Use Case 1 only:** a supplied Figma URL was processed through `discover-form-requirements`
+      with Figma MCP tools (not WebFetch); its exact form-frame field inventory, style spec, and
+      screenshot parity reference were carried into this build
 - [ ] `{project}` is used as the single namespace in every path root (resourceType, `/conf/`, and the form/DAM/conf-forms folder segment)
 - [ ] Artifact 1 created: form page at `/content/forms/af/{project}/{formName}/.content.xml`
 - [ ] Artifact 2 created: DAM asset at `/content/dam/formsanddocuments/{project}/{formName}/.content.xml`
@@ -1137,7 +1196,8 @@ Before deploying, verify every item. Each item maps to one of the failures above
       returns no custom functions from the Rule-Editor endpoint and marks every custom-fn rule
       "Broken"). Styling is self-contained (copied base.css); generate-pdf loads via `dependencies`;
       the base stays the canonical source but is NOT wired in; `ui.apps` filter covers
-      `/apps/clientlibs`
+      `/apps/clientlibs`; descriptor uses the canonical `http://www.day.com/jcr/cq/1.0` CQ namespace
+      and `cq:ClientLibraryFolder`, and the `ui.apps` filter covers the direct root
 - [ ] Each validated field has `validationExpression="…== true()"` + `validateExpMessage`
       AND a `fd:rules`/`fd:validate` authored AST (+ empty `fd:events`) so the rule is
       visible in the Rule Editor; no bare `== true`

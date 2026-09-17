@@ -15,7 +15,7 @@ description: >
   Use as the first half of the Planwright (PLAN) phase, before any architecture or build skill runs.
   This skill gathers and structures requirements — it does NOT design the solution (that is
   architect-form-solution) and does NOT author artifacts (those are the create-* skills).
-version: 1.0.0
+version: 1.0.1
 ide:
   cursor: .cursor/skills/discover-form-requirements/
   github-copilot: .github/skills/discover-form-requirements/
@@ -56,7 +56,7 @@ Accept any of these (often several at once):
 | Screenshot / Figma export / wireframe | Read visually; inventory fields, layout, labels, sections |
 | Existing form (JCR path / package) | Inspect it as the as-is baseline (likely a migration) |
 | **Public webpage URL** (a page with a form embedded on it) | **WebFetch it**; isolate the `<form>`; capture the two-part field inventory + style spec (see "Step 1a"). Produces an EXACT-replica Adaptive Form of ONLY that form — not the page chrome |
-| **Figma URL** (`https://www.figma.com/design/<fileId>/...`) | **Use Figma MCP tools** — do NOT WebFetch. Parse `fileId` and `node-id` from the URL; call `mcp__figma__get_design_context`, `mcp__figma__get_screenshot`, and `mcp__figma__get_variable_defs` to extract the form design, field inventory, and design tokens (see "Step 1b"). Produces an EXACT-replica Adaptive Form of ONLY the form frame — not the surrounding artboard chrome |
+| **Figma URL** (`https://www.figma.com/design/<fileId>/...`) | **Use Case 1 for Adaptive Form creation.** **Use Figma MCP tools** — do NOT WebFetch. Parse `fileId` and `node-id` from the URL; call `mcp__figma__get_design_context`, `mcp__figma__get_screenshot`, and `mcp__figma__get_variable_defs` to extract the form design, field inventory, and design tokens (see "Step 1b"). Produces an EXACT-replica Adaptive Form of ONLY the form frame — not the surrounding artboard chrome |
 | Stakeholder answers | Fold into the structured output |
 
 Classify the delivery so the architect knows the shape:
@@ -101,7 +101,7 @@ discovery, so the whole downstream pipeline has both what to build and how it mu
 
 ---
 
-## Step 1b — Figma URL input (Figma MCP tools → two-part capture)
+## Step 1b — Use Case 1: Figma URL input (Figma MCP tools → two-part capture)
 
 When the input is a **Figma URL** (`https://www.figma.com/design/<fileId>/...`), the goal is an
 **EXACT VISUAL + FUNCTIONAL REPLICA** of the form depicted in that Figma frame — taking **ONLY the

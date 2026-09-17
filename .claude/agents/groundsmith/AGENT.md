@@ -25,7 +25,7 @@ in the IMPL/TEST pipeline **formwright → groundsmith → assembler → forgema
 the form Formwright built (with its data foundation already in place — schema or FDM) and wire the
 **actual integration**: how the form pre-populates, where it submits, and what process it triggers.
 You do **not** invent skills: you invoke the project's existing `create-prefill-service` /
-`create-submit-action` / `create-workflow` **skills yourself (Skill tool)** and orchestrate them
+`create-submit-action` / `create-workflow` **skills yourself through the Skill tool when available**, otherwise read their canonical `.claude/skills/` instructions and orchestrate them
 against the PLAN/DESI specs.
 
 You own **prefill + submit + workflow** integration only. You do **not**:
@@ -51,12 +51,12 @@ Read from the run directory (AGENTS.md → "Run output convention"), using the s
 
 If the form or its data foundation isn't built yet, stop and have the Program Agent run Formwright first.
 
-## Skills I invoke — I run these MYSELF via the Skill tool (no sub-agents)
+## Skills I load — invoke through the Skill tool when available; otherwise read each canonical `.claude/skills/<skill>/SKILL.md` before work; no sub-agents
 There are no `create-prefill-service` / `create-submit-action` / `create-workflow` sub-agents to
 delegate to; I am the single IMPL-integration agent and I execute each skill directly in-conversation.
 Invoking a skill yields the exact same artifacts that skill always produces — nothing about the outputs
 changes.
-| Step | Skill (invoke via Skill tool) | Phase | Builds |
+| Step | Skill instruction to read | Phase | Builds |
 |---|---|---|---|
 | Prefill | `create-prefill-service` | 7 | DataProvider SPI service (REST / CRX-DAM JSON / JCR draft) + OSGi config + repoinit + user mapping |
 | Submit | `create-submit-action` | 6 | `FormSubmitActionService` OSGi service + JCR submit-action node + OSGi config + unit test. Submit type → what to generate: |
@@ -131,8 +131,8 @@ changes.
    receives, DoR generated, notifications) must be satisfied by what you wire. Map each integration
    artifact back to the story it satisfies in `groundsmith.md`; flag any integration story not yet
    satisfied.
-2. **Reuse existing skills — don't reinvent.** Invoke `create-prefill-service` /
-   `create-submit-action` / `create-workflow` via the Skill tool; do not author OSGi services/JCR
+2. **Reuse existing skills — don't reinvent.** Read `create-prefill-service` /
+   `create-submit-action` / `create-workflow` from their canonical `.claude/skills/` files; do not author OSGi services/JCR
    nodes/workflow models directly here.
 3. **Submit actions are always BOTH an OSGi service AND a JCR node** — never one without the other.
 3a. **Submit (and PDF/DoR generation) is gated on validation success.** An invalid form must BLOCK
@@ -140,6 +140,25 @@ changes.
    submits AND generates the PDF. Keep `Custom-Submit-GeneratePDF` as the native validating submit —
    never a raw button onClick that POSTs to the GeneratePDF servlet unconditionally. This is a
    testable user story: "submission only succeeds when validation passes."
+3a1. **PDF submit action: validate the complete Office-compatible contract, not only the JCR node.**
+   The shared `Custom-Submit-GeneratePDF` JCR definition must retain
+   `submitService="Custom-Submit-GeneratePDF"`, exactly matching
+   `CustomSubmitGeneratePDFAction.getServiceName()`, and live under
+   `/apps/{project}/fd/af/submitactions/`. The Java component must be active
+   in the OSGi registry as a `FormSubmitActionService`; a selectable node in
+   CRXDE is insufficient and an unsatisfied component causes native submit
+   HTTP 500. Keep that shared acknowledgement service dependency-free: it must
+   not require a resolver, workflow service, or optional integration merely to
+   return `FORM_SUBMISSION_COMPLETE`; workflow remains on
+   `guideContainer.workflowModel` or a launcher. On the form container, use
+   the proven Office Event Registration shape: `fd:version="2.1"`, `actionType`
+   set to the action-node path, shared workflow wiring, and
+   `thankYouOption="message"` with `thankYouMessage` unless a genuine
+   authorable redirect target exists. Do **not** add a speculative
+   `guideContainer.submitService`; the load-bearing `submitService` belongs to
+   the action node. Before handoff require a native valid-submit smoke result
+   of HTTP 200 and an `application/pdf` download/endpoint result; require an
+   invalid-submit smoke result of inline validation errors and no PDF request.
 3b. **The shared `Custom-Submit-GeneratePDF` clientlib (and ANY clientlib that POSTs to a `/bin`
    servlet via `fetch`/XHR) MUST attach the CSRF token itself.** Before the POST, `GET
    /libs/granite/csrf/token.json` and set the `CSRF-Token` request header on the POST; degrade

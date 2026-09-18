@@ -320,6 +320,16 @@ Write `test/sentinel/test-report.md` with:
    — the model looks fully deployed (design copy present, package installed) yet is invisible in
    Tools → Workflow → Models and any "Invoke an AEM Workflow" submit silently does nothing. Do this even
    on a re-test of an already-generated model — a re-authored `/conf` source needs a fresh generate.
+9. **Verify Rule Editor authorability structurally, not just visually (defect fix — VERIFIED:
+   school-event-registration-form, 2026-09-18).** When a test case requires a rule to be authorable
+   (editable in the Rule Editor, not just functionally correct at runtime), a rule that DISPLAYS but
+   shows as duplicated or "Unknown Field - null" is a Critical defect even if the field still validates
+   correctly on submit — the two symptoms are independent. Confirm via `<field>.infinity.json` (author
+   tier) that: (a) `fd:events` is a SIBLING of `fd:rules` on the field node, never its child; and
+   (b) the rule property (`fd:validate`, `fd:click`, `fd:calc`, …) is a genuine multi-value JCR
+   `String[]` (`type: list`), not a single String whose text merely looks like a JSON array. Route any
+   mismatch to Formwright — see `create-form-rules` SKILL.md "Common mistakes" and "Surgical live-node
+   repair" for the fix.
 
 ## Token tracking
 

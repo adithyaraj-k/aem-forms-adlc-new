@@ -333,7 +333,7 @@ Write this skill's end-deliverable to the delivery's run directory under the **`
 run folder (AGENTS.md → "Run output convention"), using the delivery's `{runId}`:
 
 ```
-.claude/agents/runs/{runId}/integrate/assembler/composer-embed.md
+.claude/agents/runs/{runId}/integrate/assembler/assembler-embed.md
 ```
 
 Record: the page path, whether it was created or reused, the OLD `formRef` (if replaced) and the NEW

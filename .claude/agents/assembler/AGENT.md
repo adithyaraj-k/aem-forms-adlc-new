@@ -94,7 +94,7 @@ I pass the skill: **"author only — do NOT deploy; defer the build+deploy to Fo
 3. **Author only — do NOT run `mvn`.** Deployment is centralized in Forgemaster (AGENTS.md → "Deployment
    is centralized in Forgemaster"). Forgemaster's single build+deploy after you deploys the updated page.
 4. **Write the assembly summary** to `.claude/agents/runs/{runId}/integrate/assembler/assembler.md`
-   (and the skill's `composer-embed.md` into the same `integrate/assembler/` folder — create the `integrate/assembler/`
+   (and the required `assembler-embed.md` into the same `integrate/assembler/` folder — create the `integrate/assembler/`
    run folder if absent). Temporary/working files go to the scratchpad dir, never into `runs/`.
 5. **Hand back to `aem-forms-program-agent`**, which runs **Forgemaster** (build/deploy) next.
 

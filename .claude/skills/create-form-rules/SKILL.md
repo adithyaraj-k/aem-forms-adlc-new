@@ -734,6 +734,48 @@ RIGHT: Start from an editor-authored Core Components AST of the same rule type, 
   independently (for example `fd:validate[0]`), rather than parsing the repository's display of
   the whole property as one JSON array. A rule that validates at runtime but renders as
   “Unknown Field” or “Incomplete” has not been migrated successfully.
+
+---
+
+WRONG: Authoring/repairing `fd:rules` directly on a running instance via Sling POST (curl) instead
+  of a package deploy or the Rule Editor, and posting `fd:validate`/`fd:click` as ONE plain form
+  field, e.g. `curl -F "fd:validate=<file"`. Sling then stores it as a SINGLE-VALUED String whose
+  text merely LOOKS like a JSON array (`"[{...}]"`) — it is not a true multi-value property. The
+  Rule Editor reads the JCR property TYPE, not just the text, so this renders as an unresolved
+  duplicated row ("Unknown Field - null") even when the AST content is byte-identical to a working
+  reference. A second, independent mistake that produces the same symptom: creating `fd:events` as
+  a CHILD of `fd:rules` instead of as its SIBLING under the field node — every genuine rule in this
+  project (Validate, Click, Calculate, …) has `field/fd:rules` and `field/fd:events` as two
+  separate children, never nested.
+  ✅ **VERIFIED case (school-event-registration-form, 2026-09-18):** `dateOfBirth`, `contactNumber`,
+  and `pincodeZipCode` all showed duplicate/"Unknown Field - null" Validate rows after repeated
+  curl-based repair attempts, even after byte-for-byte reproducing the original AST. Root cause was
+  confirmed by comparing `.infinity.json` structure against `event-ticket-booking` /
+  `vehicle-registration-form` / this form's own `submitButton` (the one rule that always rendered
+  correctly): `fd:validate` there is `type: list, len: 1` (true multi-value), and `fd:events` is a
+  sibling, not a child.
+
+RIGHT: When you MUST author/repair `fd:rules` on a live instance via curl instead of a package
+  deploy (e.g. an author-only fix with no redeploy), reproduce the exact shape below:
+  1. Create `<field>/fd:rules` with `jcr:primaryType=nt:unstructured`, `validationStatus=valid`,
+     and post the rule-specific property (`fd:validate`, `fd:click`, `fd:calc`, …) using Sling's
+     type hint so it becomes a true multi-value String, e.g.:
+     `curl -u admin:admin -F "fd:validate@TypeHint=String[]" -F "fd:validate=<rule.json" URL`
+     — where `rule.json` holds ONE JSON object (no outer `[`/`]` wrapper; the TypeHint makes Sling
+     wrap it into a one-element array itself).
+  2. Create `<field>/fd:events` as a SEPARATE POST to the field node — a SIBLING of `fd:rules`,
+     never `fd:rules/fd:events` — with just `jcr:primaryType=nt:unstructured` (empty is correct for
+     Validate/Calculate/visibility rules; only Click-type rules populate an event key, e.g.
+     `click=["submitForm()"]`, also via `@TypeHint=String[]`).
+  3. Verify via `<field>.infinity.json`: `fd:rules` keys are exactly `jcr:primaryType`,
+     `fd:validate` (or the relevant `fd:*` property), `validationStatus`; `fd:events` is a SIBLING
+     key on the field, and `type(fd:validate) == list` with the expected length. Compare against a
+     genuine reference field's `.infinity.json` shape before considering the fix complete — do not
+     rely on the AST content alone.
+  In FileVault DocView XML (`.content.xml`) sources, the `fd:validate="[{...}]"` attribute syntax
+  with the outer `[...]` IS already correct — FileVault's own docview parser treats it as JCR
+  multi-value array notation at package-install time. The multi-value defect above is specific to
+  raw Sling POST against a running instance, not to the source XML.
 ```
 
 ---
@@ -820,3 +862,18 @@ looks correct, and `mvn` reports `BUILD SUCCESS`, so this is easy to miss.
 
 > This only matters for *structure/property changes* to existing rules. Adding a brand-new rule to a field
 > that had none, or first-time form creation, does not need the delete step.
+
+### Surgical live-node repair (author-only fix, no `mvn` redeploy authorized)
+
+When you are asked to fix a rule directly on a running instance **without** running `mvn`
+(author-only correction), the full-node delete + redeploy above is not available. Instead, purge and
+recreate only the `fd:rules` (and, if present, `fd:events`) child nodes of the affected field via
+`curl.exe -F ":operation=delete"`, then recreate them following the "Surgical live-instance repair"
+steps in "Common mistakes" above (sibling `fd:events`, `@TypeHint=String[]` for the `fd:*` rule
+property). This is narrower than the mandatory full-node purge — it fixes the Rule Editor rendering
+and runtime behavior for that field, but does **not** refresh AEM's authoring-side compiled form
+model cache the way a full clean rebuild does. If a rule keeps rendering as "Unknown Field"/
+duplicated after the structural fix above, that residual symptom is likely a stale compiled-model
+cache, and the mandatory full delete + `mvn clean install` redeploy (with the user's explicit
+authorization to deploy) is the definitive fix — do not keep iterating on ad hoc curl patches past
+that point.

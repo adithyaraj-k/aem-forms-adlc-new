@@ -132,6 +132,10 @@ whose name starts with the execution date and the exact form name**:
 
 ### Organize each run by SDLC cycle (mandatory)
 
+The role-oriented layout below is the **only default for new runs**. The older
+`implementation/`, `assembly/`, `deployment/`, `testing/`, and `handoff/`
+layout is historical only and must not be created for a new delivery.
+
 Inside the run directory, files are **grouped into SDLC-cycle subfolders** — do **not** dump every
 file flat at the run-directory root. Each phase writes its deliverable into the folder for its cycle:
 
@@ -139,11 +143,14 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
 |---------------------|---------------------------|------------------------------------------------------------------------------------|
 | `plan/`             | PLAN · planwright         | `planwright.md`, `user-stories.yaml`, `solution-architecture.yaml` |
 | `design/`           | DESI · draftsmith       | `draftsmith.md`, `component-design-spec.yaml`, `test-cases.yaml` |
-| `implementation/`   | IMPL · formwright (build) + groundsmith (integration) | **formwright:** `formwright.md`, `generate-schema.md`, `create-fdm.md`, `create-editable-template.md`, `create-form-component.md`, `<fragment>-create-AdaptiveFormFragment.md`, `create-adaptive-form.md`, `create-form-rules.md`, `create-form-theme.md`, `create-form-clientlib.md`, `migrate-form.md` · **groundsmith:** `groundsmith.md`, `create-prefill-service.md`, `create-submit-action.md`, `create-workflow.md` |
-| `assembly/`         | ASSEMBLY · assembler        | `assembler.md`, `composer-embed.md` (the form embedded into the "Test Adaptive Form" Sites page — a standalone phase that runs AFTER implementation and before deployment) |
-| `deployment/`       | DEPLOY · forgemaster          | `code-quality-report.md` (build verdict + per-module results + unit tests/coverage + static analysis + **the names of every deployment artifact** + deploy confirmation) |
-| `testing/`          | TEST · sentinel           | `test-report.md`, `integration-test-report.md`, `test-form-ui-report.md` (all text-only — **no image files**; comparison PNGs stay in the Cypress results dir) |
-| `handoff/`          | HANDOFF · program agent   | the consolidated run summary / Skills Usage Report / deployment outcome (`program-summary.md`) |
+| `implement/formwright/` | IMPL build · formwright | `formwright.md` plus build-skill deliverables: `generate-schema.md`, `create-fdm.md`, `create-editable-template.md`, `create-form-component.md`, `<fragment>-create-AdaptiveFormFragment.md`, `create-adaptive-form.md`, `create-form-rules.md`, `create-form-theme.md`, `create-form-clientlib.md`, `migrate-form.md` |
+| `integrate/groundsmith/` | IMPL integration · groundsmith | `groundsmith.md`, `create-prefill-service.md`, `create-submit-action.md`, `create-workflow.md` |
+| `integrate/assembler/` | ASSEMBLY · assembler | `assembler.md`, **`assembler-embed.md`** — the authoritative Test Adaptive Form page-embed record |
+| `test/forgemaster/` | DEPLOY · forgemaster | `code-quality-report.md` (build verdict, module/unit-test/static-analysis results, deployment artifacts, and deploy confirmation) |
+| `deploy/` | SCM · pilot | `pilot.md` (branch, commit, and PR record) |
+| `test/sentinel/` | TEST · sentinel | `test-report.md`, `integration-test-report.md`, `test-form-ui-report.md` (text-only; raw Playwright evidence remains in `ui.tests/test-module/results/`) |
+| `handoffs/` | Every lead | `{agent}.yaml` completion handoff for each phase; `program-summary.md` is the consolidated run summary |
+| `reports/` | HANDOFF · program agent | `final-report.md`, `skills.md`, `demo-script.md`, `tokens.json` |
 
 - **Only end-deliverable outputs belong in these folders** — each phase's handoff/result (the plan,
   structured requirements, the migration delta, the UI comparison report + its images, the deploy
@@ -156,9 +163,9 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
   the run directory + the one subfolder it needs if absent.
 - This does **not** change where deployable artifacts live — forms still go under `ui.content`,
   clientlibs under `ui.apps`, etc. `runs/` is the **record** of each execution, not the deployable
-  output. Tools that write working files elsewhere (e.g. `test-form-ui`'s Cypress images under
-  `ui.tests/.../cypress/results`) **leave those files where they are** and write only their
-  text report into the cycle folder — **no image files are stored in `runs/` (including `testing/`)**;
+  output. Tools that write working files elsewhere (e.g. Playwright evidence under
+  `ui.tests/test-module/results/`) **leave those files where they are** and write only their
+  text report into the cycle folder — **no image files are stored in `runs/` (including `test/`)**;
   the report points to the images in their working dir.
 
 ```
@@ -171,21 +178,53 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
     draftsmith.md
     component-design-spec.yaml
     test-cases.yaml
-  implementation/
-    formwright.md
-    create-adaptive-form.md
-    groundsmith.md
-    create-submit-action.md
-  assembly/
-    assembler.md
-    composer-embed.md
-  deployment/
-    code-quality-report.md   (build verdict + deployment artifact names)
-  testing/
-    test-report.md
-    test-form-ui-report.md   (text-only — no image files)
-  handoff/
+  implement/
+    formwright/
+      formwright.md
+      generate-schema.md
+      create-fdm.md
+      create-editable-template.md
+      create-form-component.md
+      <fragment>-create-AdaptiveFormFragment.md
+      create-adaptive-form.md
+      create-form-rules.md
+      create-form-clientlib.md
+      create-form-theme.md
+      migrate-form.md
+  integrate/
+    groundsmith/
+      groundsmith.md
+      create-submit-action.md
+    assembler/
+      assembler.md
+      assembler-embed.md
+  test/
+    forgemaster/
+      code-quality-report.md
+    sentinel/
+      test-report.md
+      integration-test-report.md
+      test-form-ui-report.md
+  deploy/
+    pilot.md
+  handoffs/
+    ensure-forms-agents-md.yaml
+    planwright.yaml
+    draftsmith.yaml
+    formwright.yaml
+    groundsmith.yaml
+    assembler.yaml
+    forgemaster.yaml
+    pilot.yaml
+    sentinel.yaml
+    migrate-form.yaml             # when migrate-form runs as a direct lead
+    program-agent.yaml
     program-summary.md
+  reports/
+    final-report.md
+    skills.md
+    demo-script.md
+    tokens.json
 ```
 
 ## Forms type: Core Components
@@ -244,7 +283,7 @@ In a delivery run through the agent pipeline
 **deployment is owned by the `forgemaster` lead** — it runs the single authoritative
 `mvn clean install -PautoInstallSinglePackage` after all artifacts are authored (including the
 **page embed** produced by `assembler`), confirms the deploy, and writes the code-quality report
-(with the deployment artifact names) to `deployment/`.
+(with the deployment artifact names) to `test/forgemaster/`.
 
 - When a build/integration/assembly skill (`create-adaptive-form`, `create-AdaptiveFormFragment`,
   `create-fdm`, `create-form-clientlib`, `create-form-rules`, `create-workflow`, `migrate-form`,

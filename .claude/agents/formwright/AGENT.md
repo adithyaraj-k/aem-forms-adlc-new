@@ -270,6 +270,33 @@ cross-check it later.
    SAME `displayFormat` and `editFormat` token (e.g. both `date|DD/MM/YYYY`) + matching
    `placeholderText` — a mismatch (ISO `editFormat` vs `DD/MM/YYYY` display) breaks the picker so no
    date can be picked. Verify buttons submit/reset and date pickers open+commit on the deployed form.
+<<<<<<< Updated upstream
+=======
+3ag. **`fd:events` is ALWAYS a sibling of `fd:rules`, never its child; `fd:validate`/`fd:click` MUST be
+   a true multi-value JCR `String[]` (defect fix — VERIFIED: school-event-registration-form, 2026-09-18).**
+   Every genuine rule in this repo (`event-ticket-booking`, `vehicle-registration-form`, any
+   `submitButton`) stores `field/fd:rules` and `field/fd:events` as two SEPARATE children of the field
+   node. Nesting `fd:events` inside `fd:rules` — or storing `fd:validate` as a single String whose text
+   merely looks like a JSON array (`"[{...}]"`) instead of a genuine one-element `String[]` — renders as
+   a duplicated/"Unknown Field - null" row in the Rule Editor even when the AST content is
+   byte-for-byte correct. This defect is specific to authoring/repairing rules via raw Sling POST
+   against a running instance (not to FileVault DocView `.content.xml`, whose `fd:validate="[{...}]"`
+   attribute syntax already parses correctly at package-install time). If you must hand-repair a rule
+   directly on a live instance without a `mvn` redeploy, follow `create-form-rules` SKILL.md's
+   "Surgical live-node repair" procedure exactly (sibling `fd:events`, `@TypeHint=String[]` on the
+   posted rule property) and verify via `.infinity.json` against a genuine reference field's shape —
+   do not consider the AST content alone sufficient proof of correctness.
+3af. **Direct form clientlib import contract (college-event-registration).** A mandatory form-specific
+   clientlib lives at `ui.apps/src/main/content/jcr_root/apps/clientlibs/{formName}-clientlib/`, not
+   under the project component folder. Its descriptor uses
+   `xmlns:cq="http://www.day.com/jcr/cq/1.0"`, `jcr:primaryType="cq:ClientLibraryFolder"`,
+   `allowProxy="{Boolean}true"`, and the exact `{project}.forms.{formName}` category used by
+   `guideContainer/@clientLibRef`. The ui.apps filter must cover `/apps/clientlibs`. For an added or
+   structurally replaced direct clientlib on a populated instance, use an exact child
+   `mode="replace"` filter only after verifying local filter precedence; never replace the whole root.
+   Statically verify the descriptor, manifests, CSS, JS, category, and guideContainer reference before
+   passing deployment to Forgemaster.
+>>>>>>> Stashed changes
 3aa. **Template is reuse-first — do NOT fork a new template per form.** Before running
    `create-editable-template`, run its reuse-first gate: enumerate existing templates (repo +
    instance) and reuse one that fits (same `af-page-v2` type + fitting structure + allowed-components
@@ -308,7 +335,24 @@ cross-check it later.
 3b. **Submit (and any PDF/DoR generation) is gated on validation success.** Use the native validating
    submit — an invalid form BLOCKS submission, shows inline errors, focuses the first invalid field,
    and produces NO PDF; a valid form submits AND generates the PDF. Never wire the button/clientlib to
-   POST the GeneratePDF servlet unconditionally.
+   POST the GeneratePDF servlet unconditionally. **Defect fix (VERIFIED: school-event-registration-form,
+   2026-09-18):** a capture-phase click listener that fires the PDF gate BEFORE Adaptive Forms finishes
+   its submit-time validation cycle, and that only checks native `input` validity / `aria-invalid`, can
+   still let an invalid form through — it misses the Rule-Editor wrapper state
+   `data-cmp-valid="false"` that Core Components sets after a Rule-Editor `Validate` rule fails. The
+   shared `Custom-Submit-GeneratePDF` clientlib (`clientlib-generate-pdf/js/generate-pdf.js`) MUST defer
+   PDF generation until after the AF validation cycle and check the wrapper's `data-cmp-valid`
+   attribute, not just native validity — verify with a field that fails ONLY its Rule-Editor validate
+   rule (not a native `required`/`pattern` check).
+3b-ii. **A 3-column responsive row can silently wrap to 2-up from a clientlib gap on top of a fixed
+   flex-basis (defect fix — VERIFIED: school-event-registration-form, 2026-09-17).** Core Components'
+   `.aem-GridColumn--default--4` sets a fixed `flex-basis`/`max-width: 33.3333%` per column; adding a
+   form clientlib rule like `column-gap: var(--af-gap)` on the SAME grid pushes three such columns plus
+   their gaps past 100% width, so the third column overflows and wraps to a second row (looks like a
+   layout bug, not a CSS-arithmetic one). Do not add extra column-gap on top of Core Components' fixed
+   percentage columns — get the gutter from existing per-column padding (see `base.css`) instead, or
+   reduce a row to fewer/wider columns (e.g. `6 + 6`) when a genuine gap is required. Verify by pixels
+   that a authored 3-column row renders as one row at desktop width, not two.
 3b-i. **Document of Record (DoR) needs config in THREE places — you own two of them.** Whenever the
    form has DoR enabled (`dorType` ≠ `none` on `guideContainer`), OR the PLAN/Groundsmith says a
    workflow will Generate-DoR from this form, set BOTH: (1) `dorType="generate"` on `guideContainer`

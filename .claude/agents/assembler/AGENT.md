@@ -53,12 +53,12 @@ Read from the run directory (AGENTS.md → "Run output convention"), using the s
 If the built form path is missing (Formwright hasn't run / produced no form), stop and have the
 Program Agent run Formwright first — there is nothing to embed.
 
-## Skill I invoke — I run this MYSELF via the Skill tool (no sub-agents)
+## Skill I load — invoke through the Skill tool when available; otherwise read the canonical `.claude/skills/composer/SKILL.md` before work; no sub-agents
 There is no `composer` sub-agent to delegate to; I am the single assembly agent and I execute the
 skill directly in-conversation. Invoking the skill yields the exact same page/container artifacts it
 always produces.
 
-| Step | Skill (invoke via Skill tool) | Phase | Produces |
+| Step | Skill instruction to read | Phase | Produces |
 |---|---|---|---|
 | Embed | `composer` | 14 | the "Test Adaptive Form" Sites page + the single AEM Form Container repointed to the new form |
 
@@ -68,7 +68,7 @@ I pass the skill: **"author only — do NOT deploy; defer the build+deploy to Fo
 1. **Resolve the form path** from `formwright.md` — the exact
    `{formsContentRoot}/{project}/{formName}` (`{project}` = `aem-demo-site` is the single namespace —
    the same token in the form path AND the page component/template/conf; there is no separate app folder).
-2. **Invoke `composer` (14)** via the Skill tool to embed the form into
+2. **Read `composer` (14)** at `.claude/skills/composer/SKILL.md` in full, then embed the form into
    `{siteRoot}/test-adaptive-form`:
    - Create the page only if it doesn't exist; otherwise reuse it.
    - Ensure **exactly one** AEM Form Container (`{project}/components/aemformscontainer`)
@@ -170,6 +170,23 @@ At the end of your run, write your token usage to **`.claude/agents/runs/{runId}
 - `other` — tool-call overhead, shell output, scaffolding noise.
 - `total` per pass = sum of the four; `agent_total` = sum of all passes.
 - **Do not include the token breakdown in `assembler.md` or the handoff YAML.** A one-line note `token_usage: see tokens.json` in the report is sufficient.
+
+### Copilot CLI compatibility (additive - does not replace the block above)
+
+The `cli_text`/`read`/`write`/`other` breakdown above is a **self-reported estimate**, kept as-is for
+Claude-Code compatibility. Under **GitHub Copilot CLI**, this agent cannot introspect its own token spend
+from inside its own turn - but real, accurate **per-agent** measurement IS possible, because Copilot CLI
+tags every model call with the dispatching agent_id in its session store. That measurement is owned by
+whichever agent dispatched YOU via the Task tool (normally `aem-forms-program-agent`), not by you:
+
+1. Do not attempt to self-measure or guess a `copilot_cli_actual` figure for yourself.
+2. Your dispatcher already holds the `agent_id` the Task tool returned when it launched you. After you
+   report completion, your dispatcher queries `session_store_sql` (`source: "local"`) for
+   `SELECT model, SUM(input_tokens), SUM(output_tokens) FROM assistant_usage_events WHERE session_id = '{sessionId}' AND agent_id = '{yourAgentId}' GROUP BY model`
+   and writes the real result into your entry in `reports/tokens.json` as a sibling `copilot_cli_actual`
+   object (see `aem-forms-program-agent/AGENT.md` -> "Step 5 - Run reports" for the exact procedure).
+3. Leave `cli_text/read/write/other/total/agent_total` exactly as-is; do not add a `copilot_cli_actual`
+   field yourself - an unverifiable self-reported one would be a fabrication.
 
 ## Run output location (mandatory)
 

@@ -131,6 +131,32 @@ Always use these exact operator strings. No variations.
 
 ### Rule storage property map (applies to EVERY rule type, not just visibility)
 
+### Mandatory direct-versus-fragment rule ownership
+
+For fields inside an Adaptive Form Fragment, author the `fd:rules` node in the fragment's own
+`.content.xml`; do not duplicate that rule on the consuming form's fragment-reference node. Preserve
+each `validationExpression` and its message as the runtime mirror, and add the matching escaped
+`fd:validate` `VALIDATE_EXPRESSION` AST, `validationStatus="valid"`, and sibling empty `fd:events`
+in the fragment source so it remains editable in the Rule Editor.
+
+For a submit action in a fragment, use the verified `fd:click` `EVENT_SCRIPTS` → `SUBMIT_FORM` AST
+and `<fd:events click="[submitForm()]"/>`. For reset, use the verified Core Components `actions/reset`
+resource type and an empty `<fd:events/>`; never invent a `RESET_FORM` AST or `reset()` event script.
+For a form-specific address, declaration, consent, or action section when reuse is not explicitly
+required, author the fields and rules directly in the parent form — never create a fragment merely
+because the section is generic. The parent must have no `fragmentPath` for that section. Put the
+direct declaration fields in a `panelcontainer`, then a direct sibling `buttonRow` using the
+office-event-proven nodes: `submit` (`actions/submit`, `buttonType="submit"`, authorable
+`fd:click` `SUBMIT_FORM`, `fd:events@click="[submitForm()]"`) and `reset` (`actions/reset`,
+`buttonType="reset"`, empty `fd:events`). Never add a reset AST or a `reset()` script.
+
+Statically XML-parse all form and fragment sources and JSON-parse every affected `fd:validate` and
+`fd:click` before handoff. For a direct-section remediation, also assert zero `fragmentPath`
+attributes for the owned sections and exactly one direct Submit and Reset action in the parent
+`guideContainer`. For a fragment explicitly chosen for reuse, the field's `validationExpression` /
+`validateExpMessage` runtime mirror and its authorable `fd:validate` AST must both live in that
+fragment's own source; never leave an executable expression without the corresponding Rule Editor AST.
+
 The `fd:visible` guard above is one row of a general rule: **every Rule Editor rule is stored as an
 escaped-JSON AST in a specifically-named `fd:` property on the field's `<fd:rules>` node**, alongside a
 plain-text mirror attribute and the sibling empty `<fd:events jcr:primaryType="nt:unstructured"/>` node.
@@ -298,6 +324,12 @@ name / AST) builds clean but is **silently ignored at runtime**.
 > here.** Deployment (and any delete-before-deploy purge of a stale form node) is handled by the
 > `forgemaster` lead (AGENTS.md → "Deployment is centralized in Forgemaster"); flag in your run file that the
 > form node must be purged before redeploy so Forgemaster does it. Run `mvn` here only when invoked standalone.
+
+> **Targeted import reconciliation.** When a rule/action node is added or structurally replaced on a
+> form or explicitly reusable fragment that already exists in CRX, request an exact `mode="replace"`
+> content-package filter for the affected field, panel, or button-row node. Do not replace the entire
+> form merely to remove a stale rule, and do not create overlapping roots without checking this
+> project's Vault-filter precedence. Record the exact affected JCR path for Forgemaster.
 
 ### Pattern 1: Show/hide a field based on another field's value
 

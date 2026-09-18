@@ -133,6 +133,16 @@ Always use these exact operator strings. No variations.
 
 ### Mandatory direct-versus-fragment rule ownership
 
+### Completion gate for direct sections
+
+When a delivery explicitly removes or does not require fragments, keep address, declaration, and the
+single button row directly under the parent form; remove every `fragmentPath` reference. Do not declare
+the rule work complete merely because an `<fd:rules>` element exists. For every required validation and
+the Submit button, simulate DocView unescaping and JSON-parse the corresponding escaped `fd:*` value;
+the resulting AST must include the appropriate recognized rule type (`VALIDATE_EXPRESSION`, or
+`EVENT_SCRIPTS` containing `SUBMIT_FORM`). A bare script, an AST missing `nodeName`, or a runtime mirror
+without the matching AST fails this gate.
+
 For fields inside an Adaptive Form Fragment, author the `fd:rules` node in the fragment's own
 `.content.xml`; do not duplicate that rule on the consuming form's fragment-reference node. Preserve
 each `validationExpression` and its message as the runtime mirror, and add the matching escaped

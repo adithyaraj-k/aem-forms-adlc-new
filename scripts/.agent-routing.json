@@ -32,7 +32,7 @@
   ],
 
   "agentTiers": {
-    "aem-program-agent": "orchestrator",
+    "aem-forms-program-agent": "orchestrator",
     "planwright": "deep-reasoning",
     "draftsmith": "deep-reasoning",
     "formwright": "execution",
@@ -53,7 +53,7 @@
   },
 
   "adlcStages": {
-    "aem-program-agent": "— (spans all)",
+    "aem-forms-program-agent": "— (spans all)",
     "planwright": "Plan",
     "draftsmith": "Design",
     "formwright": "Implement",

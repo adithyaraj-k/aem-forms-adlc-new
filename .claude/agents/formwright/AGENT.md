@@ -221,6 +221,12 @@ cross-check it later.
      An explicitly reusable action-bearing fragment is allowed only when the DESI specification requires
      it; each consumer then embeds that exact fragment by reference and the parent must not duplicate
      its fields or actions. In either case, statically verify exactly one Submit and one Reset action.
+   - **Direct-section completion gate.** When the approved design removes or does not explicitly require
+     fragments, remove every `fragmentPath` reference and author address/declaration fields directly in
+     the parent form. Before handoff, prove the complete DESI field inventory is present and that each
+     required validation rule and the Submit rule is an escaped, JSON-parseable Core Components `fd:*`
+     AST with a recognized top-level node (`VALIDATE_EXPRESSION` or `EVENT_SCRIPTS`/`SUBMIT_FORM`). A
+     bare `fd:rules` node, a runtime expression without its AST, or a count-only check is a failure.
 2. **Reuse existing skills — don't reinvent.** Read `create-*`/`generate-schema`/`migrate-form` from
    their canonical `.claude/skills/` files before authoring `.content.xml`/HTL/Java/CSS/schema.
 3. **Maximize Core Component reuse.** Custom components only where DESI flagged `source: custom`;

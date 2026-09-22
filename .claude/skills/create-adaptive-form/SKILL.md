@@ -451,7 +451,7 @@ Required fields must additionally have:
 | Single-line text | `textinput` | `text-input` | |
 | Multi-line text | `textinput` | `text-input` | add `multiLine="true"` |
 | Number | `numberinput` | `number-input` | add `minimum` / `maximum` for ranges; use this for any numeric input — do NOT collect numbers as `text-input` |
-| Email | `emailinput` | `email` | |
+| Email | `emailinput` | `email` | ⚠️ **`fieldType="email"` on `emailinput` triggers Core Components' OWN built-in email-format validation IN ADDITION to any custom `validationExpression`/`fd:validate` rule you add — the two fire together and the field shows TWO error messages for the same bad input.** If the requirement is only the project's custom regex/message (no separate native check wanted), use `textinput` + `fieldType="text-input"` instead of `emailinput`/`"email"`, and keep the custom validation rule as the sole source of the format check. Verify with `.model.json` after deploy: only one validation message should be present for an invalid email. |
 | Phone number | `telephoneinput` | `text-input` | add `pattern` + `validatePatternMessage` |
 | Date picker | `datepicker` | `date-input` | **`displayFormat` and `editFormat` MUST use the SAME format token** (e.g. both `date\|DD/MM/YYYY`) + a matching `placeholderText`. A mismatch (e.g. `editFormat="date\|yyyy-MM-dd"` with `displayFormat="date\|DD/MM/YYYY"`) breaks the picker — the user cannot pick/commit a date. See defect note below. |
 | Dropdown | `dropdown` | `drop-down` | add `type="string"`, `enum`, `enumNames` |

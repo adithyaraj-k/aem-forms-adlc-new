@@ -109,6 +109,13 @@ skill always produces — nothing about the outputs changes.
    `.claude/agents/runs/{runId}/implement/formwright/` subfolder and must pass its existing quality gate
    before you proceed (temporary/working files go to the scratchpad dir, never into `runs/`). Then
    write your consolidated build summary to `.claude/agents/runs/{runId}/implement/formwright/formwright.md`.
+   > **This applies even to defect-fix passes that patch a skill's output directly instead of
+   > re-invoking the skill end-to-end** (e.g. hand-editing a `.content.xml` rule blob, a theme's
+   > `theme.css`, or a clientlib's JS/CSS to fix a live parity/Rule-Editor/validation bug found after
+   > the first build). A direct fix is still that skill's work: write or update the matching
+   > `create-form-rules.md` / `create-form-theme.md` / `create-form-clientlib.md` / etc. deliverable
+   > describing what broke, the root cause, and the exact change — do not leave `formwright.md` as the
+   > only file in the subfolder while the individual skill deliverables silently go missing.
 7. **UI-tests track (Playwright harness — PRE-DEPLOY, once per delivery):** see below.
 8. **Hand back to `aem-forms-program-agent`**, which runs **Groundsmith** next (prefill/submit/workflow
    integration), then **Forgemaster** (build/deploy + code-quality report), then **Sentinel** (testing).

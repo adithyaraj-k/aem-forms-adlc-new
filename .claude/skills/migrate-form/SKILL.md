@@ -316,6 +316,17 @@ This project proxies Core Components via `sling:resourceSuperType`, so migrated 
 If the source uses a type not in this table, stop and ask — do not guess a Core Components
 equivalent.
 
+> **`guideemail` → `emailinput` duplicate-validation trap (verified).** `emailinput` with
+> `fieldType="email"` runs Core Components' OWN native email-format check IN ADDITION to any migrated
+> custom `validationExpression`/`fd:validate` rule — the field then shows TWO error messages for one
+> bad value. Before mapping a source field to `emailinput`, check what the **source actually was**:
+> if the Foundation source is a plain `guidetextbox` carrying only a custom regex (no distinct
+> `guideemail` component), migrate it to `{project}/components/adaptiveForm/textinput` +
+> `fieldType="text-input"` — NOT `emailinput`/`"email"` — so only the migrated custom rule fires.
+> Reserve the `emailinput`/`"email"` mapping for a true source `guideemail` field where the native
+> check matches the source's actual behaviour. Verify post-deploy in `.model.json`/the rendered form:
+> submitting one invalid value must show exactly one validation message.
+>
 > **Array-of-enum field stored as a repeatable panel → migrate to a `checkboxgroup` (verified).**
 > Foundation often models a JSON-schema `{"type":"array","items":{"enum":[...]}}` property as an
 > **empty repeatable panel** (`maxOccur="-1"`, `minOccur="0"`, no child fields). Carried over
@@ -362,6 +373,15 @@ equivalent.
   `jcr:title` and place it right after `sling:resourceType`, matching this repo's existing forms
   (`virtual-course-registration-form`, `lab-test-form`). Grep the migrated form — every field must
   have an `aria-label` or the migration regresses accessibility.
+- **A migrated panel (e.g. a button/actions panel) renders an unwanted "Section" heading if the
+  source Foundation panel had no visible title on the original.** Core Components' panel container
+  shows its `jcr:title` (defaulting to "Section" when unset/blank) as a `.cmp-container__label`
+  heading, whereas Foundation's guide panel commonly rendered no such label for a purely-layout
+  panel (e.g. the button row). Compare the rendered source page against the migrated one panel-by-
+  panel: if the source truly showed no heading there, set `hideTitle="{Boolean}true"` on that
+  migrated panel — do not assume every panel needs a heading just because the component has one by
+  default. Never do this for a panel whose title WAS visible in the source; only suppress the ones
+  that introduce a heading the original never had.
 - **CAPTCHA.** A legacy reCAPTCHA/captcha control maps to the Core Components captcha proxy
   (`recaptcha` / `turnstile` / `hcaptcha`, `fieldType="captcha"`). The legacy site keys do not carry
   over — the CC captcha needs a cloud config; flag this to the user rather than silently dropping

@@ -85,6 +85,17 @@ git -C "{repoRoot}" remote get-url origin          # the GitHub remote
   REPO=$(basename "$URL" .git)      # basename -s .git; a lazy `(.+?)(\.git)?$` regex does NOT strip it in ERE
   ```
 
+> **No Git repository at all (`fatal: not a git repository`).** This is a distinct, permanent
+> condition from a normal SCM failure — the workspace was never `git init`'d, so there is no branch,
+> remote, or PR to create no matter how many times Pilot is retried. Do not report this as `FAIL /
+> BLOCKED`; report **`gate_result: WAIVED`** instead, with `waived_by_user` left `false` until the
+> Program Agent confirms it. Write `deploy/pilot.md` and `handoffs/pilot.yaml` recording the exact
+> `git rev-parse` error as the reason, and set `next: RUN_COMPLETE` (not `REMEDIATION` — there is
+> nothing Pilot itself can remediate). Hand control back to the Program Agent rather than looping;
+> the Program Agent decides whether to ask the human to `git init` a real repo or to accept the
+> waiver and proceed straight to Sentinel under the "no-Git-repo workspace" exception in its own
+> AGENT.md (see "Step 3a" there). Never silently relabel this `PASS`.
+
 ### Step 1 — Stage everything except `.claude/`
 Use a git **exclude pathspec** — do NOT edit `.gitignore` to achieve this, and do NOT hand-list files:
 ```bash

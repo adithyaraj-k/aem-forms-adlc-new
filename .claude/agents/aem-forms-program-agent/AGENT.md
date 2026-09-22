@@ -496,6 +496,28 @@ turn**. Do all of the following and then end your turn:
 and do NOT report the delivery as complete. When the human later prompts for testing, run Sentinel
 (cloud DEV) and then finalise the same `reports/final-report.md`.
 
+> **Exception — workspace has no Git repository at all (`gate_result: WAIVED` from Pilot, not
+> `PASS`/`FAIL`).** This is a permanent condition (the folder was never `git init`'d), not a
+> transient SCM failure, so retrying Pilot or waiting for a human PR merge can never resolve it —
+> there is no branch, no PR, and no Cloud Manager DEV target to deploy to. Treat this as its own
+> documented path, distinct from the normal MANUAL GATE:
+> 1. Confirm the condition yourself (`git rev-parse --show-toplevel` fails) — do not take Pilot's
+>    word alone.
+> 2. Ask the human directly whether they want to (a) initialize a real Git repo now so the standard
+>    SCM → manual-gate → cloud-DEV-Sentinel path can run as designed, or (b) explicitly accept a
+>    **local-only delivery exception**: SCM stays `WAIVED` (never relabel it `PASS`), there is no
+>    Cloud Manager DEV target, and Sentinel is authorized to test directly against the **local AEM
+>    SDK** instead of cloud DEV as the closing gate.
+> 3. If the human chooses (b), that explicit instruction (e.g. "run forgemaster and deploy and then
+>    run sentinel") **is** the authorization — do not require a second confirmation or refuse and
+>    wait for a `write_agent`-style override; proceed to dispatch Sentinel against `localhost:4502`
+>    in the same turn. Record the exact human wording that authorized it in `DECISIONS.md`.
+> 4. Sentinel's own report and `reports/final-report.md` must both say the TEST verdict came from the
+>    **local SDK under an explicit user-authorized exception**, not cloud DEV — never silently
+>    present a local PASS as if it were a cloud DEV result.
+> 5. `deployment_ready: true` is still allowed in this exception path once Sentinel PASSES locally —
+>    it means "ready for this local delivery," not "deployed to cloud DEV."
+
 ### Step 4 — Quality gates (must pass before advancing)
 
 | Phase | Gate check |

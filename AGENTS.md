@@ -11,7 +11,7 @@ generate correct code without asking repeated questions.
 | Project name     | aem-demo-site                      |
 | Java package     | com.aem.forms.agents               |
 | AEM version      | cloud (AEMaaCS)                    |
-| Forms type       | Core Components                    |
+| Forms type       | Asked per delivery — see "Component technology choice is mandatory per delivery" (no default; Core Components or Foundation Components, chosen by the user before any build phase) |
 | FDM enabled      | yes                                |
 | Default theme    | /apps/fd/af/themes/{project}-wknd  |
 
@@ -81,9 +81,16 @@ For any task that creates or scaffolds a Forms artifact, you **MUST** invoke the
 matching skill above **before writing or editing any files**. Do **NOT**
 hand-author the artifact from general AEM knowledge or by copying an existing
 form/theme/template in this repo. The skills encode this project's required
-structure (Core Components resource types, conf context, DAM guide asset, filter
-entries) — freelancing it produces forms that silently fail to render or apply
+structure (conf context, DAM guide asset, filter entries, and the resource types for
+whichever component technology — Core Components or Foundation — the user chose for
+this delivery) — freelancing it produces forms that silently fail to render or apply
 themes.
+
+Before any of these skills runs, `aem-forms-program-agent` **MUST have already asked the user
+Core Components vs. Foundation Components for this delivery** (see AGENTS.md → "Component
+technology choice is mandatory per delivery") and passed the answer (`component_type`) into the
+skill invocation. A skill invoked without a known `component_type` for its delivery must stop
+and ask, rather than assuming one.
 
 This rule applies **regardless of how the request is phrased.** Edit-style or
 reference-style wording does not exempt you. Map the intent to the skill:
@@ -243,17 +250,47 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
     tokens.json
 ```
 
-## Forms type: Core Components
+## Component technology choice is mandatory per delivery (no default)
 
-This project uses **AEM Forms Core Components** (recommended for AEMaaCS).
+This project supports **both** AEM Forms Core Components and Foundation (legacy `fd/af`)
+Components. There is **no project-wide default** — `aem-forms-program-agent` **MUST ask the
+user, for EVERY delivery that creates, scaffolds, or migrates a form/template/component/theme
+— with NO exceptions, including migration deliveries** — whether to build/target **Core
+Components** or **Foundation Components**, before Step 2 (presenting the ADLC execution plan)
+and before any build skill runs. Do not infer the answer from the brief, from what a prior
+delivery used, or from this file — ask explicitly, every time, and record the answer.
+
+- The recorded answer is the delivery's `component_type` (`coreComponents` | `foundation`) and
+  is written into that run's `plan/planwright.md` / `PLAN.md` and passed to **every** downstream
+  lead (draftsmith, formwright, groundsmith, assembler, forgemaster, sentinel) and skill
+  (`create-adaptive-form`, `create-editable-template`, `create-form-component`,
+  `create-form-theme`, `create-form-rules`, `migrate-form`) for that delivery — it never resets
+  to an assumed value mid-run.
+- This choice is **per delivery, not per project** — a later delivery can choose differently;
+  never carry a prior run's answer forward without asking again.
+- **Migration is not an exception.** Even though `migrate-form`'s common case is Foundation →
+  Core Components, the user is still asked which technology the migrated output should target
+  for this run (normally `coreComponents`, but the user may explicitly ask to keep/target
+  Foundation) — never assume the answer because "it's a migration."
+
+### Core Components mode (`component_type: coreComponents`)
 - The project's adaptive form components proxy `core/fd/components/form/...`
   via `sling:resourceSuperType` (e.g. the form container extends
   `core/fd/components/form/container/v2/container`).
-- Prefer Core Components resource types for new components.
-- Form container: `core/fd/components/form/container/v2/container`
+- Form container: `core/fd/components/form/container/v2/container`.
 - Legacy Foundation guide resource types (`fd/af/components/...`) appear only
   in template/policy definitions for backward compatibility — do not author
-  new components against them.
+  new components against them in this mode.
+
+### Foundation Components mode (`component_type: foundation`)
+- The project's adaptive form components proxy the legacy Foundation guide resource types
+  under `fd/af/components/...` via `sling:resourceSuperType` (e.g. the form container extends
+  `fd/af/components/guideContainer`), instead of the `core/fd/components/...` Core Components
+  supertypes.
+- Form container: `fd/af/components/guideContainer`.
+- Every skill that authors form/field/template/theme artifacts (`create-adaptive-form`,
+  `create-editable-template`, `create-form-component`, `create-form-theme`) has a Foundation-mode
+  resource-type mapping table — use it instead of the Core Components mapping for this delivery.
 
 ## FDM status: Enabled
 
@@ -315,7 +352,12 @@ In a delivery run through the agent pipeline
 ## Common mistakes to avoid
 
 - **NEVER** author new components against Foundation guide resource types
-  (`fd/af/components/...`) — this is a Core Components project
+  (`fd/af/components/...`) unless the user **explicitly chose Foundation Components** for this
+  delivery (see "Component technology choice is mandatory per delivery" above) — and never
+  assume that choice without asking
+- **NEVER** start a build phase (formwright/create-adaptive-form/create-editable-template/
+  create-form-component/create-form-theme) without a `component_type` recorded for this
+  delivery's run — go back and ask the user rather than defaulting to either technology
 - **NEVER** hardcode `/content/forms/af/` paths — use variables from `.aem-forms-config.yaml`
 - **NEVER** leave ResourceResolver open — always use try-with-resources
 - **NEVER** hardcode secrets in `.cfg.json` — use `$[secret:keyName]`

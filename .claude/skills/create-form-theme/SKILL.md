@@ -27,6 +27,17 @@ theme model (token `.css` under `/apps/.../clientlib`) does NOT serve and is aba
 > DAM guide-asset, and `/conf/forms` roots);
 > `{theme}` — theme name suffix; `{Theme Title}` — the human-readable picker label.
 
+> **`{componentType}` — MANDATORY input, NO DEFAULT.** In a pipeline delivery this arrives already
+> decided from `formwright`/the Program Agent, which asked the user Core Components vs.
+> Foundation Components before PLAN started (AGENTS.md → "Component technology choice is
+> mandatory per delivery"). If invoked standalone with `{componentType}` not supplied, **ask the
+> user** before writing any CSS selector. The rendered DOM this theme's CSS targets differs by
+> technology: Core Components emits `cmp-adaptiveform-*` / `.cmp-*` classes (as this skill's
+> examples below assume); Foundation emits the legacy `guideFieldContainer` / `wrapper`-class DOM.
+> When `{componentType}: foundation`, target the Foundation-emitted classes instead of the
+> `cmp-*` selectors this file names, and verify by pixels against a Foundation-rendered form
+> exactly as this skill already verifies for Core Components.
+
 ---
 
 ## How AF themes actually render (read first — decides what to generate)

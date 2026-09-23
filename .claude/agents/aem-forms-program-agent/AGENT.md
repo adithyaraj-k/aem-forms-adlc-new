@@ -363,6 +363,33 @@ buttons, validation — taking ONLY the form, never the page chrome. For JS-rend
 WebFetch cannot see the rendered DOM, state the limitation and the fields the user supplies are used
 instead.
 
+### Step 0.5 — Ask the component technology (mandatory, every delivery, no exceptions)
+
+Before classifying the request or presenting any plan, **ask the user** whether this delivery
+should be built using **AEM Forms Core Components** or **Foundation (legacy `fd/af`)
+Components**. This applies to **every** delivery that creates, scaffolds, edits, or migrates a
+form/template/component/theme — a new form, a multi-form program, an atomic single-skill task,
+and a migration all require this ask. There is **no project default** to fall back on (AGENTS.md
+→ "Component technology choice is mandatory per delivery") — never infer the answer from a prior
+run, from the brief's wording, or from what other forms in this repo currently use.
+
+- Ask explicitly, e.g.: *"Should this form be built using AEM Forms **Core Components** or
+  **Foundation Components**?"* Do not proceed past this question with an assumed answer.
+- Record the answer as `component_type: coreComponents | foundation` — this is the FIRST entry
+  in this run's `DECISIONS.md` (even before the use-case bucket decision), and it is written
+  into `PLAN.md` once the run directory exists.
+- Pass `component_type` to **every** lead you dispatch for this delivery (planwright, draftsmith,
+  formwright, groundsmith, assembler, forgemaster, sentinel) and to every skill invoked directly
+  (Skill tool) — it is a first-class token alongside `{project}`/`{package}`/etc. for this run.
+- **Migration is not exempt.** Even for a migration (`migrate-form`, whose common case is
+  Foundation → Core Components), still ask which technology the migrated OUTPUT should target
+  for this run — normally the user says `coreComponents`, but they may explicitly ask to keep
+  targeting Foundation; never assume it because "it's a migration."
+- If a delivery spans multiple forms in one program, ask once per program unless the user
+  indicates different forms need different technologies, in which case record `component_type`
+  per form.
+- Gate PLAN (Step 4 below) rejects any plan with `component_type` unset.
+
 ### Step 1 — Classify the request
 
 > For any non-trivial delivery (a new form, a multi-form program, or a migration) **run the
@@ -423,6 +450,7 @@ hand-built here. Render it for the user and wait for confirmation.
 
 ```
 ADLC Execution Plan — {brief title}
+Component technology: {coreComponents | foundation}  ← asked of the user in Step 0.5
 ────────────────────────────────────────────────────────
 PLAN     │ planwright                 │ Requirements + user stories + architecture + NFR strategy
 DESI     │ draftsmith               │ Component/design specs + authoring guideline + test cases
@@ -449,6 +477,8 @@ kickoff. This is the plan-of-record; do not rewrite it once execution starts.
 For each phase, hand off to the matching **lead agent** (Agent tool) — which runs its skills via the
 Skill tool — or, for a single atomic task, invoke the matching skill directly (Skill tool). Provide:
 - Full project tokens from `.aem-forms-config.yaml`
+- **`component_type`** (`coreComponents` | `foundation`) — the answer obtained in Step 0.5; every
+  lead and skill must receive it explicitly, it is never left for the lead to assume
 - The specific task for this phase
 - All relevant outputs from prior phases
 - The `{runId}` — the phase MUST write its **end-deliverable** to its own folder in the run directory:
@@ -524,7 +554,7 @@ and do NOT report the delivery as complete. When the human later prompts for tes
 | Phase | Gate check |
 |-------|-----------|
 | 0 | `.aem-forms-config.yaml` exists with all required keys |
-| PLAN | Structured Requirements + **User Stories (each with ≥1 acceptance criterion, covering every field/rule/submit)** + Solution Architecture + Integration & NFR Strategy + ADLC execution plan all present; every requirement mapped to a real catalog skill (no `gaps`); schema-vs-FDM decided per form; user confirmed the plan |
+| PLAN | **`component_type` (`coreComponents`/`foundation`) asked of the user and recorded — no default, no unset value**; Structured Requirements + **User Stories (each with ≥1 acceptance criterion, covering every field/rule/submit)** + Solution Architecture + Integration & NFR Strategy + ADLC execution plan all present; every requirement mapped to a real catalog skill (no `gaps`); schema-vs-FDM decided per form; user confirmed the plan |
 | DESI | Component Inventory & Specs + Design Specifications + Authoring Guideline + Test Cases all present in `runs/{runId}/design/`; every component traces to a requirement and **every test case traces to a user story + acceptance criterion** (no `gaps`; `coverage.uncovered_stories` and `coverage.uncovered_acceptance_criteria` empty — every user story & acceptance criterion has ≥1 case); custom components flagged for Phase 5; theme/template reuse-vs-build decided |
 | IMPL-B | (formwright) Data foundation built (schema OR FDM per the plan) + every build phase the plan marked needed (1/2/3/4/5/8/9/11) ran via its `create-*`/`generate-schema`/`migrate-form` agent and passed that agent's own gate; built artifacts match the DESI specs; **every build-side user story satisfied (`user_stories_unsatisfied: 0`)**; Core Component reuse maximized (custom components only where DESI flagged `source: custom`); **template reuse-first honored — formwright justified any new template (existing templates enumerated; reused one where it fits, `create-editable-template` skipped; new template ONLY with a recorded reason)**; **fragments are opt-in — `fragments_built` is `0` unless the user explicitly requested a reusable fragment; if one WAS explicitly requested, it passes the fragment gate: DAM asset `type="affragment"` + `affragment="1"` (NOT `formfragment`), `cq:template` is a FRAGMENT template (`afv2-fragment-page` type, `fragmentcontainer` root + `fd:type="fragment"`, NOT the form `blank-af-v2`), and NO custom-function validation lifted in without a wired clientlib — verified to open non-blank in the AF editor**; `formwright.md` in `runs/{runId}/implement/formwright/` |
 | IMPL-I | (groundsmith) Every integration phase the plan marked needed (6 submit / 7 prefill / 12 workflow) ran and passed its gate; submit action has BOTH OSGi service AND JCR node; wired onto the real guideContainer; **every integration user story satisfied (`integration_stories_unsatisfied: 0`)**; `groundsmith.md` in `runs/{runId}/integrate/groundsmith/` |
@@ -715,7 +745,8 @@ actually verified — never on the plan's intent. Sections:
 | Eight run folders, always | Every run directory has **exactly** `plan/`, `design/`, `implement/`, `integrate/`, `deploy/`, `test/`, `handoffs/`, `reports/` — created up front, even if a phase is skipped. Reject a deliverable written outside its owning agent's folder |
 | Every agent files a handoff | No phase is complete until `handoffs/{agent}.yaml` exists for it. A handoff returned in chat but not written to file = gate FAIL |
 | `reports/` is complete | `tokens.json` + `skills.md` + `final-report.md` + `demo-script.md` all present before the delivery is reported complete |
-| No Foundation types | Reject any `fd/af/components/...` in new code |
+| Component technology asked, not assumed | Every delivery MUST have an explicit user answer for `component_type` (Core Components vs. Foundation) before any build phase — reject a plan or build output with `component_type` unset or silently defaulted |
+| Foundation types only by explicit choice | Reject any `fd/af/components/...` in new code UNLESS this delivery's recorded `component_type` is `foundation` — in that case Foundation guide resource types are the correct, expected output, not a violation |
 | No hardcoded paths | All paths derived from `.aem-forms-config.yaml` tokens |
 | No hardcoded secrets | `$[secret:keyName]` in every `.cfg.json` |
 | ResourceResolver | try-with-resources only — reject finally blocks |

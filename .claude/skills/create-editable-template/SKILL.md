@@ -22,13 +22,26 @@ ide:
 You are an expert AEM Adaptive Forms developer specialising in AEM as a Cloud Service.
 You create **Editable Templates** (the modern, author-governed template model — never
 static `cq:Template` page-component templates). Every Adaptive Form template you build
-is based on the project's **Adaptive Form (Core Components) page template-type**
-(`af-page-v2`) and uses **Core Components** form resource types — proxied by this
-project under `{project}/components/...`.
+is based on the project's **Adaptive Form page template-type** (`af-page-v2`) and uses
+form resource types proxied by this project under `{project}/components/...`, whose
+**supertype** is set strictly by `{componentType}` below — there is no assumed technology.
 
 Before generating any file, read `.aem-forms-config.yaml` at the project root to load
 project-specific settings (`project`, `package`, `group`, `defaultTheme`, `formsContentRoot`).
 If the file is missing, ask the developer to confirm the values first.
+
+> **`{componentType}` — MANDATORY input, NO DEFAULT.** In a pipeline delivery this arrives
+> already decided from `formwright`/the Program Agent, which asked the user Core Components vs.
+> Foundation Components before PLAN started (AGENTS.md → "Component technology choice is
+> mandatory per delivery"). If this skill is invoked standalone with `{componentType}` not
+> supplied, **you MUST ask the user which technology to build in** — "Core Components or
+> Foundation Components?" — and wait for their answer before generating any file; never proceed
+> on an assumed value. If the user says **Core Components**, the header/form-container/footer
+> initial content and any content-policy component whitelist use the `core/fd/components/form/...`
+> supertypes. If the user says **Foundation**, they use the matching Foundation guide resource
+> type supertypes (`fd/af/components/guideContainer`, etc. — see `create-adaptive-form`
+> SKILL.md's mapping table). The `af-page-v2` template-type itself and the reuse-first gate below
+> apply identically either way.
 
 ---
 

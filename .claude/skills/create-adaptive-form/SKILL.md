@@ -137,11 +137,44 @@ Ask for these before writing anything:
 
 | Input | Description | Example |
 |---|---|---|
+| `{componentType}` | **Core Components or Foundation** — MANDATORY, no default. In a pipeline delivery this arrives from `formwright`/the Program Agent (already asked of the user before PLAN — AGENTS.md → "Component technology choice is mandatory per delivery"); if invoked standalone with no `{componentType}` supplied, **ask the user before writing anything** rather than assuming Core Components. | `coreComponents` |
 | `{project}` | The single project namespace used in component `sling:resourceType` paths, under `/conf/`, AND as the folder segment under `/content/forms/af/`, `/content/dam/formsanddocuments/`, and `/conf/forms/` (derived from `.aem-forms-config.yaml`) | `aem-demo-site` |
 | `{formName}` | Kebab-case node name for the new form | `leave-request` |
 | `{formTitle}` | Human-readable title shown in the UI | `Leave Request Form` |
 | `{theme}` | Theme name suffix — the theme must exist under `/apps/fd/af/themes/{project}-{theme}` | `canvas-3-0` |
 | `{template}` | Name of an **existing, reusable** template under `/conf/{project}/settings/wcm/templates/` — reuse one by default (see note below) | `blank-af-v2` |
+
+> **`{componentType}: foundation` — Foundation (legacy `fd/af`) resource-type mapping.** Everywhere
+> this skill's examples below set `sling:resourceSuperType` (or an implicit supertype) to a
+> `core/fd/components/form/...` Core Components type, substitute the matching Foundation guide type
+> instead — the `{project}/components/adaptiveForm/{fieldComponent}` proxy PATHS stay exactly the
+> same; only the supertype they extend changes. Common mappings:
+>
+> | Core Components supertype | Foundation supertype |
+> |---|---|
+> | `core/fd/components/form/container/v2/container` | `fd/af/components/guideContainer` |
+> | `core/fd/components/form/textinput/v2/textinput` | `fd/af/components/guideTextBox` |
+> | `core/fd/components/form/dropdown/v2/dropdown` | `fd/af/components/guideDropDownList` |
+> | `core/fd/components/form/radiobutton/v2/radiobutton` | `fd/af/components/guideRadioButton` |
+> | `core/fd/components/form/checkbox/v2/checkbox` | `fd/af/components/guideCheckBox` |
+> | `core/fd/components/form/datepicker/v2/datepicker` | `fd/af/components/guideDatePicker` |
+> | `core/fd/components/form/numberinput/v2/numberinput` | `fd/af/components/guideNumericBox` |
+> | `core/fd/components/form/panelcontainer/v1/panelcontainer` | `fd/af/components/guideFieldSet` |
+> | `core/fd/components/form/image/v1/image` | `fd/af/components/guideImage` |
+> | `core/fd/components/form/title/v2/title` | `fd/af/components/guideLabel` |
+> | `core/fd/components/form/button/v2/button` | `fd/af/components/guideButton` |
+>
+> Foundation mode has no Rule-Editor JSON `fd:rules` custom-function model in the same shape as Core
+> Components — `create-form-rules` and `create-form-clientlib` have their own Foundation-mode notes;
+> follow those when this skill hands off to them. The 5-artifact structure (form page, DAM guide
+> asset, conf context, filter entry, validation clientlib) is identical in both modes — only the
+> component resource types change. Never mix technologies within one form.
+
+> **`{componentType}: coreComponents`** — the user explicitly chose Core Components for this
+> delivery; proceed exactly as this skill documents below, using the `core/fd/components/form/...`
+> supertypes it already names throughout. Every example resource type in the rest of this file is
+> written for `coreComponents`; when `{componentType}: foundation` was chosen instead, apply the
+> mapping table above wherever this file names a `core/fd/components/form/...` supertype.
 
 > ⚠️ `{project}` is a **single** namespace — use it in every path root: `sling:resourceType`,
 > `/conf/`, AND the folder segment under `/content/forms/af/`, `/content/dam/formsanddocuments/`, and

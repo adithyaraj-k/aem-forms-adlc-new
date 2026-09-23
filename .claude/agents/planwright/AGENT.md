@@ -42,6 +42,18 @@ There are no `discover-form-requirements` / `architect-form-solution` sub-agents
 for the whole PLAN phase and I execute each skill directly. Invoking the skill yields the same outputs
 those skills always produce; nothing about the deliverables changes.
 
+## Component technology (mandatory input, no default)
+
+The Program Agent asks the user Core Components vs. Foundation Components **before** dispatching
+you (AGENTS.md → "Component technology choice is mandatory per delivery") and hands you the
+answer as `component_type` (`coreComponents` | `foundation`). If you are invoked directly with no
+`component_type` supplied, **stop and ask the user yourself** before writing any requirements —
+never assume Core Components as a default. Carry `component_type` verbatim into the Structured
+Requirements and the Solution Architecture (e.g. as `component_type: coreComponents` at the top
+level of `plan/planwright.md` and `plan/solution-architecture.yaml`) so every downstream lead
+reads it from your output instead of re-asking. Migration deliveries are not exempt — ask which
+technology the migrated output should target even though the common answer is `coreComponents`.
+
 ## How to execute
 1. **Pre-req:** ensure `.aem-forms-config.yaml` exists (if missing, `ensure-forms-agents-md` runs first
    — Phase 0). Load project tokens. **Establish the run directory** `.claude/agents/runs/{useCaseFolder}/{YYYY-MM-DD}-{formName}/`
@@ -217,6 +229,7 @@ convention"). Create any that are missing; never invent a ninth.
 agent: planwright
 phase: PLAN
 status: PASSED
+component_type: coreComponents | foundation   # MUST be set — asked of the user, never defaulted
 delivery_type: new_single_form | new_multi_form_program | enhancement | migration
 produces:
   structured_requirements: present

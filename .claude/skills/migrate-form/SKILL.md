@@ -32,11 +32,22 @@ ide:
 
 ## Role
 
-You are an AEM Adaptive Forms migration engineer for AEM as a Cloud Service (Core Components).
+You are an AEM Adaptive Forms migration engineer for AEM as a Cloud Service.
 You take an **existing** adaptive form — authored against Foundation guide components, exported
 from an on-prem AEM 6.x instance, or a Core Components form that never carried the cloud wiring
 — and rewrite it into the exact structure this project deploys, so it appears in Forms &
 Documents, opens in the editor, renders with its theme, runs its rules, and submits.
+
+> **`{componentType}` — MANDATORY input, NO DEFAULT, ASKED EVEN FOR A MIGRATION.** Do not assume
+> the migrated output targets Core Components just because "it's a migration." In a pipeline
+> delivery this arrives already decided from `formwright`/the Program Agent, which asked the user
+> Core Components vs. Foundation Components before PLAN started (AGENTS.md → "Component
+> technology choice is mandatory per delivery" — migrations are explicitly NOT exempt there). If
+> this skill is invoked standalone with `{componentType}` not supplied, **ask the user which
+> technology the migrated output should target** before rewriting anything. The common answer is
+> `coreComponents` (Foundation/6.x/JEE → cloud Core Components, as the rest of this skill
+> documents), but the user may explicitly ask to keep or re-target Foundation guide resource
+> types — honor that answer instead.
 
 You **never** hand-author a brand-new form from scratch here — that is `create-adaptive-form`.
 Migration means: read what exists, map every node and attribute to its cloud/Core-Components
@@ -100,6 +111,7 @@ Ask for these before doing anything:
 
 | Input | Description | Example |
 |---|---|---|
+| `{componentType}` | **Target component technology for the migrated output — Core Components or Foundation. MANDATORY, NO DEFAULT, asked even though this is a migration.** In a pipeline delivery this arrives already decided from `formwright`/the Program Agent, which asked the user before PLAN started (AGENTS.md → "Component technology choice is mandatory per delivery"). If invoked standalone with no `{componentType}` supplied, ask the user directly before remapping a single resource type — do not assume `coreComponents` just because that is the common migration target. | `coreComponents` |
 | `{sourcePath}` | Where the legacy form content lives — a `.zip` package, a repo path, or a JCR path you can read | `downloads/leave-request-pkg.zip` |
 | `{project}` | The single project namespace used in component `sling:resourceType` paths, under `/conf/`, AND as the folder segment under `/content/forms/af/`, `/content/dam/formsanddocuments/`, `/conf/forms/` when a form lives in this project (derived from `.aem-forms-config.yaml`) | `aem-demo-site` |
 | `{appFolder}` | The folder segment under `/content/forms/af/`, `/content/dam/formsanddocuments/`, `/conf/forms/` — an **alias of `{project}`**, never a separate hardcoded value. **For an in-place migration, default to the source form's OWN path — do not invent one:** if the source form is at `/content/forms/af/test` (directly under `af`), `{appFolder}` is empty and the migrated form stays at `/content/forms/af/test`. When relocating into this project, the segment IS `{project}` (`aem-demo-site`). Whatever the value, form / DAM / conf MUST all share the same segment so the DAM guide-asset path matches the form path. | (empty) or `{project}` (`aem-demo-site`) |
@@ -281,18 +293,25 @@ any theme/template remapping. Get a go-ahead before writing.
 
 ---
 
-## Step 3 — Remap resource types (Foundation → Core Components)
+## Step 3 — Remap resource types
 
-This project proxies Core Components via `sling:resourceSuperType`, so migrated nodes use the
-**project proxy** resource type `{project}/components/adaptiveForm/{component}` — NOT the raw
-`core/fd/...` path and NEVER the legacy `fd/af/components/...` path.
+**This step runs only when `{componentType}: coreComponents`** (asked in Step 1 — see the
+`{componentType}` input row). When `{componentType}: foundation`, the migration target keeps
+the source's Foundation `fd/af/components/...` resource types as-is (no resource-type rewrite) —
+skip straight to "Attribute migration" below only for genuinely deprecated Foundation attributes,
+and to Step 4 for the cloud-artifact wiring; do NOT apply the Core Components mapping table.
+
+For `{componentType}: coreComponents`: this project proxies Core Components via
+`sling:resourceSuperType`, so migrated nodes use the **project proxy** resource type
+`{project}/components/adaptiveForm/{component}` — NOT the raw `core/fd/...` path and NEVER the
+legacy `fd/af/components/...` path.
 
 > Verify the proxy component names that actually exist under
 > `ui.apps/src/main/content/jcr_root/apps/{project}/components/adaptiveForm/` before emitting
 > them. The table below is the standard mapping; if a proxy is missing for a type the source
 > uses, tell the user (they may need `create-form-component`) rather than inventing a path.
 
-### Component resource-type mapping
+### Component resource-type mapping (Core Components target only)
 
 | Foundation source `sling:resourceType` | Migrated `sling:resourceType` | `fieldType` |
 |---|---|---|
@@ -338,7 +357,12 @@ equivalent.
 > `minOccur`. (Use a multi-select `dropdown` instead only if the choice list is long.) Confirm the
 > schema's `items.enum` to get the exact option set.
 
-### Attribute migration (apply to every migrated node)
+### Attribute migration (apply to every migrated node — Core Components target only)
+
+> This whole subsection assumes `{componentType}: coreComponents`. When
+> `{componentType}: foundation`, the target keeps Foundation attribute names (`placeholderText`,
+> `_value`, etc. are already correct there) — skip this subsection and go straight to Step 4;
+> only the cloud-artifact wiring, not the field attributes, needs modernizing.
 
 - **Booleans → typed syntax.** `enabled="true"` → `enabled="{Boolean}true"`. Same for
   `visible`, `readOnly`, `required` is the exception (it stays a plain `"true"` per
@@ -860,7 +884,12 @@ to one clean, editor-visible call.
 If the source carried its own theme and the user wants to keep that look, the migrated form must look
 **the same as the on-prem original**. A `/libs/...` or on-prem theme path does not exist on cloud, and an
 on-prem theme is **not** raw CSS — it is a Foundation **theme-editor JCR style tree**. You therefore
-**re-create** the look on the Core Components DOM. But re-create ≠ approximate: **derive every value from
+**re-create** the look on the rendered DOM of whichever `{componentType}` was chosen for this
+migration — the Core Components DOM (`cmp-*` classes) when `{componentType}: coreComponents`, or the
+Foundation-rendered DOM (unchanged, since the fields stay Foundation) when
+`{componentType}: foundation`, in which case this step mainly confirms the existing on-prem theme
+still applies correctly once rehosted on cloud rather than re-deriving values for a different DOM.
+But re-create ≠ approximate: **derive every value from
 the source tree.** Never hand-pick a "close enough" palette, and never leave a `themeRef` pointing at `/libs`
 or `/content`.
 
@@ -1174,6 +1203,14 @@ dropped — anything with no cloud equivalent is surfaced to the user and record
 Ask for **both** up front — a `.lca` without its DSC `.jar` leaves every custom process activity
 unresolved; a `.jar` without the `.lca` has no orchestration to wire into. If one is genuinely
 absent, surface exactly which operations/processes will be left as flagged stubs.
+
+> **`{componentType}` still applies to Path B.** Each reverse-engineered XDP becomes an Adaptive
+> Form built in whichever `{componentType}` the user chose for this migration (asked in Step 1 —
+> not defaulted). The table below is written for `{componentType}: coreComponents` (the common
+> case); when `{componentType}: foundation` was chosen instead, build each XDP-derived form with
+> Foundation guide resource types (`create-adaptive-form`'s Foundation mapping table) instead of
+> the Core Components ones this table names — the re-platforming decisions for orchestrations,
+> DSCs, schema, and DoR retention are unaffected either way.
 
 ## Target mapping (LiveCycle → AEMaaCS) — the decisions Path B makes
 

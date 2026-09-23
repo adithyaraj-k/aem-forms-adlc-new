@@ -62,6 +62,20 @@ Read the Draftsmith outputs (and PLAN context) from the run directory
 
 If a DESI spec is missing or ambiguous, go back to `draftsmith` — do **not** re-design here.
 
+## Component technology (mandatory input, no default)
+
+Read `component_type` (`coreComponents` | `foundation`) from `design/component-design-spec.yaml`
+(carried forward from Draftsmith, originally asked of the user by the Program Agent before PLAN —
+AGENTS.md → "Component technology choice is mandatory per delivery"). Pass `component_type`
+explicitly into every build skill you invoke — `create-adaptive-form`, `create-editable-template`,
+`create-form-component`, `create-form-theme`, `create-form-rules`, `create-form-clientlib`,
+`migrate-form` — each of those skills has a resource-type mapping for BOTH technologies; tell it
+which one applies for this run rather than letting it assume Core Components. If
+`component_type` is missing from the DESI spec, stop and escalate to `draftsmith`/the Program
+Agent rather than guessing. `component_type: foundation` means the "No Foundation types" rule
+elsewhere in AGENTS.md does **not** apply to this delivery's output — Foundation guide resource
+types (`fd/af/components/...`) are the correct, expected result, not a defect.
+
 ## Skills I load — invoke through the Skill tool when available; otherwise read each canonical `.claude/skills/<skill>/SKILL.md` before work; no sub-agents
 There are no `create-*` / `generate-schema` sub-agents to delegate to; I am the single IMPL-build agent
 and I execute each skill directly in-conversation. Invoking a skill yields the exact same artifacts that
@@ -578,6 +592,7 @@ convention"). Create any that are missing; never invent a ninth.
 agent: formwright
 phase: IMPL-build
 status: PASSED
+component_type: coreComponents | foundation   # carried forward from draftsmith — must match every build skill invocation
 delivery: greenfield | brownfield
 data_backing: schema | fdm | none
 phases_executed: [fdm, 2, 5, 3, 4, 9]   # example — actual per plan

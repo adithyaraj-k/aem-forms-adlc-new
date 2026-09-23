@@ -123,7 +123,9 @@ Translate UX designs + brand standards into concrete, buildable design decisions
 Document how authors assemble and use the form so governance is consistent:
 - Which **template** to use (reuse or `create-editable-template`); allowed components and **content
   policies** per container; locked vs unlocked structure.
-- **Fragment reuse** — sections to author once as Adaptive Form Fragments rather than duplicate.
+- **Fragment reuse (opt-in only)** — every section is authored directly inside the form by default;
+  document a section as an Adaptive Form Fragment only when the user has explicitly asked for a
+  reusable/shared section in this delivery.
 - Dos/don'ts (e.g. choice options via `enum`/`enumNames` not `<items>`; `aria-label` on every field;
   rules via the Rule Editor not inline JS).
 
@@ -168,7 +170,7 @@ authoring_guideline:
   template: { decision: reuse, ref: "blank-af-v2" }
   allowed_components: ["textinput","numberinput","dropdown","radiobutton","fileinput","wizard","recaptcha"]
   content_policies: "lock structure (header/footer); unlock form container"
-  fragments: ["applicant-identity block reused across forms"]
+  fragments: []   # empty by default; populate only when the user explicitly requested a reusable fragment, e.g. ["applicant-identity block reused across forms"]
   dos_donts: ["enum/enumNames for choices","aria-label on every field","rules via Rule Editor only"]
 traceability:
   - { requirement: "applicant full name (max 100)", component: "fullName" }

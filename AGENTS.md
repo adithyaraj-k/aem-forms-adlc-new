@@ -106,7 +106,8 @@ reference-style wording does not exempt you. Map the intent to the skill:
 | visually test / QA / verify / compare a form's UI against a screenshot, mockup, design, or another URL | `test-form-ui` |
 | plan / scope / gather requirements for a forms delivery, or design the solution architecture / execution plan | the **`planwright`** PLAN lead (runs `discover-form-requirements` then `architect-form-solution`) |
 | produce the technical design / component specs / design specifications / authoring guideline / test cases for a forms delivery | the **`draftsmith`** DESI lead (runs `design-form-components` then `design-form-tests`) |
-| BUILD the form's data foundation + artifacts from a design (schema/FDM + template + components + fragments + form + rules + clientlib/theme), or run the implementation/build phase of a delivery | the **`formwright`** IMPL build lead (delegates to `generate-schema`, `create-fdm`, `create-editable-template`, `create-form-component`, `create-AdaptiveFormFragment`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib`, `create-form-theme`, `migrate-form`) |
+| BUILD the form's data foundation + artifacts from a design (schema/FDM + template + components + form + rules + clientlib/theme — every field authored directly inside the form), or run the implementation/build phase of a delivery | the **`formwright`** IMPL build lead (delegates to `generate-schema`, `create-fdm`, `create-editable-template`, `create-form-component`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib`, `create-form-theme`, `migrate-form`) |
+| create / extract a reusable section as a shared Adaptive Form Fragment — **only when the user explicitly asks for a fragment / reusable segment**; never on its own initiative | `create-AdaptiveFormFragment` (opt-in only — see "Fragments are opt-in, not automatic" below) |
 | wire the form's INTEGRATION — prefill, submit action, and/or workflow (the actual backend/CRM/email/approval integration) | the **`groundsmith`** IMPL integration lead (delegates to `create-prefill-service`, `create-submit-action`, `create-workflow`) |
 | EMBED / place / show / host the built form on a Sites page — the "Test Adaptive Form" page, replacing the previously embedded form | the **`assembler`** ASSEMBLY lead — a standalone phase after implementation (delegates to `composer`) |
 | BUILD & DEPLOY the reactor (run the Maven build, deploy to AEM) and produce the code-quality / deployment report | the **`forgemaster`** build/deploy lead (`mvn clean install -PautoInstallSinglePackage` + code-quality report with deployment artifact names) |
@@ -115,6 +116,21 @@ reference-style wording does not exempt you. Map the intent to the skill:
 If a request is ambiguous, ask which artifact is intended — do not default to
 hand-authoring. Treat skill output as a draft until verified on the running
 instance (localhost:4502).
+
+### Fragments are opt-in, not automatic (read this before authoring any form)
+
+**Every field, and every section of a form (address, contact/personal details, emergency
+contact, declaration/consent, signature, and the like), is authored directly inside that
+form's `guideContainer` by default.** No agent or skill may create, convert a section into,
+or reference an Adaptive Form Fragment (`create-AdaptiveFormFragment`, `fragmentPath`) unless
+the user has **explicitly** asked for a reusable/shared fragment in this delivery. "This
+section looks generic/repeatable" is **not** grounds to fragment it on your own initiative —
+surface it as a suggestion at most, and only build the fragment if the user confirms.
+
+This applies uniformly to `planwright`, `draftsmith`, `formwright`, and every skill they
+delegate to: none of them may plan, spec, or build a fragment as a default behavior. A form
+with no explicit fragment request must ship with zero fragments and zero `fragmentPath`
+references, even if it has an address/contact/declaration-shaped section.
 
 ## Run output convention (mandatory)
 
@@ -143,7 +159,7 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
 |---------------------|---------------------------|------------------------------------------------------------------------------------|
 | `plan/`             | PLAN · planwright         | `planwright.md`, `user-stories.yaml`, `solution-architecture.yaml` |
 | `design/`           | DESI · draftsmith       | `draftsmith.md`, `component-design-spec.yaml`, `test-cases.yaml` |
-| `implement/formwright/` | IMPL build · formwright | `formwright.md` plus build-skill deliverables: `generate-schema.md`, `create-fdm.md`, `create-editable-template.md`, `create-form-component.md`, `<fragment>-create-AdaptiveFormFragment.md`, `create-adaptive-form.md`, `create-form-rules.md`, `create-form-theme.md`, `create-form-clientlib.md`, `migrate-form.md` |
+| `implement/formwright/` | IMPL build · formwright | `formwright.md` plus build-skill deliverables: `generate-schema.md`, `create-fdm.md`, `create-editable-template.md`, `create-form-component.md`, `create-adaptive-form.md`, `create-form-rules.md`, `create-form-theme.md`, `create-form-clientlib.md`, `migrate-form.md`, and `<fragment>-create-AdaptiveFormFragment.md` **only when the user explicitly requested a reusable fragment** |
 | `integrate/groundsmith/` | IMPL integration · groundsmith | `groundsmith.md`, `create-prefill-service.md`, `create-submit-action.md`, `create-workflow.md` |
 | `integrate/assembler/` | ASSEMBLY · assembler | `assembler.md`, **`assembler-embed.md`** — the authoritative Test Adaptive Form page-embed record |
 | `test/forgemaster/` | DEPLOY · forgemaster | `code-quality-report.md` (build verdict, module/unit-test/static-analysis results, deployment artifacts, and deploy confirmation) |
@@ -185,7 +201,7 @@ file flat at the run-directory root. Each phase writes its deliverable into the 
       create-fdm.md
       create-editable-template.md
       create-form-component.md
-      <fragment>-create-AdaptiveFormFragment.md
+      <fragment>-create-AdaptiveFormFragment.md   # only if the user explicitly requested a fragment
       create-adaptive-form.md
       create-form-rules.md
       create-form-clientlib.md
@@ -314,3 +330,7 @@ In a delivery run through the agent pipeline
   submit action, prefill service, rules, schema, tests, page embed) by copying an existing
   one — **ALWAYS** invoke the matching skill first (see "Skill usage is
   mandatory" above), no matter how the request is phrased
+- **NEVER** create, convert a section into, or reference an Adaptive Form Fragment when
+  creating or editing a form unless the user explicitly asked for a reusable fragment —
+  author every field and section directly inside the form's `guideContainer` by default
+  (see "Fragments are opt-in, not automatic" above)

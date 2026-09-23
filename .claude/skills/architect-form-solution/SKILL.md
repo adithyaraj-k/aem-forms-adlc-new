@@ -69,13 +69,15 @@ A form binds its data **at most one** way. Decide per form, using the same rule 
 The kind of source the requirement was captured from is the **first** thing that decides
 schema vs FDM — because it determines whether a real integration contract actually exists.
 
-> ⚠️ **INPUT TYPE decides schema-vs-FDM ONLY — it does NOT gate prefill, submit/workflow, or
-> fragments.** The image-vs-document discriminator below governs whether to provision an **FDM data
+> ⚠️ **INPUT TYPE decides schema-vs-FDM ONLY — it does NOT gate prefill or submit/workflow.**
+> The image-vs-document discriminator below governs whether to provision an **FDM data
 > source** (which genuinely cannot be fabricated from a picture). It must **never** be used to skip
-> the integration phase. Prefill (7), submit-action/workflow (6/12), and Adaptive Form Fragment
-> extraction are **ALWAYS** planned into the Groundsmith integration phase as "ask the user, then
-> build" — on EVERY delivery, regardless of input type. See the mandatory rule right after this
-> section, and [[integration-phase-always-runs]].
+> the integration phase. Prefill (7) and submit-action/workflow (6/12) are **ALWAYS**
+> planned into the Groundsmith integration phase as "ask the user, then
+> build" — on EVERY delivery, regardless of input type. Adaptive Form Fragments are **opt-in
+> only** — plan for one ONLY if the user has already explicitly asked for a reusable/shared
+> section; otherwise every field is authored directly in the form and the fragment skill is never
+> invoked. See the mandatory rule right after this section, and [[integration-phase-always-runs]].
 
 - **Screenshot / image, or a link to an HTML page → default to JSON Schema (`generate-schema`),
   NOT FDM.** A screenshot or rendered HTML page only conveys the *fields and layout* — it carries
@@ -83,9 +85,10 @@ schema vs FDM — because it determines whether a real integration contract actu
   off a picture is speculative (it produces stubbed Swagger/endpoints). Back the form with a JSON
   Schema. **Do NOT plan `create-fdm`** (the external data-source/write-back) unless the client
   separately supplies the integration logic — flag an FDM source as a future enhancement, not v1.
-  This does NOT mean "PDF-only submit / no workflow / no prefill": the admin-alert **workflow**,
-  the **prefill** question, and **fragment** extraction are still planned into the integration
-  phase and decided WITH the user (never silently dropped to `dor_pdf` + `prefill:none`).
+  This does NOT mean "PDF-only submit / no workflow / no prefill": the admin-alert **workflow**
+  and the **prefill** question are still planned into the integration phase and decided WITH the
+  user (never silently dropped to `dor_pdf` + `prefill:none`). Fragments stay opt-in regardless —
+  plan one only if the user already explicitly asked for a reusable section.
 - **Requirement document (PRD/brief/spec) with proper integration logic → FDM (`create-fdm`) and,
   where the doc defines a review/approval/routing process, `create-workflow` ARE warranted.** Only a
   document that actually specifies the system of record, endpoints/operations, auth, and the
@@ -111,13 +114,17 @@ contract:
   admin-alert **workflow** ("Invoke an AEM Workflow" → assign-task / send-email to admin) **in
   addition to** the DoR PDF; Groundsmith confirms workflow-vs-PDF-only with the user. Do NOT default
   the plan to a bare `dor_pdf` submit with `workflow: none`.
-- **Adaptive Form Fragments (`create-AdaptiveFormFragment`)** — always planned. Groundsmith asks
-  which reusable panels (e.g. participant, address, consent) to extract as fragments (or none);
-  the extraction is built via `create-AdaptiveFormFragment`.
+- **Adaptive Form Fragments (`create-AdaptiveFormFragment`)** — **opt-in only, never planned by
+  default.** Do not add a "extract reusable panels as fragments" step to the plan unless the user
+  has already, explicitly, asked for a reusable/shared section. All panels (participant, address,
+  consent, etc.) are authored directly in the form otherwise — this is a plan-level default, not
+  something to raise as a question during integration.
 
-In the `adlc_execution_plan`, express these as **"ask in integration phase, then build per answer"**
-— NOT `skip: true`. The only thing the input-type rule may down-scope is the **FDM data source**
-(`create-fdm`), for the reason above. (Standing rule — see [[integration-phase-always-runs]].)
+In the `adlc_execution_plan`, express prefill and submit/workflow as **"ask in integration phase,
+then build per answer"** — NOT `skip: true`. The only thing the input-type rule may down-scope is
+the **FDM data source** (`create-fdm`), for the reason above. Fragments are never part of this
+"ask, then build" set — they are skipped entirely unless the user already requested one. (Standing
+rule — see [[integration-phase-always-runs]].)
 
 ### Then refine the decision
 

@@ -56,6 +56,18 @@ visual reference for the component specs; note it explicitly in the design specs
 exact copy of fields, labels, layout, fonts, colours, spacing, card/button styling — ONLY the form,
 never the surrounding Figma page/artboard chrome.
 
+## Component technology (mandatory input, no default)
+
+Read `component_type` (`coreComponents` | `foundation`) from Planwright's `plan/planwright.md` —
+it was asked of the user by the Program Agent before PLAN even started (AGENTS.md → "Component
+technology choice is mandatory per delivery") and must not be re-derived or defaulted here. If it
+is missing from the PLAN package, stop and ask the user rather than guessing Core Components.
+Every component in the Component Inventory & Specs must name the resource type/supertype pattern
+for the CHOSEN technology (`core/fd/components/form/...` for `coreComponents`, or the
+`fd/af/components/...` Foundation guide types for `foundation`) — do not mix technologies within
+one delivery's inventory. Carry `component_type` forward verbatim into
+`design/component-design-spec.yaml` so `formwright` builds against the same choice.
+
 ## Skills I load (in order) — invoke through the Skill tool when available; otherwise read the canonical file directly; no sub-agents
 | Step | Canonical skill file to read before work | Produces |
 |---|---|---|
@@ -217,6 +229,7 @@ convention"). Create any that are missing; never invent a ninth.
 agent: draftsmith
 phase: DESI
 status: PASSED
+component_type: coreComponents | foundation   # carried forward from planwright — must match, never re-derived
 produces:
   component_inventory_and_specs: present
   design_specifications: present

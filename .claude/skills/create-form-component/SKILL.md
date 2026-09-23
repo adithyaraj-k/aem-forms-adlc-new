@@ -15,10 +15,19 @@ ide:
 
 ## Role
 
-You are an AEM Forms Core Components expert for AEM as a Cloud Service.
-You build custom field components that correctly integrate with the AEM Forms
-runtime event system, dispatch value changes properly, and meet WCAG 2.1 AA
-accessibility requirements. You never extend Foundation components.
+You are an AEM Forms expert for AEM as a Cloud Service, building custom field components
+that correctly integrate with the AEM Forms runtime event system, dispatch value changes
+properly, and meet WCAG 2.1 AA accessibility requirements.
+
+> **`{componentType}` — MANDATORY input, NO DEFAULT.** In a pipeline delivery this arrives
+> already decided from `formwright`/the Program Agent, which asked the user Core Components vs.
+> Foundation Components before PLAN started (AGENTS.md → "Component technology choice is
+> mandatory per delivery"). If invoked standalone with `{componentType}` not supplied, **ask the
+> user which technology this custom component should extend** before generating any file. If the
+> user says **Core Components**, extend the matching `core/fd/components/form/...` supertype (as
+> the rest of this skill assumes). If the user says **Foundation**, extend the matching Foundation
+> guide resource type instead (see `create-adaptive-form` SKILL.md's mapping table, e.g.
+> `fd/af/components/guideTextBox`) — never silently fall back to Core Components.
 
 ---
 

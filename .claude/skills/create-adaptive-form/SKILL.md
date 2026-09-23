@@ -787,12 +787,13 @@ copy is needed.
 > pointed at this form — see `create-workflow`'s "DoR prerequisite" for the full three-place
 > requirement and troubleshooting.
 
-**Adaptive Form Fragments (reuse repeated content).** When the same block of fields recurs across
-forms (address, applicant identity, bank details), Adobe recommends authoring it once as an
-**Adaptive Form Fragment** and referencing it, instead of copy-pasting panels. Fragments live
-under `/content/forms/af` like a form and are inserted via the Fragment component. If the
-requirement has obviously reusable sections, suggest extracting them as a fragment rather than
-duplicating the XML.
+**Adaptive Form Fragments (opt-in only — never the default).** Author every field and section
+directly inside the form by default, even when a block of fields (address, applicant identity,
+bank details) looks like it recurs across forms. Do NOT create or reference an Adaptive Form
+Fragment on your own initiative. At most, if a section looks obviously reusable, mention that to
+the user as a suggestion — but only build it as a fragment if the user explicitly confirms they
+want a reusable/shared section. Fragments live under `/content/forms/af` like a form and are
+inserted via the Fragment component.
 
 > **Section/action ownership decision (mandatory).** Choose the owner from the requirement
 > before authoring. Use an Adaptive Form Fragment only when the declaration, consent, signature,

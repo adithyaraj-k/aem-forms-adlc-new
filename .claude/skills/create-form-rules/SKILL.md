@@ -135,7 +135,7 @@ Always use these exact operator strings. No variations.
 
 ### Completion gate for direct sections
 
-When a delivery explicitly removes or does not require fragments, keep address, declaration, and the
+By default — fragments are opt-in, never automatic — keep address, declaration, and the
 single button row directly under the parent form; remove every `fragmentPath` reference. Do not declare
 the rule work complete merely because an `<fd:rules>` element exists. For every required validation and
 the Submit button, simulate DocView unescaping and JSON-parse the corresponding escaped `fd:*` value;

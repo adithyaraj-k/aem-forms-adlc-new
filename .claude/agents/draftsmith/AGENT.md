@@ -112,15 +112,15 @@ skills always produce; nothing about the deliverables changes.
    submission AND PDF/DoR generation fire only when all validation passes (invalid form → errors + NO
    PDF; valid form → submits + PDF), traced to a user story ("submission only succeeds when validation
    passes").
-3c. **Identify reusable sections as FRAGMENTS by default.** Any section that is generic and
-   repeatable/reusable within a form or across forms — address, contact / personal details, emergency
-   contact, declaration / consent, signature blocks and the like — MUST be specced as an **Adaptive Form
-   Fragment** (embedded by reference), NOT as inline fields, so it is authored once and reused. In the
-   Component Inventory mark each such section `source: fragment` and give it a **canonical, schema-agnostic
-   data shape** (e.g. `$.address.*`, `$.declaration.*`) so the same fragment binds across every consuming
-   form. PREFER reusing an existing project fragment when one already covers the section; only spec a new
-   fragment when none fits. A new form with an address / contact / declaration section and NO fragment
-   specced is a design gap — surface it, don't silently inline it.
+3c. **Author every section's fields directly in the form by default — fragments are opt-in only.**
+   Address, contact / personal details, emergency contact, declaration / consent, signature blocks and
+   the like are specced as **inline fields inside the form**, even when the section is generic or
+   would recur across forms. Do NOT spec a section `source: fragment`, and do NOT flag a "design gap"
+   for lack of one, unless the user has **explicitly** asked for a reusable/shared Adaptive Form
+   Fragment in this delivery. If the user has made that explicit request, then — and only then — mark
+   the section `source: fragment`, give it a **canonical, schema-agnostic data shape** (e.g.
+   `$.address.*`, `$.declaration.*`) so it binds across every consuming form, and prefer reusing an
+   existing project fragment over specing a new one.
 4. **Read PLAN outputs from the run directory; write DESI outputs back to the same run directory.**
 5. **Resolve missing UX/brand inputs before designing** — never fabricate a brand colour or layout.
 
@@ -223,7 +223,7 @@ produces:
   authoring_guideline: present
   test_cases: present
 custom_components_specced: 0
-fragments_specced: 0          # generic reusable sections (address/declaration/contact/emergency-contact/consent) → fragments; 0 ONLY if the form genuinely has no reusable section
+fragments_specced: 0          # 0 by default — every section is specced directly in the form; increment only when the user explicitly requested a reusable fragment
 theme: reuse | build
 template: reuse | build
 test_cases: 0

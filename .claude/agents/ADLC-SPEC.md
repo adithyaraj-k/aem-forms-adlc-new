@@ -170,7 +170,7 @@ Each specialist follows the same 9-field schema (Purpose, Responsibilities, Inpu
 ### 4.2 Draftsmith — Design stage
 
 - **Purpose.** Convert Planwright's plan (plus UX/brand inputs, or a captured URL/Figma style spec) into the design assets Formwright and Sentinel build/test against. **Design-only — never authors code.**
-- **Responsibilities.** Technical Design (`design-form-components`) then Test Design (`design-form-tests`). Specs every visual in a reference (separators, images, logos, icons — as authored DAM assets + AF Image components, never CSS backgrounds); maps theme to `--af-*` token overrides (never a new full stylesheet); flags every generic reusable section (address, contact, declaration, signature) as an Adaptive Form Fragment by default; designs a submit-gated-on-validation test case.
+- **Responsibilities.** Technical Design (`design-form-components`) then Test Design (`design-form-tests`). Specs every visual in a reference (separators, images, logos, icons — as authored DAM assets + AF Image components, never CSS backgrounds); maps theme to `--af-*` token overrides (never a new full stylesheet); specs every field and section (address, contact, declaration, signature) directly inside the form by default and flags a section as an Adaptive Form Fragment **only when the user explicitly requested a reusable fragment**; designs a submit-gated-on-validation test case.
 - **Inputs.** `plan/user-stories.yaml` + `plan/solution-architecture.yaml`; UX/brand inputs (or the PLAN-captured style spec for a URL/Figma replica).
 - **Outputs.** `design/draftsmith.md`, `design/component-design-spec.yaml`, `design/test-cases.yaml`.
 - **Tools / skills.** `Read, Write, Edit, Glob, Grep, Bash, PowerShell, Skill, WebFetch` + Figma MCP tools. Skills: `design-form-components`, `design-form-tests`.
@@ -181,12 +181,12 @@ Each specialist follows the same 9-field schema (Purpose, Responsibilities, Inpu
 
 ### 4.3 Formwright — Implement stage (build branch)
 
-- **Purpose.** Engineer the form's data foundation and reusable UI artifacts — schema/FDM, editable template, custom components, Adaptive Form Fragments, the form + its rules, theme, and clientlib — maximizing Core Component reuse. Also runs the URL/Figma-replica build path and delegates brownfield deliveries to `migrate-form`.
-- **Responsibilities.** Data foundation first (`generate-schema` or `create-fdm`), then (only the phases DESI marked needed) `create-editable-template`, `create-form-component`, `create-AdaptiveFormFragment`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib` / `create-form-theme`. Every form auto-wires the shared `assign-task-to-admin` workflow submit by default; every generic reusable section becomes a fragment by default; clientlibs split base (shared) vs form-specific; theme is a thin `:root` token override over the base clientlib's standard styling.
+- **Purpose.** Engineer the form's data foundation and reusable UI artifacts — schema/FDM, editable template, custom components, the form + its rules, theme, and clientlib, with every field authored directly inside the form — maximizing Core Component reuse. Also runs the URL/Figma-replica build path and delegates brownfield deliveries to `migrate-form`.
+- **Responsibilities.** Data foundation first (`generate-schema` or `create-fdm`), then (only the phases DESI marked needed) `create-editable-template`, `create-form-component`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib` / `create-form-theme`. Every form auto-wires the shared `assign-task-to-admin` workflow submit by default; every field and section is authored directly inside the form by default — `create-AdaptiveFormFragment` runs only when the user explicitly requested a reusable fragment; clientlibs split base (shared) vs form-specific; theme is a thin `:root` token override over the base clientlib's standard styling.
 - **Inputs.** `design/component-design-spec.yaml`, `design/test-cases.yaml`, `plan/solution-architecture.yaml`, `plan/user-stories.yaml`.
-- **Outputs.** Schema/FDM, template, components, fragments, the form itself, rules, clientlib, theme — plus `implementation/formwright.md` (and one `phaseNN-<skill>.md` per delegated skill).
-- **Tools / skills.** All tools. Skills: `generate-schema`, `create-fdm`, `create-editable-template`, `create-form-component`, `create-AdaptiveFormFragment`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib`, `create-form-theme`, `migrate-form`.
-- **Decision authority.** Core-Component-reuse-vs-custom (bounded by DESI's `source: custom` flag); template reuse-vs-new (with recorded justification); fragment reuse-vs-new.
+- **Outputs.** Schema/FDM, template, components, the form itself (fields authored directly), rules, clientlib, theme — plus any fragment the user explicitly requested — plus `implementation/formwright.md` (and one `phaseNN-<skill>.md` per delegated skill).
+- **Tools / skills.** All tools. Skills: `generate-schema`, `create-fdm`, `create-editable-template`, `create-form-component`, `create-adaptive-form`, `create-form-rules`, `create-form-clientlib`, `create-form-theme`, `migrate-form`, and `create-AdaptiveFormFragment` (opt-in, only on explicit user request).
+- **Decision authority.** Core-Component-reuse-vs-custom (bounded by DESI's `source: custom` flag); template reuse-vs-new (with recorded justification); fragment reuse-vs-new (only when explicitly requested by the user).
 - **Dependencies.** `draftsmith` (required).
 - **Validation criteria.** Every phase the plan marked needed ran and passed its own skill gate; every build-side user story satisfied (`user_stories_unsatisfied: 0`); zero-defect pre-handoff checklist confirmed (title component, required asterisks, submit gated on validation, multi-column layout, brand colours in the embedded page, date pickers, footer buttons); **author only — never runs `mvn`** (deployment centralized in `forgemaster`).
 - **Full contract.** `.claude/agents/formwright/AGENT.md`.
@@ -314,11 +314,12 @@ Each specialist follows the same 9-field schema (Purpose, Responsibilities, Inpu
                     ┌──────────────────────────┐
                     │        formwright        │   ◀── gate: zero-defect
                     │  (schema/FDM + template +│       pre-handoff checklist;
-                    │   component + fragment + │       every build-side user
-                    │   form + rules + theme + │       story satisfied
-                    │   clientlib; delegates to │
-                    │   migrate-form for        │
-                    │   brownfield)            │
+                    │   component + form (fields│       every build-side user
+                    │   authored directly) +   │       story satisfied
+                    │   rules + theme + clientlib;│
+                    │   delegates to migrate-form│
+                    │   for brownfield; fragment │
+                    │   only if explicit ask)   │
                     └────────────┬─────────────┘
                                  ▼
                     ┌──────────────────────────┐
@@ -396,7 +397,7 @@ Each specialist follows the same 9-field schema (Purpose, Responsibilities, Inpu
 |---|---|---|
 | `planwright` | Requirements discovery + user stories with acceptance criteria, solution architecture, schema-vs-FDM decision, template/theme reuse-first enumeration, URL/Figma field-inventory + style-spec capture. | §4.1 |
 | `draftsmith` | Component/dialog/test specs, `--af-*` token mapping, fragment-by-default flagging for reusable sections, submit-gated-on-validation test case design. **Markdown only.** | §4.2 |
-| `formwright` | Schema/FDM, editable templates, custom components, Adaptive Form Fragments, the form + rules + clientlib + theme, brownfield migration (via `migrate-form`), URL/Figma exact-replica build. | §4.3 |
+| `formwright` | Schema/FDM, editable templates, custom components, the form + rules + clientlib + theme with every field authored directly in the form (Adaptive Form Fragments only on explicit user request), brownfield migration (via `migrate-form`), URL/Figma exact-replica build. | §4.3 |
 | `groundsmith` | Prefill (DataProvider SPI), submit actions (REST/email/workflow/DoR PDF, always both OSGi service + JCR node), AEM Forms workflows, JUnit 5 tests for every Java class it authors. | §4.4 |
 | `assembler` | One narrow, deterministic edit: repoint the "Test Adaptive Form" page's single AEM Form Container at the new form (inline embed, host-page clientlib wiring). | §4.5 |
 | `forgemaster` | Single authoritative `mvn` build + deploy to the local SDK, deploy-integrity orphan sweep, workflow `/var` runtime generation, deployment-artifact manifest, Code Quality report. | §4.6 |

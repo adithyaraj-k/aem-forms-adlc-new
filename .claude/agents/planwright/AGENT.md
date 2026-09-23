@@ -112,6 +112,14 @@ those skills always produce; nothing about the deliverables changes.
    per-form theme/brand never justifies a new template). The ADLC plan must say
    `reuse:"<path>" (skip create-editable-template)` where one fits, and `create new template (reason)`
    only when none does. Record the decision.
+4b. **Adaptive Form Fragments are opt-in only — never scheduled by default.** Every field and section
+   (address, contact, declaration/consent, signature, and the like) is planned as authored directly
+   inside the form's `guideContainer`. Do NOT add a `create-AdaptiveFormFragment` phase to the
+   `adlc_execution_plan`, and do NOT flag a section as reusable/generic as grounds for one, unless the
+   user has **explicitly** asked for a reusable/shared fragment in this delivery — mirror this in the
+   `architect-form-solution` output you carry forward. If the user has made that explicit request,
+   record it in the plan so `draftsmith`/`formwright` can act on it; otherwise the plan carries zero
+   fragment phases.
 5. **NFRs are first-class** — accessibility, i18n, performance, security/PII (+ CAPTCHA on public
    forms), Document of Record, environments must each appear in the strategy.
 6. **Get user confirmation** of the consolidated plan before handing off for execution.
